@@ -3,13 +3,78 @@
 </ng-container>
 
 <ng-template #genericOrEmpty>
-  <gng-form-shell *ngIf="config; else notReady" [config]="config"></gng-form-shell>
+  <gng-form-shell *ngIf="config; else almSpecView" [config]="config"></gng-form-shell>
+</ng-template>
+
+<!-- فرمی که هنوز ساخته نشده: شناسنامه‌ی طراحی از ALM -->
+<ng-template #almSpecView>
+  <div class="gng-form-page__spec" *ngIf="spec as s; else notReady">
+    <div class="spec-head">
+      <div class="spec-head__titles">
+        <span class="spec-crumb">{{ s.form.subSystemTitle || s.form.subSystemCode }}<ng-container *ngIf="s.form.analysisDocumentTitle"> · {{ s.form.analysisDocumentTitle }}</ng-container></span>
+        <h1>{{ s.form.title }}</h1>
+        <div class="spec-chips">
+          <span class="spec-chip spec-chip--code">{{ s.form.code }}</span>
+          <span class="spec-chip" *ngIf="s.form.formTypeTitle || s.form.formTypeCode">{{ s.form.formTypeTitle || s.form.formTypeCode }}</span>
+          <span class="spec-chip" *ngIf="s.form.phaseTitle || s.form.phaseCode">مرحله: {{ s.form.phaseTitle || s.form.phaseCode }}</span>
+        </div>
+      </div>
+      <a class="spec-link" [routerLink]="['/alm/forms', s.form.code]" target="_blank"><i class="pi pi-external-link"></i> شناسنامه‌ی کامل در ALM</a>
+    </div>
+
+    <div class="spec-note">
+      <i class="pi pi-hourglass"></i>
+      <span>این فرم هنوز در «سیستم تولید پلاس» ساخته نشده است؛ آنچه می‌بینید طراحی ثبت‌شده‌ی آن در ALM است.</span>
+    </div>
+
+    <div class="spec-stats">
+      <div class="spec-stat"><span>فیچر</span><b>{{ fa(s.features.length) }}</b><small>{{ fa(started) }} شروع‌شده</small></div>
+      <div class="spec-stat"><span>تب</span><b>{{ fa(s.form.tabCount ?? tabs.length) }}</b></div>
+      <div class="spec-stat"><span>عملیات</span><b>{{ fa(s.actions.length || s.form.actionCount) }}</b></div>
+      <div class="spec-stat"><span>برآورد کل</span><b>{{ fa(s.form.totalEstimate) }}</b><small>نفر-روز</small></div>
+    </div>
+
+    <section *ngIf="tabs.length">
+      <h3>تب‌های طراحی‌شده</h3>
+      <div class="spec-tabs"><span *ngFor="let t of tabs; let i = index" class="spec-tab"><em>{{ fa(i + 1) }}</em>{{ t }}</span></div>
+    </section>
+
+    <section *ngIf="groups.length">
+      <h3>فیچرها</h3>
+      <div class="spec-groups">
+        <div class="spec-group" *ngFor="let g of groups">
+          <div class="spec-group__head" [ngClass]="'tone-' + g.tone">{{ g.title }} <span>{{ fa(g.features.length) }}</span></div>
+          <ul>
+            <li *ngFor="let f of g.features">
+              <span class="spec-fcode">{{ f.featureCode }}</span>
+              <span class="spec-ftitle">{{ f.title || f.requirement }}</span>
+              <span class="spec-fstatus" *ngIf="f.devStatusTitle" [style.background]="f.devStatusColor || null">{{ f.devStatusTitle }}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section *ngIf="s.actions.length">
+      <h3>عملیات فرم</h3>
+      <div class="spec-tabs"><span *ngFor="let a of s.actions" class="spec-tab">{{ a.title }}<em *ngIf="a.actionTypeTitle"> · {{ a.actionTypeTitle }}</em></span></div>
+    </section>
+
+    <section *ngIf="s.form.otherAccessGroupsText || s.form.note">
+      <h3>کاربران و یادداشت</h3>
+      <p *ngIf="s.form.otherAccessGroupsText" class="spec-text">{{ s.form.otherAccessGroupsText }}</p>
+      <p *ngIf="s.form.note" class="spec-text spec-text--muted">{{ s.form.note }}</p>
+    </section>
+  </div>
 </ng-template>
 
 <ng-template #notReady>
   <div class="gng-form-page__empty">
-    <i class="pi pi-hourglass"></i>
-    <h2>فرم «{{ requestedCode }}» هنوز در این حوزه ساخته نشده</h2>
-    <p>این آیتم منو به یک فرم واقعی در alm.Form وصل است، اما پروتوتایپ آن هنوز در نوبت ساخت قرار نگرفته.</p>
+    <i class="pi" [ngClass]="specLoading ? 'pi-spin pi-spinner' : 'pi-hourglass'"></i>
+    <h2 *ngIf="specLoading">در حال خواندن شناسنامه‌ی «{{ requestedCode }}» از ALM…</h2>
+    <ng-container *ngIf="!specLoading">
+      <h2>فرم «{{ requestedCode }}» هنوز در این حوزه ساخته نشده</h2>
+      <p>این آیتم منو به یک فرم واقعی در alm.Form وصل است، اما پروتوتایپ آن هنوز در نوبت ساخت قرار نگرفته.<ng-container *ngIf="specFailed"> شناسنامه‌ی آن هم از ALM خوانده نشد.</ng-container></p>
+    </ng-container>
   </div>
 </ng-template>
