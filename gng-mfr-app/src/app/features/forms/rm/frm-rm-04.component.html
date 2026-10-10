@@ -1,0 +1,252 @@
+<gng-opform-layout
+  domainTitle="مدیریت منابع"
+  title="شیفت و برنامه‌ی حضور"
+  code="FRM-RM-04"
+  formTypeLabel="فرم عملیاتی"
+  owner="منابع انسانی تولید / سرپرست خط"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-calendar"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="سلسله‌مراتب سازمانی و مکانی"
+  contextPanelHint="با انتخاب هر گره، خط یا ایستگاه، برنامه‌ی حضور و غیبت‌ها به گروه‌های کاری همان دامنه محدود می‌شوند."
+  auditFeatureRange="F-RM-024 تا F-RM-026 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-clock" label="تعریف الگو و چرخه" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-sync" label="تولید خودکار تقویم پرسنل" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-user-edit" label="ویرایش روزانه‌ی حضور" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="scopeLoading">
+    <!-- ───────── الگوی شیفت ───────── -->
+    <p-tabPanel header="الگوی شیفت">
+      <p class="gng-hint">الگوهای شیفت مشترک‌اند و به دامنه‌ی انتخاب وابسته نیستند. مدت خالص = مدت شیفت منهای استراحت بدون مزد.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="shiftsSource()"></gng-data-source-badge>
+        <p-table [value]="shifts" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 6rem">کد</th>
+              <th>شیفت</th>
+              <th style="width: 5rem">شروع</th>
+              <th style="width: 5rem">پایان</th>
+              <th>استراحت‌ها</th>
+              <th style="width: 8rem">مدت خالص</th>
+              <th style="width: 12rem">ویژگی</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-s>
+            <tr>
+              <td>{{ s.code }}</td>
+              <td><span class="gng-shift" [ngClass]="'gng-shift--' + s.tone">{{ s.title }}</span></td>
+              <td>{{ s.start }}</td>
+              <td>{{ s.end }}</td>
+              <td>{{ s.breaksText }}</td>
+              <td>{{ s.netText }}</td>
+              <td>
+                <p-tag *ngIf="s.crossesMidnight" value="گذر از نیمه‌شب" severity="info" styleClass="gng-mr-sm"></p-tag>
+                <p-tag *ngIf="s.isSplit" value="شیفت شکسته" severity="warning" styleClass="gng-mr-sm"></p-tag>
+                <span class="gng-text-muted" *ngIf="!s.crossesMidnight && !s.isSplit">—</span>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="7" class="gng-empty">الگوی شیفتی تعریف نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+
+      <ng-container *ngIf="shifts.length">
+        <h3 class="gng-section-title">نمای ۲۴ساعته</h3>
+        <ul class="gng-skill-legend">
+          <li><span class="gng-day__swatch gng-day__swatch--work"></span>زمان کار</li>
+          <li><span class="gng-day__swatch gng-day__swatch--paid"></span>استراحت با مزد</li>
+          <li><span class="gng-day__swatch gng-day__swatch--unpaid"></span>استراحت بدون مزد</li>
+        </ul>
+        <div class="gng-day">
+          <div class="gng-day__row gng-day__row--axis">
+            <span></span>
+            <div class="gng-day__track gng-day__track--axis">
+              <span *ngFor="let h of hours" class="gng-day__tick" [style.inset-inline-start.%]="(100 * h) / 24">{{ hourLabel(h) }}</span>
+            </div>
+          </div>
+          <div class="gng-day__row" *ngFor="let s of shifts">
+            <span class="gng-day__label">{{ s.title }}</span>
+            <div class="gng-day__track" role="img" [attr.aria-label]="s.title + ': ' + s.start + ' تا ' + s.end">
+              <span
+                *ngFor="let seg of s.segments"
+                class="gng-day__seg"
+                [ngClass]="['gng-day__seg--' + seg.kind, seg.kind === 'work' ? 'gng-shift--' + s.tone : '']"
+                [style.inset-inline-start.%]="seg.startPercent"
+                [style.width.%]="seg.widthPercent"
+                [title]="seg.hint"
+              ></span>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+    </p-tabPanel>
+
+    <!-- ───────── چرخه‌ی شیفت ───────── -->
+    <p-tabPanel header="چرخه‌ی شیفت">
+      <p class="gng-hint">هر چرخه توالی شیفت و استراحت را در یک دوره‌ی تکرارشونده تعریف می‌کند؛ تقویم گروه‌ها از روی آن ساخته می‌شود.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="rotationsSource()"></gng-data-source-badge>
+        <p class="gng-empty" *ngIf="!rotations.length">چرخه‌ای تعریف نشده است.</p>
+        <div class="gng-rotation" *ngFor="let r of rotations; trackBy: trackRotation">
+          <div class="gng-rotation__head">
+            <strong>{{ r.title }}</strong>
+            <span class="gng-text-muted">{{ r.code }} · دوره‌ی {{ fa(r.cycleDays) }} روزه · {{ fa(r.workDays) }} روز کار، {{ fa(r.cycleDays - r.workDays) }} روز استراحت</span>
+          </div>
+          <div class="gng-rotation__days">
+            <div class="gng-rotation__day" *ngFor="let d of r.days">
+              <span class="gng-rotation__no">روز {{ fa(d.dayNo) }}</span>
+              <span *ngIf="d.shift; else rest" class="gng-shift" [ngClass]="'gng-shift--' + d.shift.tone">{{ d.shift.title }}</span>
+              <ng-template #rest><span class="gng-shift gng-shift--rest">استراحت</span></ng-template>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="gng-section-title">تخصیص چرخه به گروه کاری</h3>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="assignmentsSource()"></gng-data-source-badge>
+        <p-table [value]="assignments" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>گروه کاری</th>
+              <th>چرخه</th>
+              <th style="width: 8rem">شروع</th>
+              <th style="width: 9rem">جابه‌جایی (روز)</th>
+              <th style="width: 12rem">روز چرخه در اول بازه</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-a>
+            <tr>
+              <td>{{ a.group }}</td>
+              <td>{{ a.rotation }}</td>
+              <td>{{ a.startDate }}</td>
+              <td>{{ fa(a.offsetDays) }}</td>
+              <td>{{ a.cycleDayText }}</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="5" class="gng-empty">در «{{ contextLabel }}» به هیچ گروه کاری چرخه‌ای تخصیص داده نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── برنامه‌ی حضور ───────── -->
+    <p-tabPanel header="برنامه‌ی حضور (Roster)" [selected]="true">
+      <div class="gng-window">
+        <button pButton type="button" icon="pi pi-angle-right" label="۱۴ روز قبل" class="p-button-text p-button-sm" (click)="moveWindow(-1)"></button>
+        <strong>{{ windowText }}</strong>
+        <button pButton type="button" icon="pi pi-angle-left" iconPos="right" label="۱۴ روز بعد" class="p-button-text p-button-sm" (click)="moveWindow(1)"></button>
+        <button pButton type="button" label="امروز" class="p-button-outlined p-button-sm" [disabled]="isCurrentWindow" (click)="goToday()"></button>
+      </div>
+
+      <p class="gng-empty" *ngIf="!roster.rows.length">در «{{ contextLabel }}» گروه کاری با چرخه‌ی شیفت نیست.</p>
+
+      <div *ngIf="roster.rows.length" style="position: relative; overflow-x: auto">
+        <gng-data-source-badge [source]="rosterSource()"></gng-data-source-badge>
+        <table class="gng-matrix gng-roster">
+          <thead>
+            <tr>
+              <th>گروه کاری \ روز</th>
+              <th *ngFor="let d of roster.days" [class.gng-roster__friday]="d.isFriday" [class.gng-roster__today]="d.isToday">
+                <div>{{ d.weekday }}</div>
+                <div class="gng-roster__date">{{ d.dayText }} {{ d.monthText }}</div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of roster.rows">
+              <th>{{ row.group }}</th>
+              <td *ngFor="let cell of row.cells; let i = index" [class.gng-roster__friday]="roster.days[i].isFriday">
+                <ng-container *ngIf="cell; else off">
+                  <span class="gng-shift" [ngClass]="'gng-shift--' + (cell.shift?.tone ?? 1)" [title]="cell.hint">{{ cell.shiftTitle }}</span>
+                  <div class="gng-roster__count" [class.gng-roster__count--short]="cell.shortage" [title]="cell.hint">
+                    <i class="pi pi-exclamation-triangle" *ngIf="cell.shortage"></i>
+                    <i class="pi pi-user-plus" *ngIf="!cell.shortage && cell.substitutes"></i>
+                    {{ fa(cell.available) }}/{{ fa(cell.planned) }}
+                  </div>
+                </ng-container>
+                <ng-template #off><span class="gng-text-muted" title="استراحت">—</span></ng-template>
+              </td>
+            </tr>
+            <tr>
+              <th>ظرفیت نفر در دسترس</th>
+              <td *ngFor="let t of roster.totals; let i = index" [class.gng-roster__friday]="roster.days[i].isFriday">
+                <ng-container *ngIf="t.percent !== null; else noShift">
+                  <strong [class.gng-roster__count--short]="t.percent < 100">{{ fa(t.percent) }}٪</strong>
+                </ng-container>
+                <ng-template #noShift><span class="gng-text-muted">—</span></ng-template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="gng-hint gng-mt-sm" *ngIf="roster.rows.length">
+        عدد زیر هر شیفت «حاضر / برنامه‌ای» است: عضو جاری گروه، منهای غایبان آن روز، به‌اضافه‌ی جایگزین‌ها. خط تیره یعنی روز
+        استراحت گروه.
+      </p>
+    </p-tabPanel>
+
+    <!-- ───────── غیبت و جایگزینی ───────── -->
+    <p-tabPanel header="غیبت و جایگزینی">
+      <p class="gng-hint">غیبت‌های ثبت‌شده در بازه‌ی {{ windowText }} برای نفرات گروه‌های این دامنه.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="absencesSource()"></gng-data-source-badge>
+        <p-table [value]="absences" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 7rem">تاریخ</th>
+              <th>پرسنل</th>
+              <th>گروه کاری</th>
+              <th style="width: 6rem">شیفت</th>
+              <th style="width: 9rem">نوع</th>
+              <th>جایگزین</th>
+              <th>توضیح</th>
+              <th style="width: 11rem">اثر بر ظرفیت</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-a>
+            <tr>
+              <td>{{ a.date }}</td>
+              <td>{{ a.person }}</td>
+              <td>{{ a.group }}</td>
+              <td>{{ a.shift }}</td>
+              <td><p-tag [value]="absenceLabel(a.type)" [severity]="absenceSeverity(a.type)"></p-tag></td>
+              <td>{{ a.substitute }}</td>
+              <td>{{ a.description }}</td>
+              <td><p-tag [value]="effectLabel(a.effect)" [severity]="effectSeverity(a.effect)"></p-tag></td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="8" class="gng-empty">در این بازه غیبتی برای «{{ contextLabel }}» ثبت نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+      <div class="gng-note gng-note--info gng-mt">
+        <strong>هنوز پیاده نشده:</strong> دریافت حضور و غیاب واقعی از سیستم HR و مقایسه با کارکرد ثبت‌شده در تولید (F-RM-027)
+        اولویت «مهم» و فاز ۳ دارد.
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="orgTreeSource()"></gng-data-source-badge>
+    <p-tree
+      [value]="orgTree"
+      styleClass="gng-tree"
+      selectionMode="single"
+      [(selection)]="selectedTreeNode"
+      (onNodeSelect)="onTreeSelect($event)"
+      (onNodeUnselect)="onTreeUnselect($event)"
+    ></p-tree>
+  </div>
+</gng-opform-layout>

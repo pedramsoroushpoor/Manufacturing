@@ -1,0 +1,177 @@
+<gng-opform-layout
+  domainTitle="مدیریت منابع"
+  title="مبانی هزینه‌یابی و ABC"
+  code="FRM-RM-09"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="کارشناس بهای تمام‌شده"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-sitemap"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  auditFeatureRange="F-RM-060 تا F-RM-064 (استثنای فاز اول به درخواست کاربر)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-plus" label="تعریف فعالیت و محرک" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-link" label="نگاشت محرک به کارکرد" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-percentage" label="تعریف ضریب تسهیم" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <!-- ───────── فعالیت ───────── -->
+    <p-tabPanel header="فعالیت">
+      <p class="gng-hint">
+        فعالیت موجودیت مستقل است و به عملیات تولید (کتابخانه‌ی عملیات) و منابع وصل می‌شود؛ مرکز هزینه از ایستگاه‌های همان منابع می‌آید.
+        سطح فعالیت مبنای سلسله‌مراتب ABC است: واحد، بچ، محصول، کارخانه.
+      </p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('rm09-activities', 'فعالیت‌ها')"></gng-data-source-badge>
+        <p-table [value]="activities" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 6rem">کد</th>
+              <th>فعالیت</th>
+              <th style="width: 7rem">سطح</th>
+              <th>عملیات</th>
+              <th>منابع</th>
+              <th style="width: 10rem">مرکز هزینه</th>
+              <th style="width: 5rem">محرک</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-a>
+            <tr [class.gng-text-muted]="!a.active">
+              <td>{{ a.code }}</td>
+              <td>{{ a.title }}<div *ngIf="a.description" class="gng-text-muted gng-small">{{ a.description }}</div></td>
+              <td>{{ a.level }}</td>
+              <td>{{ a.operations }}</td>
+              <td class="gng-small">{{ a.resources }}</td>
+              <td>{{ a.costCenters }}</td>
+              <td [class.gng-sym--warn]="!a.driverCount">{{ a.driverCount ? fa(a.driverCount) : 'ندارد' }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── محرک هزینه ───────── -->
+    <p-tabPanel header="محرک هزینه" [selected]="true">
+      <div class="gng-flow-header"><span>زنجیره‌ی مرکز هزینه ← فعالیت ← محرک</span></div>
+      <div class="gng-flow" *ngFor="let c of chain" style="margin-bottom: 0.4rem">
+        <div class="gng-flow-node gng-flow-node--neutral"><span class="gng-flow-node__label">{{ c.costCenters }}</span></div>
+        <i class="pi pi-arrow-left gng-flow-arrow"></i>
+        <div class="gng-flow-node gng-flow-node--alt"><span class="gng-flow-node__label">فعالیت: {{ c.activity }}</span></div>
+        <i class="pi pi-arrow-left gng-flow-arrow"></i>
+        <div class="gng-flow-node"><span class="gng-flow-node__label">{{ c.drivers }}</span></div>
+      </div>
+
+      <div style="position: relative" class="gng-mt">
+        <gng-data-source-badge [source]="ds('rm09-drivers', 'محرک‌ها')"></gng-data-source-badge>
+        <p-table [value]="drivers" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 8rem">کد</th>
+              <th>محرک</th>
+              <th>فعالیت</th>
+              <th>مبنا (کارکرد استاندارد)</th>
+              <th style="width: 6rem">گردآوری</th>
+              <th style="width: 12rem">رویداد ارسال به CO</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-d>
+            <tr>
+              <td>{{ d.code }}</td>
+              <td>{{ d.title }}<div *ngIf="d.description" class="gng-text-muted gng-small">{{ d.description }}</div></td>
+              <td>{{ d.activity }}</td>
+              <td>
+                {{ d.type }} <span class="gng-text-muted gng-small">({{ d.unit }})</span>
+                <div *ngIf="!d.typeAllowed" class="gng-sym--warn gng-small"><i class="pi pi-exclamation-triangle"></i> این کارکرد محرک هزینه‌ی مجاز نیست</div>
+              </td>
+              <td>{{ d.collection }}</td>
+              <td>
+                {{ d.event }}
+                <div class="gng-small" dir="ltr" style="text-align: right">{{ d.eventName }}</div>
+                <p-tag [value]="d.eventActive ? 'فعال' : 'طراحی‌شده'" [severity]="d.eventActive ? 'success' : 'secondary'"></p-tag>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+      <div class="gng-note gng-note--info gng-mt">
+        <strong>هنوز فعال نیست:</strong> گردآوری خودکار مقدار محرک هنگام ثبت گزارش تولید و ارسال رویدادی به سیستم بهای تمام‌شده
+        (F-RM-063) به گزارش تولید (FRM-PC-04) نیاز دارد؛ رویداد و لحظه‌ی گردآوری هر محرک از الان تعریف شده است.
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── نگاشت به کارکرد استاندارد ───────── -->
+    <p-tabPanel header="نگاشت به کارکرد استاندارد">
+      <p class="gng-hint">
+        هر نوع کارکرد استاندارد (FRM-RM-06) یا می‌تواند مبنای محرک هزینه باشد یا نه. کارکرد ثابت (مثل حجم مخزن) بُعد زمان ندارد و محرک نمی‌شود.
+      </p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('rm09-types', 'کارکردهای استاندارد')"></gng-data-source-badge>
+        <p-table [value]="capacityTypes" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 5rem">کد</th>
+              <th>نوع کارکرد</th>
+              <th style="width: 5rem">واحد</th>
+              <th style="width: 6rem">گردآوری</th>
+              <th style="width: 10rem">قابل استفاده به‌عنوان محرک</th>
+              <th>محرک‌های ساخته‌شده</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-t>
+            <tr [class.gng-text-muted]="!t.active">
+              <td>{{ t.code }}</td>
+              <td>{{ t.title }}</td>
+              <td>{{ t.unit }}</td>
+              <td>{{ t.collection }}</td>
+              <td>
+                <p-tag [value]="t.isCostDriver ? 'بله' : t.fixedBasis ? 'خیر (ثابت)' : 'خیر'" [severity]="t.isCostDriver ? 'success' : 'secondary'"></p-tag>
+              </td>
+              <td [class.gng-sym--warn]="t.misused">
+                <i *ngIf="t.misused" class="pi pi-exclamation-triangle"></i>
+                {{ t.drivers || '—' }}
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── تسهیم منبع مشترک ───────── -->
+    <p-tabPanel header="تسهیم منبع مشترک">
+      <p class="gng-hint">
+        منبعی که چند مرکز هزینه از آن استفاده می‌کنند — تجهیز، گروه منبع یا کارکرد/انرژی — با ضریب ثابت یا با مقدار واقعی یک محرک تسهیم
+        می‌شود. جمع ضرایب ثابت هر منبع باید ۱۰۰٪ باشد.
+      </p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('rm09-allocations', 'تسهیم منبع مشترک')"></gng-data-source-badge>
+        <p-table [value]="allocations" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th>منبع مشترک</th><th style="width: 8rem">نوع منبع</th><th>مراکز هزینه و مبنا</th><th style="width: 7rem">جمع</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-g>
+            <tr>
+              <td>{{ g.resource }}</td>
+              <td>{{ g.kind }}</td>
+              <td>
+                <div *ngFor="let l of g.lines" class="gng-small" style="margin: 0.15rem 0">
+                  <strong>{{ l.costCenter }}</strong> — {{ l.basis }}
+                  <span *ngIf="l.description" class="gng-text-muted"> ({{ l.description }})</span>
+                </div>
+              </td>
+              <td>
+                <ng-container *ngIf="g.method === 'actual'"><span class="gng-text-muted">بر مبنای مقدار واقعی</span></ng-container>
+                <ng-container *ngIf="g.method !== 'actual'">
+                  <p-tag [value]="fa(g.total ?? 0) + '٪'" [severity]="g.ok ? 'success' : 'danger'"></p-tag>
+                </ng-container>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+      <p class="gng-hint gng-mt-sm">مرکز هزینه فعلاً با عنوان متنی ثبت می‌شود (همان مرکز هزینه‌ی ایستگاه در FRM-RM-01)؛ با اتصال به سیستم بهای تمام‌شده به شناسه تبدیل می‌شود.</p>
+    </p-tabPanel>
+  </p-tabView>
+</gng-opform-layout>

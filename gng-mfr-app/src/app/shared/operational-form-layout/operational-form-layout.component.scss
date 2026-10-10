@@ -1,0 +1,230 @@
+.opform {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  max-width: 1320px;
+  margin: 0 auto;
+}
+
+.opform__breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--gng-text-muted);
+
+  i {
+    font-size: 0.65rem;
+  }
+}
+.opform__breadcrumb-current {
+  color: var(--gng-text);
+  font-weight: 500;
+}
+
+.opform__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  background: var(--gng-surface);
+  border: 1px solid var(--gng-border);
+  border-radius: var(--gng-radius);
+  box-shadow: var(--gng-shadow);
+  padding: 1.1rem 1.4rem;
+}
+
+.opform__context-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--gng-text-muted);
+  background: var(--gng-bg);
+  border: 1px solid var(--gng-border);
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  margin-bottom: 0.5rem;
+
+  i {
+    font-size: 0.7rem;
+  }
+}
+
+.opform__title-block h1 {
+  margin: 0 0 0.4rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--gng-text);
+}
+
+.opform__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.opform__code,
+.opform__badge,
+.opform__owner {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: var(--gng-bg);
+  border: 1px solid var(--gng-border);
+  color: var(--gng-text-muted);
+}
+
+.opform__code {
+  font-family: 'Courier New', monospace;
+  color: var(--gng-primary-dark);
+  border-color: var(--gng-primary-light);
+  background: rgba(247, 148, 29, 0.08);
+}
+
+.opform__toolbar {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+// ---------- banner (۴ لحن، مطابق ماک‌آپ‌ها) ----------
+.opform__banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border-radius: var(--gng-radius-sm);
+  padding: 0.6rem 1rem;
+  font-size: 0.82rem;
+  border: 1px solid transparent;
+
+  i {
+    font-size: 1rem;
+  }
+  span {
+    color: var(--gng-text);
+  }
+}
+.opform__banner--info {
+  background: rgba(46, 134, 222, 0.08);
+  border-color: rgba(46, 134, 222, 0.25);
+  i {
+    color: var(--gng-info);
+  }
+}
+.opform__banner--warning {
+  background: rgba(242, 177, 52, 0.12);
+  border-color: rgba(242, 177, 52, 0.35);
+  i {
+    color: var(--gng-warning);
+  }
+}
+.opform__banner--danger {
+  background: rgba(235, 87, 87, 0.1);
+  border-color: rgba(235, 87, 87, 0.3);
+  i {
+    color: var(--gng-danger);
+  }
+}
+.opform__banner--success {
+  background: rgba(39, 174, 96, 0.1);
+  border-color: rgba(39, 174, 96, 0.3);
+  i {
+    color: var(--gng-success);
+  }
+}
+
+// ---------- body: context panel + main ----------
+// قاعده‌ی کل سیستم: ترتیب خواندن و اجرا راست‌به‌چپ و بالا‌به‌پایین است. پنل
+// زمینه (درخت/فیلتر) نقطه‌ی شروع کار است، پس در سمت راست می‌نشیند و محتوای
+// اصلی در چپ آن؛ در صفحه‌ی باریک هم پنل بالای محتوا قرار می‌گیرد.
+.opform__body {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 0.9rem;
+  align-items: start;
+}
+.opform__body--single {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 900px) {
+  .opform__body {
+    grid-template-columns: 1fr;
+  }
+}
+
+.opform__main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.opform__context-panel {
+  order: -1;
+  background: var(--gng-surface);
+  border: 1px solid var(--gng-border);
+  border-radius: var(--gng-radius);
+  box-shadow: var(--gng-shadow);
+  padding: 1rem 1.1rem;
+
+  h3 {
+    margin: 0 0 0.35rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--gng-text);
+  }
+}
+
+.opform__context-hint {
+  margin: 0 0 0.7rem;
+  font-size: 0.75rem;
+  line-height: 1.7;
+  color: var(--gng-text-muted);
+}
+
+// ---------- audit footer ----------
+.opform__audit {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.75rem;
+  color: var(--gng-text-muted);
+  padding: 0 0.2rem;
+  flex-wrap: wrap;
+
+  a {
+    color: var(--gng-info);
+    text-decoration: none;
+    margin-inline-start: auto;
+  }
+}
+
+.opform__audit-sep {
+  opacity: 0.5;
+}
+
+/* کد فرم دکمه است: شناسنامه‌ی فرم در ALM را در تب جدا باز می‌کند. */
+button.opform__code {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  line-height: inherit;
+  transition: background 0.15s, border-color 0.15s;
+
+  i {
+    font-size: 0.62rem;
+  }
+  &:hover {
+    background: rgba(247, 148, 29, 0.18);
+    border-color: var(--gng-primary);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--gng-primary);
+    outline-offset: 2px;
+  }
+}

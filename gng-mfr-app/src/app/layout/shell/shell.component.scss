@@ -1,0 +1,82 @@
+.gng-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.gng-shell__sidebar {
+  width: var(--gng-sidebar-width);
+  background: var(--gng-dark-900);
+  border-inline-start: 1px solid var(--gng-dark-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 0.2s ease;
+}
+
+.gng-shell--collapsed .gng-shell__sidebar {
+  width: var(--gng-sidebar-collapsed-width);
+}
+
+.gng-shell--collapsed .gng-shell__brand {
+  justify-content: center;
+  padding: 0;
+}
+
+gng-sidebar-menu {
+  flex: 1;
+  min-height: 0;
+  display: block;
+  overflow-y: auto;
+}
+
+.gng-shell__brand {
+  height: var(--gng-topbar-height);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--gng-dark-border);
+}
+
+.gng-shell__brand-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--gng-radius-sm);
+  background: linear-gradient(135deg, var(--gng-primary), var(--gng-primary-dark));
+  color: #fff;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(247, 148, 29, 0.3);
+}
+
+// پیکر انتخاب سیستم (مدیریت تولید / برنامه‌ریزی تولید / بهای تمام‌شده / ...)
+// جایگزین متن ثابت قبلی «مدیریت تولید» — از سطح صفر alm.Menu پر می‌شود
+.gng-shell__system-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.gng-shell__brand-org {
+  color: #93a3b3;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.gng-shell__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.gng-shell__content {
+  flex: 1;
+  padding: 20px;
+}

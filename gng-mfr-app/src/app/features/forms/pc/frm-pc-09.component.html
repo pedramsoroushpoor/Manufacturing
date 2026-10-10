@@ -1,0 +1,278 @@
+<gng-opform-layout
+  domainTitle="کنترل تولید"
+  title="ضایعات، دوباره‌کاری و بازیافت"
+  code="FRM-PC-09"
+  formTypeLabel="فرم عملیاتی"
+  owner="کنترل کیفیت / برنامه‌ریز تولید"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-exclamation-triangle"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="دستورهای دارای نامنطبق"
+  contextPanelHint="دستورهای دارای مورد منتظر تصمیم بالاترند."
+  auditFeatureRange="F-PC-069، F-PC-072 تا F-PC-079"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-flag" label="ثبت تصمیم" class="p-button-sm p-button-danger"></button>
+    <button pButton type="button" icon="pi pi-refresh" label="صدور دستور دوباره‌کاری" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-replay" label="صدور دستور بازیافت" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-sort-amount-down" label="درجه‌بندی مجدد" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <div *ngIf="loading" class="gng-loading gng-hint">در حال خواندن خروجی‌های نامنطبق…</div>
+  <div *ngIf="loadFailed" class="gng-note gng-note--danger">داده خوانده نشد.</div>
+
+  <p-tabView styleClass="gng-tabs" *ngIf="!loading && !loadFailed">
+    <!-- ───────── تعیین تکلیف نامنطبق (069) ───────── -->
+    <p-tabPanel [header]="'تعیین تکلیف نامنطبق (' + faInt(pendingCount) + ' منتظر)'" [selected]="true">
+      <div class="gng-window">
+        <div class="chips"><span class="chip" *ngFor="let c of decisionChips" [class.chip--on]="decisionFilter === c.code" (click)="setDecision(c.code)">{{ c.label }}</span></div>
+        <span class="gng-small gng-text-muted" style="margin-inline-start: auto">کادر نارنجی = منتظر تصمیم · بنفش = نیاز به موافقت مشتری (مواد امانی)</span>
+      </div>
+      <div class="board" style="position: relative">
+        <gng-data-source-badge [source]="ds('pc09-dispositions', 'تعیین تکلیف')"></gng-data-source-badge>
+        <div class="lane" *ngFor="let l of lanes" [style.border-top-color]="NC_TYPE_COLOR[l.code]">
+          <h4>{{ l.label }} <span class="gng-text-muted">({{ faInt(l.items.length) }})</span></h4>
+          <div class="gng-small gng-text-muted">{{ l.qtyText }} · {{ faInt(l.cost) }} ریال<span *ngIf="l.pending" style="color: #b8791a"> · {{ faInt(l.pending) }} منتظر</span></div>
+          <div class="ncard" *ngFor="let d of l.items" [class.ncard--pending]="d.decision === 1 && !d.customerOwned" [class.ncard--consent]="needsConsent(d)">
+            <div class="gng-kpi__head"><span class="mono">{{ d.number }}</span><p-tag [value]="DECISION_STATUS[d.decision]" [severity]="decisionTone(d.decision)"></p-tag></div>
+            <div><b>{{ faNum(d.qty) }} {{ d.unit }}</b> — {{ d.wasteReason || d.reworkReason || NC_SOURCE[d.sourceType] }}</div>
+            <div class="gng-text-muted"><span class="mono">{{ d.wo }}</span>{{ d.opSeq ? ' · ' + faInt(d.opSeq) + ' ' + d.opTitle : '' }} · <span class="mono">{{ d.batch }}</span></div>
+            <div class="gng-text-muted">{{ NC_SOURCE[d.sourceType] }}{{ d.reportedAt ? ' · ' + faDateTime(d.reportedAt) : '' }}</div>
+            <div *ngIf="d.targetWo" style="color: var(--gng-primary)">← {{ d.targetWo }}</div>
+            <div *ngIf="d.regradeProduct" style="color: var(--gng-purple)">← {{ d.regradeProduct }}</div>
+            <div *ngIf="d.contractor">{{ d.contractor }} · {{ CONTRACTOR_DISPOSITION[d.contractorDisposition ?? 0] }}</div>
+            <div *ngIf="needsConsent(d)" style="color: var(--gng-purple)"><i class="pi pi-lock"></i> امانی {{ d.customer }} — موافقت مشتری لازم است</div>
+            <div *ngIf="d.decidedBy" class="gng-text-muted">{{ d.decidedBy }} · {{ faDateTime(d.decidedAt) }}</div>
+            <div *ngIf="d.note" class="gng-text-muted">{{ d.note }}</div>
+            <div class="gng-small">هزینه {{ faInt(d.cost) }}{{ d.recoveredValue ? ' · ارزش بازیافتی ' + faInt(d.recoveredValue) : '' }}</div>
+          </div>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── دستور دوباره‌کاری (072) + زنجیره (078) ───────── -->
+    <p-tabPanel [header]="'دستور دوباره‌کاری (' + faInt(reworkViews.length) + ')'">
+      <div *ngIf="!reworkViews.length" class="gng-empty">برای این دستور، دستور دوباره‌کاری نیست.</div>
+      <div class="gng-panel gng-mt-sm" *ngFor="let v of reworkViews" style="position: relative">
+        <gng-data-source-badge [source]="ds('pc09-rework', 'دستور دوباره‌کاری')"></gng-data-source-badge>
+        <h3><span class="mono">{{ v.o.number }}</span> <p-tag [value]="WO_STATUS[v.o.status]" severity="info"></p-tag></h3>
+        <div class="gng-field-grid">
+          <div class="gng-field"><span class="gng-field__label">مبنا</span><span class="gng-field__value"><span class="mono">{{ v.o.sourceWo || 'بدون مبنا' }}</span> ({{ WO_STATUS[v.o.sourceStatus ?? 0] || '—' }})</span></div>
+          <div class="gng-field"><span class="gng-field__label">بچ</span><span class="gng-field__value mono">{{ v.o.batch }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">مقدار</span><span class="gng-field__value">{{ faInt(v.o.qty) }} {{ v.o.unit }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">کالا</span><span class="gng-field__value">{{ v.o.product }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">شرح</span><span class="gng-field__value">{{ v.o.note }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">تأمین از</span><span class="gng-field__value"><span *ngFor="let f of v.feeds" class="mono">{{ f.number }} ({{ faInt(f.qty) }}) </span></span></div>
+        </div>
+        <h4 class="gng-mt">عملیات مبدا در برابر نگه‌داشته ({{ faInt(v.keptOps) }} از {{ faInt(v.ops.length) }})</h4>
+        <div class="ops">
+          <div class="op" *ngFor="let op of v.ops" [class.op--off]="!op.kept" [class.op--kept]="op.kept">
+            <i [class]="op.kept ? 'pi pi-check-circle' : 'pi pi-minus-circle'"></i>
+            <b>{{ faInt(op.seq) }}</b> {{ op.title }}
+            <span class="gng-small gng-text-muted" style="margin-inline-start: auto">مواد: {{ faInt(op.keptMaterials) }} از {{ faInt(op.sourceMaterials) }}</span>
+          </div>
+        </div>
+        <div *ngFor="let w of v.warnings" class="gng-note gng-note--warning gng-mt-sm">{{ w }}</div>
+      </div>
+
+      <h3 class="gng-mt">زنجیره‌ی دوباره‌کاری چندباره‌ی بچ</h3>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc09-chains', 'زنجیره‌ی دوباره‌کاری')"></gng-data-source-badge>
+        <div class="gng-panel gng-mt-sm" *ngFor="let g of chainGroups">
+          <div class="gng-kpi__head"><b class="mono">{{ g.batch }}</b><span>{{ g.product }} · سقف {{ faInt(g.rows[0].maxCycles) }} چرخه</span></div>
+          <div class="chain gng-mt-sm">
+            <span class="chain-node"><span class="mono">{{ g.rows[0].sourceWo }}</span><br /><small>تولید</small></span>
+            <ng-container *ngFor="let r of g.rows">
+              <i class="pi pi-arrow-left gng-text-muted"></i>
+              <span class="chain-node" [class.chain-node--over]="r.limit === 2" [class.chain-node--at]="r.limit === 1">
+                چرخه‌ی {{ faInt(r.cycle) }} · <span class="mono">{{ r.disposition }}</span><br />
+                {{ faInt(r.qty) }} · <p-tag [value]="DECISION_STATUS[r.decision]" [severity]="decisionTone(r.decision)"></p-tag>
+                <span *ngIf="r.targetWo"> ← <span class="mono">{{ r.targetWo }}</span></span><br />
+                <small class="gng-text-muted">{{ r.note }}</small>
+              </span>
+            </ng-container>
+          </div>
+          <div *ngIf="g.over" class="gng-note gng-note--danger gng-mt-sm">از سقف دوباره‌کاری فراتر می‌رود — به‌جای دوباره‌کاری، اسقاط یا تصمیم QA لازم است.</div>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── دستور بازیافت (073، 074) ───────── -->
+    <p-tabPanel [header]="'دستور بازیافت (' + faInt(recycleViews.length) + ')'">
+      <div class="gng-panel gng-mt-sm" *ngFor="let v of recycleViews" style="position: relative">
+        <gng-data-source-badge [source]="ds('pc09-rework', 'دستور بازیافت')"></gng-data-source-badge>
+        <h3><span class="mono">{{ v.o.number }}</span> <p-tag [value]="WO_STATUS[v.o.status]" severity="warning"></p-tag> <span class="gng-hint" style="display: inline">{{ v.o.note }}</span></h3>
+        <div class="chain">
+          <span class="chain-node"><span class="mono">{{ v.o.sourceWo }}</span> · <span class="mono">{{ v.o.sourceBatch }}</span><br /><small>دستور مبدا ({{ WO_STATUS[v.o.sourceStatus ?? 0] }})</small></span>
+          <i class="pi pi-arrow-left gng-text-muted"></i>
+          <span class="chain-node"><small>{{ faInt(v.feeds.length) }} تعیین تکلیف</small><br /><span *ngFor="let f of v.feeds" class="mono gng-small">{{ f.number }} </span></span>
+          <i class="pi pi-arrow-left gng-text-muted"></i>
+          <span class="chain-node"><span class="mono">{{ v.o.batch }}</span><br />{{ faNum(v.o.qty) }} {{ v.o.unit }} — {{ v.o.product }}</span>
+        </div>
+        <div class="gng-field-grid gng-mt">
+          <div class="gng-field"><span class="gng-field__label">کد بازیافت</span><span class="gng-field__value">{{ v.o.recoveredCode || '—' }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">حداقل خلوص</span><span class="gng-field__value">{{ faPct(v.o.minPurity) }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">سقف چرخه</span><span class="gng-field__value">{{ faInt(v.o.maxCycles) }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">تأیید QC الزامی</span><span class="gng-field__value">{{ v.o.requiresQc ? 'بله' : 'خیر' }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">حداکثر اختلاط در فرمول</span><span class="gng-field__value" [style.color]="v.o.maxMix === null ? 'var(--gng-danger)' : ''">{{ v.o.maxMix === null ? 'تعریف نشده' : faPct(v.o.maxMix) }}</span></div>
+        </div>
+        <div *ngFor="let w of v.warnings" class="gng-note gng-note--warning gng-mt-sm">{{ w }}</div>
+      </div>
+
+      <div class="gng-columns gng-mt">
+        <div class="gng-panel">
+          <h3>ماشین‌حساب بازگشت به فرمول</h3>
+          <div class="gng-window">
+            <p-dropdown [options]="mixBatchOptions" [(ngModel)]="mixBatch" styleClass="p-inputtext-sm"></p-dropdown>
+          </div>
+          <div class="gng-window">
+            <span>نیاز فرمول به این قلم</span><p-inputNumber [(ngModel)]="mixFormulaQty" [min]="1" inputStyleClass="p-inputtext-sm" [style]="{ width: '7rem' }"></p-inputNumber>
+            <span>مقدار بازیافتی</span><p-inputNumber [(ngModel)]="mixUseQty" [min]="0" inputStyleClass="p-inputtext-sm" [style]="{ width: '7rem' }"></p-inputNumber>
+          </div>
+          <div class="gng-kpi__head"><span>درصد اختلاط</span><b>{{ faPct(mixPct) }}</b></div>
+          <div class="gng-kpi__bar"><div class="gng-kpi__bar-fill" [ngClass]="mixVerdict.tone === 'danger' ? 'gng-kpi__bar-fill--danger' : mixVerdict.tone === 'warning' ? 'gng-kpi__bar-fill--warning' : ''" [style.width.%]="mixPct > 100 ? 100 : mixPct"></div></div>
+          <div class="gng-note gng-mt-sm" [ngClass]="'gng-note--' + mixVerdict.tone">{{ mixVerdict.text }}</div>
+        </div>
+        <div class="gng-panel" style="position: relative">
+          <gng-data-source-badge [source]="ds('pc09-rework', 'موجودی بازیافتی')"></gng-data-source-badge>
+          <h3>موجودی مواد بازیافتی/بازیابی‌شده و شرایط بازگشت</h3>
+          <table class="gng-table" style="width: 100%; font-size: .76rem">
+            <tr><th>بچ</th><th>موجودی</th><th>خلوص</th><th>چرخه</th><th>QC</th><th>انقضا</th><th>وضعیت</th></tr>
+            <tr *ngFor="let v of stock" [class.row-bad]="!v.ok">
+              <td><span class="mono">{{ v.s.batch }}</span><div class="gng-text-muted">{{ v.s.code }}</div></td>
+              <td>{{ faNum(v.s.onHand) }}</td>
+              <td>{{ faPct(v.s.purity) }} <small class="gng-text-muted">/ {{ faPct(v.s.minPurity) }}</small></td>
+              <td>{{ v.s.cycle === null ? '—' : faInt(v.s.cycle) }} / {{ faInt(v.s.maxCycles) }}</td>
+              <td>{{ STOCK_QC[v.s.qc ?? 0] || '—' }}</td>
+              <td>{{ faDay(v.s.expire) }}</td>
+              <td><p-tag [value]="v.ok ? (v.last ? 'آخرین چرخه' : 'قابل مصرف') : v.reasons.join('، ')" [severity]="stockTone(v)"></p-tag></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── گزارش اجرا (075) ───────── -->
+    <p-tabPanel [header]="'گزارش اجرا (' + faInt(reports.length) + ')'">
+      <p class="gng-hint">گزارش دوباره‌کاری/بازیافت همان فیلدهای گزارش تولید را دارد، به‌علاوه‌ی نشانه‌ی IsReprocess و مقادیر دوباره‌کاری.</p>
+      <div class="gng-panel gng-mt-sm" *ngFor="let r of reports" style="position: relative">
+        <gng-data-source-badge [source]="ds('pc09-rework', 'گزارش اجرا')"></gng-data-source-badge>
+        <h3><span class="mono">{{ r.number }}</span> <p-tag *ngIf="r.reprocess" value="IsReprocess" severity="warning"></p-tag> <span class="gng-hint" style="display: inline">{{ orderOf(r)?.number }} · عملیات {{ faInt(r.seq) }} · {{ faTime(r.start) }}–{{ faTime(r.end) }} · {{ r.by }}</span></h3>
+        <div class="gng-stat-grid">
+          <div class="gng-stat-card"><span class="gng-stat-card__label">وارد دوباره‌کاری</span><span class="gng-stat-card__value">{{ faInt(r.reworkQty) }}</span><span class="gng-stat-card__meta">از {{ faInt(orderOf(r)?.qty) }} دستور</span></div>
+          <div class="gng-stat-card gng-stat-card--success"><span class="gng-stat-card__label">سالم شد</span><span class="gng-stat-card__value">{{ faInt(r.reworkOk) }}</span><span class="gng-stat-card__meta">بازده {{ faPct(r.reworkQty ? (r.reworkOk * 100) / r.reworkQty : null) }}</span></div>
+          <div class="gng-stat-card gng-stat-card--danger"><span class="gng-stat-card__label">هنوز معیوب</span><span class="gng-stat-card__value">{{ faInt(r.reworkWaste) }}</span><span class="gng-stat-card__meta">← تعیین تکلیف جدید</span></div>
+          <div class="gng-stat-card gng-stat-card--warning"><span class="gng-stat-card__label">باقی‌مانده‌ی دستور</span><span class="gng-stat-card__value">{{ faInt((orderOf(r)?.qty ?? 0) - r.reworkQty) }}</span><span class="gng-stat-card__meta">هنوز بازرسی نشده</span></div>
+        </div>
+        <div class="bar gng-mt-sm">
+          <div [style.width.%]="(r.reworkOk * 100) / (orderOf(r)?.qty || 1)" style="background: var(--gng-success)"></div>
+          <div [style.width.%]="(r.reworkWaste * 100) / (orderOf(r)?.qty || 1)" style="background: var(--gng-danger)"></div>
+        </div>
+        <table class="gng-table gng-mt-sm" style="width: 100%; font-size: .78rem">
+          <tr><th>فیلد گزارش تولید</th><th>مقدار</th><th>فیلد دوباره‌کاری</th><th>مقدار</th></tr>
+          <tr><td>CompletedQuantity</td><td>{{ faInt(r.completed) }}</td><td>ReworkCompletedQuantity</td><td>{{ faInt(r.reworkOk) }}</td></tr>
+          <tr><td>WastedQuantity</td><td>{{ faInt(r.wasted) }}</td><td>ReworkWastedQuantity</td><td>{{ faInt(r.reworkWaste) }}</td></tr>
+          <tr><td>—</td><td>—</td><td>ReworkQuantity</td><td>{{ faInt(r.reworkQty) }}</td></tr>
+        </table>
+        <div class="gng-kpi__note gng-mt-sm">{{ r.note }}</div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── درجه‌بندی مجدد (076) ───────── -->
+    <p-tabPanel [header]="'درجه‌بندی مجدد (' + faInt(regrades.length) + ')'">
+      <div *ngIf="!regrades.length" class="gng-empty">درجه‌بندی مجددی برای این دستور ثبت نشده.</div>
+      <div class="gng-panel gng-mt-sm" *ngFor="let d of regrades" style="position: relative">
+        <gng-data-source-badge [source]="ds('pc09-dispositions', 'درجه‌بندی مجدد')"></gng-data-source-badge>
+        <div class="chain">
+          <span class="chain-node">{{ d.product }}<br /><span class="mono">{{ d.batch }}</span> · {{ faNum(d.qty) }} {{ d.unit }}</span>
+          <i class="pi pi-arrow-left gng-text-muted"></i>
+          <span class="chain-node" style="border-color: var(--gng-purple)">{{ d.regradeProduct }}<br /><small>{{ d.number }} · {{ DECISION_STATUS[d.decision] }}</small></span>
+        </div>
+        <div class="gng-stat-grid gng-mt">
+          <div class="gng-stat-card"><span class="gng-stat-card__label">بهای تمام‌شده‌ی اصلی</span><span class="gng-stat-card__value">{{ faInt(d.qty * d.unitCost) }}</span><span class="gng-stat-card__meta">{{ faInt(d.unitCost) }} ریال/{{ d.unit }}</span></div>
+          <div class="gng-stat-card gng-stat-card--success"><span class="gng-stat-card__label">ارزش در گرید جدید</span><span class="gng-stat-card__value">{{ faInt(d.recoveredValue) }}</span><span class="gng-stat-card__meta">{{ faInt(d.qty ? d.recoveredValue / d.qty : 0) }} ریال/{{ d.unit }}</span></div>
+          <div class="gng-stat-card gng-stat-card--danger"><span class="gng-stat-card__label">اثر بهای تمام‌شده (زیان)</span><span class="gng-stat-card__value">{{ faInt(d.cost) }}</span><span class="gng-stat-card__meta">{{ faPct(d.qty * d.unitCost ? (d.cost * 100) / (d.qty * d.unitCost) : null) }} کاهش ارزش</span></div>
+        </div>
+        <div class="gng-kpi__note gng-mt-sm">{{ d.note }} · {{ d.decidedBy }} {{ faDateTime(d.decidedAt) }}</div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── ضایعات پیمانکار (077) ───────── -->
+    <p-tabPanel [header]="'ضایعات پیمانکار (' + faInt(contractorRows.length) + ')'">
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc09-dispositions', 'ضایعات پیمانکار')"></gng-data-source-badge>
+        <p-table [value]="contractorRows" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th style="width: 8rem">شماره</th><th>پیمانکار</th><th style="width: 9rem">دستور / بچ</th><th style="width: 7rem">نوع</th><th style="width: 7rem">مقدار</th><th style="width: 10rem">تعیین تکلیف</th><th style="width: 9rem">هزینه</th><th style="width: 9rem">جریمه</th><th>شرح</th></tr></ng-template>
+          <ng-template pTemplate="body" let-d>
+            <tr>
+              <td class="mono">{{ d.number }}</td><td>{{ d.contractor }}</td><td><span class="mono">{{ d.wo }}</span><br /><span class="mono gng-small">{{ d.batch }}</span></td>
+              <td>{{ NC_TYPE[d.ncType] }}</td><td>{{ faInt(d.qty) }} {{ d.unit }}</td>
+              <td><p-tag [value]="CONTRACTOR_DISPOSITION[d.contractorDisposition] || '—'" [severity]="contractorTone(d.contractorDisposition)"></p-tag></td>
+              <td>{{ faInt(d.cost) }}</td><td [style.color]="d.penalty ? 'var(--gng-danger)' : ''">{{ faInt(d.penalty) }}</td><td class="gng-small">{{ d.note }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+      <div class="gng-panel gng-mt">
+        <h3>شبیه‌سازی حد مجاز قرارداد</h3>
+        <div class="gng-window">
+          <span>مقدار ارسالی</span><p-inputNumber [(ngModel)]="contractBase" [min]="0" inputStyleClass="p-inputtext-sm" [style]="{ width: '8rem' }"></p-inputNumber>
+          <span>ضایعات مجاز</span><b>{{ faPct(contractTol, 2) }}</b><p-slider [(ngModel)]="contractTol" [min]="0" [max]="2" [step]="0.05" [style]="{ width: '10rem' }"></p-slider>
+          <span>نرخ جریمه</span><p-inputNumber [(ngModel)]="penaltyRate" [min]="0" suffix="٪" inputStyleClass="p-inputtext-sm" [style]="{ width: '6rem' }"></p-inputNumber>
+        </div>
+        <div class="gng-stat-grid">
+          <div class="gng-stat-card"><span class="gng-stat-card__label">سقف مجاز</span><span class="gng-stat-card__value">{{ faInt(contractorSim.allowance) }}</span><span class="gng-stat-card__meta">قرص</span></div>
+          <div class="gng-stat-card"><span class="gng-stat-card__label">اسقاط اعلامی</span><span class="gng-stat-card__value">{{ faInt(contractorSim.scrap) }}</span><span class="gng-stat-card__meta">پذیرش {{ faInt(contractorSim.accepted) }}</span></div>
+          <div class="gng-stat-card gng-stat-card--danger"><span class="gng-stat-card__label">مازاد مشمول جریمه</span><span class="gng-stat-card__value">{{ faInt(contractorSim.excess) }}</span><span class="gng-stat-card__meta">جریمه {{ faInt(contractorSim.penalty) }} ریال</span></div>
+          <div class="gng-stat-card"><span class="gng-stat-card__label">برگشتی برای دوباره‌کاری</span><span class="gng-stat-card__value">{{ faInt(contractorSim.returned) }}</span><span class="gng-stat-card__meta">جریمه‌ی ثبت‌شده {{ faInt(contractorSim.recordedPenalty) }}</span></div>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── تحلیل COPQ (079) ───────── -->
+    <p-tabPanel header="تحلیل COPQ">
+      <div class="gng-stat-grid">
+        <div class="gng-stat-card gng-stat-card--danger"><span class="gng-stat-card__label">هزینه‌ی خالص کیفیت پایین</span><span class="gng-stat-card__value">{{ faNum(copqTotals.cost / 1000000, 1) }}</span><span class="gng-stat-card__meta">میلیون ریال · {{ faInt(copqTotals.cases) }} مورد</span></div>
+        <div class="gng-stat-card gng-stat-card--success"><span class="gng-stat-card__label">ارزش بازیافتی</span><span class="gng-stat-card__value">{{ faNum(copqTotals.recovered / 1000000, 1) }}</span><span class="gng-stat-card__meta">میلیون ریال</span></div>
+        <div class="gng-stat-card gng-stat-card--warning"><span class="gng-stat-card__label">جریمه‌ی دریافتنی پیمانکار</span><span class="gng-stat-card__value">{{ faNum(copqTotals.penalty / 1000000, 1) }}</span><span class="gng-stat-card__meta">میلیون ریال</span></div>
+      </div>
+      <div class="gng-window gng-mt">
+        <span>گروه‌بندی:</span>
+        <p-selectButton [options]="copqGroups" [(ngModel)]="copqGroup" (ngModelChange)="buildPareto()" optionLabel="label" optionValue="value" styleClass="p-button-sm"></p-selectButton>
+        <p-dropdown [options]="copqMeasures" [(ngModel)]="copqMeasure" (ngModelChange)="buildPareto()" styleClass="p-inputtext-sm"></p-dropdown>
+      </div>
+      <div class="gng-note gng-note--info">{{ faInt(paretoVital) }} گروه از {{ faInt(pareto.length) }} حدود ۸۰٪ هزینه را می‌سازند.</div>
+      <div style="position: relative" class="gng-mt-sm">
+        <gng-data-source-badge [source]="ds('pc09-copq', 'COPQ')"></gng-data-source-badge>
+        <table class="pareto" style="width: 100%">
+          <tr *ngFor="let b of pareto; let i = index" [style.opacity]="b.cum - b.pct < 80 ? 1 : 0.55">
+            <td style="width: 16rem">{{ b.key }} <span class="gng-text-muted gng-small">({{ faInt(b.cases) }})</span></td>
+            <td>
+              <div class="bar"><div [style.width.%]="b.width" [style.background]="b.value < 0 ? 'var(--gng-success)' : 'var(--gng-danger)'"></div></div>
+              <div class="cum" [style.width.%]="b.cum" [pTooltip]="'تجمعی ' + faPct(b.cum)"></div>
+            </td>
+            <td style="width: 8rem"><b>{{ faNum(b.value / 1000000, 2) }}</b> م.ر</td>
+            <td style="width: 5rem">{{ faPct(b.pct) }}</td>
+            <td style="width: 9rem" class="gng-small gng-text-muted">بازیافتی {{ faNum(b.recovered / 1000000, 2) }}{{ b.penalty ? ' · جریمه ' + faNum(b.penalty / 1000000, 2) : '' }}</td>
+          </tr>
+        </table>
+        <div class="gng-legend gng-mt-sm"><span><span class="gng-legend-dot gng-legend-dot--danger"></span> هزینه</span><span><span class="gng-legend-dot gng-legend-dot--info"></span> خط زیر هر میله = درصد تجمعی</span></div>
+      </div>
+      <div class="gng-note gng-note--info gng-mt"><strong>هنوز پیاده نشده.</strong> ثبت تصمیم تعیین تکلیف، صدور دستور دوباره‌کاری (با حذف اقلام/عملیات) و بازیافت، ثبت گزارش دوباره‌کاری، سند انبار درجه‌بندی مجدد، ثبت جریمه/بازگشت ضایعات پیمانکار و ارسال COPQ به بهای تمام‌شده با مرحله‌ی ایجاد/ویرایش می‌آید.</div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel>
+    <div class="wo-list">
+      <div class="wo-item" [class.wo-item--on]="selectedWoId === null" (click)="pickWo(null)"><b>همه</b><small>{{ faInt(dispositions.length) }} مورد نامنطبق</small></div>
+      <div class="wo-item" *ngFor="let w of woList" [class.wo-item--on]="selectedWoId === w.id" (click)="pickWo(w.id)">
+        <b class="mono">{{ w.wo }}</b>
+        <span *ngIf="w.pending" style="margin-inline-start: .3rem"><p-tag [value]="faInt(w.pending) + ' منتظر'" severity="warning"></p-tag></span>
+        <small>{{ w.line }} · {{ faInt(w.total) }} مورد</small>
+      </div>
+    </div>
+  </div>
+</gng-opform-layout>

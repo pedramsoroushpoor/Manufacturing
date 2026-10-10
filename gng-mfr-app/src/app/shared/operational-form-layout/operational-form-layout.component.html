@@ -1,0 +1,50 @@
+<div class="opform">
+  <nav class="opform__breadcrumb">
+    <span>مدیریت تولید</span>
+    <i class="pi pi-angle-left"></i>
+    <span>{{ domainTitle }}</span>
+    <i class="pi pi-angle-left"></i>
+    <span class="opform__breadcrumb-current">{{ title }}</span>
+  </nav>
+
+  <header class="opform__header">
+    <div class="opform__title-block">
+      <span class="opform__context-chip" *ngIf="contextLabel"><i [class]="contextIcon"></i>{{ contextLabel }}</span>
+      <h1>{{ title }}</h1>
+      <div class="opform__meta">
+        <gng-form-code-chip [code]="code"></gng-form-code-chip>
+        <span class="opform__badge">{{ formTypeLabel }}</span>
+        <span class="opform__owner">مالک: {{ owner }}</span>
+      </div>
+    </div>
+
+    <div class="opform__toolbar">
+      <ng-content select="[toolbar]"></ng-content>
+    </div>
+  </header>
+
+  <div class="opform__banner" [class]="'opform__banner--' + bannerTone" *ngIf="bannerText">
+    <i [class]="bannerIconClass"></i>
+    <span>{{ bannerText }}</span>
+  </div>
+
+  <div class="opform__body" [class.opform__body--single]="!hasContextPanel">
+    <section class="opform__main">
+      <ng-content></ng-content>
+    </section>
+
+    <aside class="opform__context-panel" *ngIf="hasContextPanel">
+      <h3>{{ contextPanelTitle }}</h3>
+      <p class="opform__context-hint" *ngIf="contextPanelHint">{{ contextPanelHint }}</p>
+      <ng-content select="[contextPanel]"></ng-content>
+    </aside>
+  </div>
+
+  <footer class="opform__audit">
+    <span *ngIf="auditFeatureRange">پوشش فیچر: {{ auditFeatureRange }}</span>
+    <span class="opform__audit-sep" *ngIf="auditFeatureRange">·</span>
+    <span>ثبت‌کننده: {{ auditRegisteredBy }}</span>
+    <span>تأییدکننده: {{ auditApprovedBy }}</span>
+    <a href="javascript:void(0)">تاریخچه و لاگ ممیزی</a>
+  </footer>
+</div>

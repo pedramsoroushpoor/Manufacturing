@@ -1,0 +1,118 @@
+<gng-opform-layout
+  domainTitle="چارچوب مشترک"
+  title="مدیریت نسخه، اعتبار و تغییر مهندسی"
+  code="FRM-PF-02"
+  formTypeLabel="کنسول تنظیمات"
+  owner="مدیر سیستم / پلتفرم"
+  contextLabel="BOM-ACT500"
+  contextIcon="pi pi-sitemap"
+  [bannerText]="bannerSuccess"
+  bannerTone="success"
+  [auditFeatureRange]="auditRange"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-cog" label="تعریف قواعد نسخه‌بندی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-arrows-h" label="مقایسه‌ی نسخه (Diff)" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="اجرای ECO با انتخاب سیستم — مدیر ECO" class="p-button-sm p-button-warning"></button>
+    <button pButton type="button" icon="pi pi-share-alt" label="سرویس تحلیل اثر سیستمی" class="p-button-outlined p-button-sm" [disabled]="true"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs">
+    <p-tabPanel header="تنظیمات نسخه و اعتبار">
+      <div class="gng-field-grid">
+        <div class="gng-field"><span class="gng-field__label">{{ statOpenEco.label }}</span><span class="gng-field__value">{{ statOpenEco.value }}</span></div>
+        <div class="gng-field"><span class="gng-field__label">{{ statActiveVersions.label }}</span><span class="gng-field__value">{{ statActiveVersions.value }}</span></div>
+      </div>
+      <h3 class="gng-mt">چرخه‌ی عمر نسخه</h3>
+      <div class="gng-mt-sm">
+        <p-tag *ngFor="let s of lifecycleStages" [value]="s.label" [severity]="s.tone" class="gng-mr-sm"></p-tag>
+      </div>
+      <ul class="gng-hint gng-mt-sm" style="margin:0.5rem 0 0; padding-inline-start: 1.2rem">
+        <li *ngFor="let r of lifecycleRules">{{ r }}</li>
+      </ul>
+    </p-tabPanel>
+
+    <p-tabPanel header="انواع Effectivity" [selected]="true">
+      <h3>خط زمانی اعتبار نسخه‌ها <span class="gng-hint" style="display:inline; margin:0">— هم‌زیستی چند نسخه‌ی فعال با شرط اعتبار متفاوت مجاز است</span></h3>
+      <div class="gng-timeline gng-mt-sm">
+        <div class="gng-timeline-track">
+          <div class="gng-timeline-today" [style]="'right: ' + timelineTodayPct + '%'">
+            <span class="gng-timeline-today__label">امروز</span>
+          </div>
+          <div *ngFor="let row of rows" style="display:flex">
+            <div *ngFor="let b of blocksInRow(row)" [class]="'gng-timeline-block gng-timeline-block--' + b.tone" [style]="blockStyle(b)">
+              {{ b.label }}
+            </div>
+          </div>
+        </div>
+        <div class="gng-timeline-axis">
+          <span *ngFor="let m of timelineMonths">{{ m }}</span>
+        </div>
+      </div>
+
+      <div class="gng-columns gng-mt">
+        <div>
+          <h3>چرخه‌ی عمر نسخه</h3>
+          <div class="gng-mt-sm"><p-tag *ngFor="let s of lifecycleStages" [value]="s.label" [severity]="s.tone" class="gng-mr-sm"></p-tag></div>
+          <ul class="gng-hint gng-mt-sm" style="margin:0.5rem 0 0; padding-inline-start: 1.2rem">
+            <li *ngFor="let r of lifecycleRules">{{ r }}</li>
+          </ul>
+
+          <h3 class="gng-mt">سیاست موجودی در جریان هنگام تغییر نسخه</h3>
+          <div class="gng-flag-list gng-mt-sm">
+            <div class="gng-flag-row" *ngFor="let w of wipPolicies">
+              <span class="gng-flag-row__label"><i class="pi" [ngClass]="w.selected ? 'pi-check-circle gng-sym--ok' : 'pi-circle gng-sym--warn'"></i>{{ w.label }}</span>
+            </div>
+          </div>
+
+          <div class="gng-field-grid gng-mt">
+            <div class="gng-field"><span class="gng-field__label">{{ statOpenEco.label }}</span><span class="gng-field__value">{{ statOpenEco.value }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">{{ statActiveVersions.label }}</span><span class="gng-field__value">{{ statActiveVersions.value }}</span></div>
+          </div>
+        </div>
+
+        <div>
+          <h3>انواع اعتبار (Effectivity)</h3>
+          <p-table [value]="effectivityTypes" styleClass="p-datatable-sm gng-table gng-mt-sm" responsiveLayout="scroll">
+            <ng-template pTemplate="header"><tr><th>نوع اعتبار</th><th>شرط فعال‌شدن</th><th>موجودیت‌های پشتیبانی‌شده</th><th>وضعیت</th></tr></ng-template>
+            <ng-template pTemplate="body" let-e>
+              <tr>
+                <td><b>{{ e.type }}</b></td>
+                <td>{{ e.condition }}</td>
+                <td class="gng-hint" style="margin:0">{{ e.entities }}</td>
+                <td><p-tag [value]="e.status" [severity]="e.status === 'فعال' ? 'success' : 'secondary'"></p-tag></td>
+              </tr>
+            </ng-template>
+          </p-table>
+
+          <h3 class="gng-mt">کامپوننت مقایسه‌ی نسخه (Diff) <span class="gng-hint" style="display:inline; margin:0">— در ساختار محصول، روش ساخت و نسخه تولید استفاده می‌شود</span></h3>
+          <p-table [value]="diffRows" styleClass="p-datatable-sm gng-table gng-mt-sm" responsiveLayout="scroll">
+            <ng-template pTemplate="header"><tr><th>ردیف</th><th>v3</th><th>v4</th><th>تغییر</th></tr></ng-template>
+            <ng-template pTemplate="body" let-d>
+              <tr>
+                <td>{{ d.index }}</td>
+                <td>{{ d.itemV3 }}</td>
+                <td>{{ d.itemV4 }}</td>
+                <td><p-tag [value]="d.changeDetail ? (d.change + ' ' + d.changeDetail) : d.change" [severity]="changeSeverity(d.change)"></p-tag></td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="چارچوب ECO">
+      <div class="gng-note gng-note--info">{{ ecoIndependentNote }}</div>
+      <div class="gng-note gng-note--warning gng-mt-sm">{{ impactAnalysisNote }}</div>
+      <div class="gng-note gng-note--success gng-mt-sm">{{ atomicNote }}</div>
+    </p-tabPanel>
+
+    <p-tabPanel header="سیاست موجودی در جریان">
+      <div class="gng-flag-list">
+        <div class="gng-flag-row" *ngFor="let w of wipPolicies">
+          <span class="gng-flag-row__label"><i class="pi" [ngClass]="w.selected ? 'pi-check-circle gng-sym--ok' : 'pi-circle gng-sym--warn'"></i>{{ w.label }}</span>
+        </div>
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+</gng-opform-layout>

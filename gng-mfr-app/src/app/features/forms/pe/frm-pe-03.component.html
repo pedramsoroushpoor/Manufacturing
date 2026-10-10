@@ -1,0 +1,142 @@
+<gng-opform-layout
+  domainTitle="مهندسی محصول"
+  title="گروه جایگزین و سیاست جایگزینی"
+  code="FRM-PE-03"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="مهندسی محصول / R&D"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-sync"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="گروه‌های جایگزین"
+  contextPanelHint="گروه جایگزین مستقل از ساختار تعریف می‌شود و چند ساختار می‌توانند از آن استفاده کنند."
+  auditFeatureRange="F-PE-027 تا F-PE-030 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-plus" label="تعریف گروه چند به چند" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-sort-numeric-down" label="تعیین اولویت و سیاست" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-percentage" label="تعیین درصد مجاز جایگزینی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-shield" label="الزام تأیید کیفی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <!-- ───────── گروه جایگزین ───────── -->
+    <p-tabPanel header="گروه جایگزین">
+      <p class="gng-hint">گروه جایگزین موجودیت مستقل است؛ هر ردیف ساختار که به گروه وصل شود، از همه‌ی گزینه‌های آن استفاده می‌کند.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pe03-groups', 'گروه‌ها')"></gng-data-source-badge>
+        <p-table [value]="visibleGroups" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th style="width: 6rem">کد</th><th>گروه</th><th>اقلام اصلی</th><th style="width: 7rem">جایگزین‌ها</th><th style="width: 9rem">سیاست</th><th style="width: 7rem">کاربرد</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-g>
+            <tr>
+              <td>{{ g.code }}</td>
+              <td>{{ g.title }}<div *ngIf="g.description" class="gng-text-muted gng-small">{{ g.description }}</div></td>
+              <td>{{ g.originals }}</td>
+              <td>{{ fa(g.optionCount) }} گزینه</td>
+              <td><p-tag [value]="g.combinable ? 'ترکیبی' : 'غیرترکیبی'" [severity]="g.combinable ? 'info' : 'secondary'"></p-tag></td>
+              <td [class.gng-text-muted]="!g.structureCount">{{ fa(g.structureCount) }} ساختار</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+
+      <h3 class="gng-section-title">ردیف‌های ساختار که از این گروه استفاده می‌کنند</h3>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pe03-usage', 'کاربرد گروه')"></gng-data-source-badge>
+        <p-table [value]="usage" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th style="width: 6rem">گروه</th><th>ساختار</th><th style="width: 5rem">نسخه</th><th>ردیف</th><th style="width: 9rem">سازگاری</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-u>
+            <tr>
+              <td>{{ u.groupCode }}</td>
+              <td>{{ u.structure }}</td>
+              <td>{{ u.revision }}</td>
+              <td>{{ u.item }}</td>
+              <td><p-tag [value]="u.consistent ? 'سازگار' : 'کالا در گروه نیست'" [severity]="u.consistent ? 'success' : 'danger'"></p-tag></td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="5" class="gng-empty">هیچ ردیفی به این گروه وصل نیست.</td></tr></ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── اقلام و نسبت تبدیل ───────── -->
+    <p-tabPanel header="اقلام و نسبت تبدیل" [selected]="true">
+      <p class="gng-hint">جایگزینی چند به چند: یک یا چند قلم به‌جای یک یا چند قلم، با نسبت تبدیل. مقادیر به‌ازای همان مقدار از اقلام اصلی است.</p>
+      <div style="display: flex; flex-direction: column; gap: 0.7rem; margin-bottom: 1.1rem">
+        <div class="gng-diagram" style="grid-template-columns: 1fr 7rem 1fr" *ngFor="let p of pairs">
+          <div class="gng-diagram-node gng-diagram-node--recovery">{{ p.substitute.summary }}<small>{{ p.group }} · {{ p.substitute.title }}</small></div>
+          <div class="gng-diagram-arrow" style="flex-direction: column; gap: 0.15rem">
+            <i class="pi pi-arrow-left"></i>
+            <strong style="font-size: 0.78rem; color: var(--gng-text)">اولویت {{ p.substitute.priority !== null ? fa(p.substitute.priority) : '—' }}</strong>
+          </div>
+          <div class="gng-diagram-node gng-diagram-node--source">{{ p.original.summary }}<small>اقلام اصلی</small></div>
+        </div>
+      </div>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pe03-options', 'گزینه‌ها و اقلام')"></gng-data-source-badge>
+        <p-table [value]="options" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th style="width: 6rem">گروه</th><th style="width: 9rem">گزینه</th><th>قلم</th><th style="width: 9rem">نسبت</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-o>
+            <tr *ngFor="let i of o.items; let first = first">
+              <td>{{ first ? o.groupCode : '' }}</td>
+              <td>{{ first ? o.title : '' }} <p-tag *ngIf="first && o.optionNo === 0" value="اصلی" severity="info" styleClass="gng-mr-sm"></p-tag></td>
+              <td>{{ i.product }} <span *ngIf="!i.hasRole" class="gng-sym--warn gng-small">— بدون نقش تولیدی</span></td>
+              <td>{{ i.quantity }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── اولویت ───────── -->
+    <p-tabPanel header="اولویت">
+      <p class="gng-hint">ترتیب مصرف جایگزین‌ها؛ اولویت کمتر زودتر. دو گزینه با اولویت یکسان در یک گروه ابهام دارد.</p>
+      <p-table [value]="substitutes" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th style="width: 6rem">گروه</th><th style="width: 6rem">اولویت</th><th>گزینه</th><th>اقلام</th><th>شرح</th></tr></ng-template>
+        <ng-template pTemplate="body" let-o>
+          <tr><td>{{ o.groupCode }}</td><td>{{ o.priority !== null ? fa(o.priority) : '—' }}</td><td>{{ o.title }}</td><td>{{ o.summary }}</td><td>{{ o.description }}</td></tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── سیاست ترکیبی ───────── -->
+    <p-tabPanel header="سیاست ترکیبی">
+      <p class="gng-hint">«ترکیبی» یعنی در یک بچ می‌توان بخشی را با یک گزینه و بخشی را با گزینه‌ی دیگر تأمین کرد؛ «غیرترکیبی» یعنی هر بچ فقط با یک گزینه.</p>
+      <p-table [value]="visibleGroups" styleClass="p-datatable-sm gng-table">
+        <ng-template pTemplate="header"><tr><th>گروه</th><th style="width: 10rem">سیاست</th><th>شرح</th></tr></ng-template>
+        <ng-template pTemplate="body" let-g>
+          <tr>
+            <td>{{ g.code }} — {{ g.title }}</td>
+            <td><p-tag [value]="g.combinable ? 'ترکیب مجاز' : 'ترکیب ممنوع'" [severity]="g.combinable ? 'info' : 'secondary'"></p-tag></td>
+            <td>{{ g.description || '—' }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <p-tabPanel header="محدوده‌ی مجاز">
+      <div class="gng-note gng-note--info">
+        <strong>هنوز پیاده نشده.</strong> درصد مجاز جایگزینی (F-PE-032) و پیشنهاد خودکار جایگزین بر مبنای موجودی، انقضا و اولویت (F-PE-031) اولویت «مهم» دارند.
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="الزام تأیید کیفی">
+      <div class="gng-note gng-note--info">
+        <strong>هنوز پیاده نشده.</strong> الزام تأیید کیفی برای فعال‌شدن جایگزینی در یک بچ خاص (F-PE-033) اولویت «مهم» دارد.
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="ds('pe03-groups', 'گروه‌ها')"></gng-data-source-badge>
+    <p-tree [value]="pickTree" styleClass="gng-tree" selectionMode="single" [(selection)]="selectedPick" (onNodeSelect)="onPick($event)" (onNodeUnselect)="onUnpick($event)"></p-tree>
+  </div>
+</gng-opform-layout>

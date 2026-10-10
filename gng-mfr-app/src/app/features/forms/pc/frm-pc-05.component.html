@@ -1,0 +1,302 @@
+<gng-opform-layout
+  domainTitle="کنترل تولید"
+  title="ترمینال کف کارگاه"
+  code="FRM-PC-05"
+  formTypeLabel="رابط اختصاصی"
+  owner="اپراتور — ایستگاه"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-desktop"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="ترمینال‌ها"
+  contextPanelHint="ترمینال لمسی هر ایستگاه؛ قرمز = آفلاین."
+  auditFeatureRange="F-PC-035 تا F-PC-040، F-PC-070، F-PC-071 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-play" label="شروع / پایان" class="p-button-sm p-button-success"></button>
+    <button pButton type="button" icon="pi pi-ban" label="ثبت توقف" class="p-button-outlined p-button-sm p-button-danger"></button>
+    <button pButton type="button" icon="pi pi-trash" label="ثبت ضایعات" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-sliders-h" label="ثبت پارامتر" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-verified" label="تأیید داده‌ی دستگاه" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-sync" label="همگام‌سازی" class="p-button-sm"></button>
+  </ng-container>
+
+  <!-- وضعیت همگام‌سازی ترمینال -->
+  <div *ngIf="terminal as t" class="sync" [ngClass]="t.online ? 'online' : 'offline'">
+    <i class="pi" [ngClass]="t.online ? 'pi-wifi' : 'pi-exclamation-triangle'" style="font-size: 1.8rem"></i>
+    <div>
+      <div class="big">{{ t.online ? 'آنلاین' : 'آفلاین — کار محلی' }}</div>
+      <div>{{ t.number }} · {{ t.name }} · {{ t.line }}</div>
+    </div>
+    <div *ngIf="!t.online">قطع از {{ faTime(t.lastSync) }} · <b style="font-variant-numeric: tabular-nums">{{ offlineFor }}</b></div>
+    <div *ngIf="t.online">آخرین همگام‌سازی {{ faTime(t.lastSync) }}</div>
+    <span class="pend" *ngIf="t.pending">{{ faInt(t.pending) }} رکورد در صف همگام‌سازی</span>
+    <span style="margin-inline-start: auto; font-size: .8rem">
+      داده‌ی دستگاه: {{ t.autoAccept ? 'پذیرش خودکار' : 'تأیید کاربر' }} · آستانه‌ی انحراف {{ t.threshold === null ? 'تعریف نشده' : faPct(t.threshold, 1) }}
+    </span>
+  </div>
+  <div *ngIf="terminal && !terminal.online" class="gng-note gng-note--warning" style="margin-bottom: .7rem">
+    {{ terminal.description }} — رکوردهای این ترمینال پس از اتصال به ترتیب زمان ثبت ارسال می‌شوند؛ تا آن زمان مقادیر کارتابل در سرور به‌روز نیستند.
+  </div>
+  <div *ngIf="overlap" class="gng-note gng-note--danger" style="margin-bottom: .7rem"><i class="pi pi-clone"></i> {{ overlap }}</div>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <!-- ───────── کارتابل اپراتور (F-PC-040) ───────── -->
+    <p-tabPanel [header]="'کارتابل اپراتور (' + faInt(queue.length) + ')'" [selected]="true">
+      <div class="gng-columns" style="grid-template-columns: 1fr 1.25fr">
+        <div class="gng-terminal" style="position: relative">
+          <gng-data-source-badge [source]="ds('pc05-queue', 'صف کار ترمینال')"></gng-data-source-badge>
+          <div class="gng-terminal-title" style="margin-bottom: .7rem">صف کار ایستگاه</div>
+          <div *ngFor="let q of queue" class="q-row" [class.sel]="q.opId === job?.opId" (click)="selectJob(q)">
+            <div class="bar" [style.background]="q.statusCode === 3 ? '#2e9e63' : q.statusCode === 4 ? '#eb5757' : '#f2b134'"></div>
+            <div>
+              <div class="q-title">{{ q.woNumber }} · {{ faInt(q.seq) }} {{ q.opTitle }}</div>
+              <div class="q-meta">{{ q.product }} · بچ {{ q.batch }} · {{ faNum(q.completed) }} از {{ faNum(q.toComplete) }} {{ q.unit }}</div>
+              <div class="q-meta" *ngIf="q.description">{{ q.description }}</div>
+            </div>
+            <div style="text-align: center">
+              <p-tag [value]="OP_STATUS[q.statusCode]" [severity]="opStatusTone(q.statusCode)"></p-tag>
+              <div class="gng-mt-sm"><p-tag [value]="PRIORITY[q.priority]" [severity]="priorityTone(q.priority)"></p-tag></div>
+            </div>
+          </div>
+          <div *ngIf="!queue.length" class="q-meta">کاری در صف این ترمینال نیست.</div>
+        </div>
+
+        <div class="gng-terminal" *ngIf="job as j">
+          <div class="gng-terminal-head">
+            <div>
+              <div class="gng-terminal-title">{{ j.woNumber }} — {{ j.opTitle }} ({{ j.opCode }})</div>
+              <div class="gng-terminal-meta">{{ j.product }} · بچ {{ j.batch }} · شروع {{ faDateTime(j.start) }}</div>
+            </div>
+            <p-tag [value]="OP_STATUS[j.statusCode]" [severity]="opStatusTone(j.statusCode)"></p-tag>
+          </div>
+          <div *ngIf="jobStop as s" class="stop-live" style="margin-bottom: .8rem">
+            <div><div style="font-size: .8rem; opacity: .8">توقف باز</div><div class="clock">{{ clock(s.start) }}</div></div>
+            <div><b>{{ s.code }} {{ s.title }}</b><div style="font-size: .8rem; opacity: .85">{{ s.description }} · از {{ faTime(s.start) }}</div></div>
+          </div>
+          <div class="gng-terminal-stats">
+            <div class="gng-terminal-stat"><div class="gng-terminal-stat__value">{{ faNum(j.toComplete) }}</div><div class="gng-terminal-stat__label">هدف ({{ j.unit }})</div></div>
+            <div class="gng-terminal-stat"><div class="gng-terminal-stat__value">{{ faNum(j.received) }}</div><div class="gng-terminal-stat__label">دریافتی</div></div>
+            <div class="gng-terminal-stat gng-terminal-stat--accent"><div class="gng-terminal-stat__value">{{ faNum(j.completed) }}</div><div class="gng-terminal-stat__label">سالم</div></div>
+            <div class="gng-terminal-stat gng-terminal-stat--danger"><div class="gng-terminal-stat__value">{{ faNum(j.wasted) }}</div><div class="gng-terminal-stat__label">ضایعات</div></div>
+          </div>
+          <div class="gng-terminal-progress"><div class="gng-terminal-progress__fill" [style.width.%]="jobProgress"></div></div>
+          <div class="gng-terminal-meta">
+            {{ faPct(jobProgress) }} · باقی‌مانده {{ faNum(jobRemaining) }} {{ j.unit }}
+            <span *ngIf="jobStdMinutes !== null"> · با نرخ استاندارد حدود {{ faDuration(jobStdMinutes) }} کار</span>
+            · برنامه {{ faDateTime(j.planStart) }} تا {{ faTime(j.planEnd) }}
+          </div>
+          <div class="gng-terminal-actions">
+            <div class="gng-terminal-btn gng-terminal-btn--success ghost-btn"><i class="pi pi-play"></i> شروع / ازسرگیری</div>
+            <div class="gng-terminal-btn gng-terminal-btn--danger ghost-btn"><i class="pi pi-pause"></i> توقف</div>
+            <div class="gng-terminal-btn gng-terminal-btn--danger ghost-btn"><i class="pi pi-trash"></i> ثبت ضایعات</div>
+            <div class="gng-terminal-btn ghost-btn"><i class="pi pi-sliders-h"></i> پارامتر</div>
+            <div class="gng-terminal-btn ghost-btn"><i class="pi pi-list-check"></i> چک‌لیست ({{ faInt(checksDone) }}/{{ faInt(checks.length) }})</div>
+            <div class="gng-terminal-btn ghost-btn"><i class="pi pi-book"></i> دستورالعمل</div>
+            <div class="gng-terminal-btn gng-terminal-btn--success ghost-btn" style="grid-column: span 2"><i class="pi pi-flag"></i> پایان عملیات و گزارش</div>
+          </div>
+          <div class="gng-terminal-meta gng-mt-sm">دکمه‌ها در فاز اول فقط پیش‌نمایش‌اند.</div>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── توقفات (F-PC-035) ───────── -->
+    <p-tabPanel [header]="'توقفات (' + faInt(stopRows.length) + ')'">
+      <div class="chips">
+        <span class="chip" [class.on]="stopScope === 'terminal'" (click)="setStopScope('terminal')">این ترمینال</span>
+        <span class="chip" [class.on]="stopScope === 'all'" (click)="setStopScope('all')">همه‌ی ایستگاه‌ها</span>
+      </div>
+      <div *ngFor="let s of stopRows">
+        <div *ngIf="s.active" class="stop-live" style="margin-bottom: .8rem">
+          <div><div style="font-size: .8rem; opacity: .8">زمان‌سنج توقف باز</div><div class="clock">{{ clock(s.start) }}</div></div>
+          <div>
+            <b>{{ s.code }} — {{ s.title }}</b>
+            <div style="font-size: .82rem; opacity: .85">{{ s.group }} · {{ s.oeeLoss }} ({{ oeeComp(s.oeeComponent) }}) · از {{ faTime(s.start) }} · {{ s.by }}</div>
+            <div style="font-size: .82rem">{{ s.description }}</div>
+          </div>
+        </div>
+      </div>
+
+      <h3>نوار وضعیت شیفت صبح (۰۶:۰۰ تا اکنون)</h3>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc05-stoppages', 'توقفات')"></gng-data-source-badge>
+        <div class="lane" *ngFor="let l of stopLanes">
+          <span>{{ l.q.woNumber }} · {{ faInt(l.q.seq) }} {{ l.q.opTitle }}</span>
+          <div class="strip">
+            <div *ngFor="let b of l.blocks" [style.right.%]="b.right" [style.width.%]="b.width" [style.background]="b.tone" [pTooltip]="b.tip" [style.opacity]="b.active ? 1 : 0.9"></div>
+          </div>
+          <span [style.color]="l.availability !== null && l.availability < 85 ? 'var(--gng-danger)' : ''">دسترس‌پذیری {{ faPct(l.availability, 0) }}</span>
+        </div>
+        <div class="lane" style="margin-top: -.3rem"><span></span>
+          <div style="position: relative; height: 1rem; font-size: .65rem; color: var(--gng-text-muted)"><span *ngFor="let t of stripTicks" style="position: absolute; transform: translateX(50%)" [style.right.%]="t.right">{{ t.label }}</span></div><span></span>
+        </div>
+        <div class="gng-legend"><span><i class="pi pi-circle-fill gng-legend-dot--success"></i> کار</span><span><i class="pi pi-circle-fill gng-legend-dot--danger"></i> توقف (دسترس‌پذیری)</span><span><i class="pi pi-circle-fill gng-legend-dot--warning"></i> توقف کوتاه (عملکرد)</span><span><i class="pi pi-circle-fill" style="color: var(--gng-text-muted)"></i> برنامه‌ای، خارج از OEE</span></div>
+      </div>
+
+      <div class="gng-columns gng-mt" style="grid-template-columns: 1fr 16rem">
+        <p-table [value]="stopRows" styleClass="p-datatable-sm gng-table">
+          <ng-template pTemplate="header"><tr><th>علت</th><th>گروه (درخت علل)</th><th>بازه</th><th>دقیقه</th><th>زیان OEE</th><th>تجهیز / منبع</th></tr></ng-template>
+          <ng-template pTemplate="body" let-s>
+            <tr [class.gng-row-active]="s.active">
+              <td>{{ s.code }} {{ s.title }}</td><td>{{ s.group }}</td>
+              <td>{{ faTime(s.start) }}–{{ s.end ? faTime(s.end) : 'باز' }}</td><td>{{ faInt(s.minutes) }}</td>
+              <td>
+                <p-tag *ngIf="s.excluded" value="خارج از OEE" severity="secondary"></p-tag>
+                <p-tag *ngIf="!s.excluded && !s.oeeLossCode" value="بدون نگاشت OEE" severity="danger"></p-tag>
+                <span *ngIf="!s.excluded && s.oeeLossCode">{{ s.oeeLoss }} · {{ oeeComp(s.oeeComponent) }}</span>
+              </td>
+              <td class="gng-small">{{ s.equipment || '—' }} · {{ REPORT_SOURCE[s.sourceCode] }}</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="6" class="gng-empty">توقفی ثبت نشده.</td></tr></ng-template>
+        </p-table>
+        <div class="gng-panel">
+          <h3>دقایق به تفکیک زیان</h3>
+          <div class="gng-kpi" *ngFor="let l of lossSummary" style="margin-bottom: .6rem">
+            <div class="gng-kpi__head"><span>{{ l.label }}</span><b>{{ faInt(l.minutes) }}</b></div>
+            <div class="gng-kpi__bar"><div class="gng-kpi__bar-fill" [ngClass]="'gng-kpi__bar-fill--' + l.tone" [style.width.%]="l.pct"></div></div>
+          </div>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── ضایعات (F-PC-070، 071) ───────── -->
+    <p-tabPanel header="ضایعات">
+      <div class="gng-stat-grid">
+        <div class="gng-stat-card gng-stat-card--warning"><div class="gng-stat-card__label">ضایعات راه‌اندازی</div><div class="gng-stat-card__value">{{ faNum(terminalWaste.setup) }}</div><div class="gng-stat-card__meta">{{ faPct(setupShare) }} از کل</div></div>
+        <div class="gng-stat-card gng-stat-card--danger"><div class="gng-stat-card__label">ضایعات فرایند</div><div class="gng-stat-card__value">{{ faNum(terminalWaste.process) }}</div></div>
+        <div class="gng-stat-card"><div class="gng-stat-card__label">ضایعات مواد (نه محصول)</div><div class="gng-stat-card__value">{{ faNum(terminalWaste.material) }}</div></div>
+      </div>
+      <div class="gng-stack-bar gng-mt-sm">
+        <div style="background: var(--gng-warning)" [style.width.%]="setupShare"></div>
+        <div style="background: var(--gng-danger)" [style.width.%]="100 - setupShare"></div>
+      </div>
+      <div style="position: relative" class="gng-mt">
+        <gng-data-source-badge [source]="ds('pc04-waste', 'ضایعات سطح عملیات')"></gng-data-source-badge>
+        <p-table [value]="terminalWaste.rows" styleClass="p-datatable-sm gng-table">
+          <ng-template pTemplate="header"><tr><th>دستور / عملیات</th><th>گروه علت</th><th>علت</th><th>مقدار</th><th>نوع</th></tr></ng-template>
+          <ng-template pTemplate="body" let-w>
+            <tr><td>{{ w.op }}</td><td>{{ w.parent }}</td><td>{{ w.reason }}</td><td>{{ faNum(w.qty) }}</td>
+              <td><p-tag [value]="w.setup ? 'راه‌اندازی' : 'فرایند'" [severity]="w.setup ? 'warning' : 'danger'"></p-tag> <p-tag *ngIf="w.material" value="مواد" severity="secondary"></p-tag></td></tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="5" class="gng-empty">{{ waste === null ? 'در حال خواندن…' : 'برای کارهای این ترمینال ضایعاتی ثبت نشده.' }}</td></tr></ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── پارامترهای فرایندی (F-PC-036) ───────── -->
+    <p-tabPanel header="پارامترهای فرایندی">
+      <div *ngIf="missingParams.length" class="gng-note gng-note--danger">
+        برای کار جاری ({{ job?.woNumber }} · {{ faInt(job?.seq) }}) هیچ خوانشی ثبت نشده، در حالی که همین عملیات استاندارد روی دستور دیگر این پارامترها را دارد: <b>{{ missingParams.join('، ') }}</b>
+      </div>
+      <div class="chips">
+        <span *ngFor="let p of params" class="chip" [class.on]="p === param" [class.bad]="p.outCount > 0" (click)="selectParam(p)">
+          {{ p.title }} <i *ngIf="p.critical" class="pi pi-shield" pTooltip="بحرانی"></i> {{ p.outCount ? '⚠ ' + faInt(p.outCount) : '' }}
+        </span>
+      </div>
+      <div *ngIf="!params.length" class="gng-empty">برای عملیات این ترمینال خوانش پارامتری ثبت نشده.</div>
+      <div *ngIf="param as p" style="position: relative">
+        <gng-data-source-badge [source]="ds('pc05-readings', 'خوانش پارامترها')"></gng-data-source-badge>
+        <div class="gng-field-grid">
+          <div class="gng-field"><span class="gng-field__label">محدوده / هدف</span><span class="gng-field__value">{{ faNum(p.min) }} تا {{ faNum(p.max) }} · هدف {{ faNum(p.target) }} {{ p.unit }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">آخرین خوانش</span><span class="gng-field__value">{{ faNum(p.last.value) }} {{ p.unit }} · {{ faTime(p.last.at) }} ({{ READING_SOURCE[p.last.sourceCode] }})</span></div>
+          <div class="gng-field"><span class="gng-field__label">اقدام در خروج از محدوده</span><span class="gng-field__value">{{ p.action }} <p-tag *ngIf="p.critical" value="بحرانی" severity="danger"></p-tag></span></div>
+        </div>
+        <svg class="cc gng-mt-sm" [attr.viewBox]="'0 0 ' + cc.w + ' ' + cc.h" preserveAspectRatio="none">
+          <rect x="16" [attr.y]="cc.band.y" [attr.width]="cc.w - 68" [attr.height]="cc.band.h" fill="var(--gng-success)" opacity="0.1"></rect>
+          <line x1="16" [attr.x2]="cc.w - 52" [attr.y1]="cc.maxY" [attr.y2]="cc.maxY" stroke="var(--gng-danger)" stroke-dasharray="5 4"></line>
+          <line x1="16" [attr.x2]="cc.w - 52" [attr.y1]="cc.minY" [attr.y2]="cc.minY" stroke="var(--gng-danger)" stroke-dasharray="5 4"></line>
+          <line x1="16" [attr.x2]="cc.w - 52" [attr.y1]="cc.targetY" [attr.y2]="cc.targetY" stroke="var(--gng-success)"></line>
+          <polyline [attr.points]="cc.line" fill="none" stroke="var(--gng-info)" stroke-width="2"></polyline>
+          <g *ngFor="let pt of cc.points">
+            <circle [attr.cx]="pt.x" [attr.cy]="pt.y" [attr.r]="pt.out ? 6 : 4" [attr.fill]="pt.out ? 'var(--gng-danger)' : 'var(--gng-info)'"><title>{{ pt.tip }}</title></circle>
+            <text *ngIf="pt.out" [attr.x]="pt.x" [attr.y]="pt.y - 10" font-size="11" font-weight="700" text-anchor="middle" fill="var(--gng-danger)">{{ pt.label }}</text>
+          </g>
+          <text *ngFor="let l of cc.yLabels" [attr.x]="cc.w - 4" [attr.y]="l.y + 3" font-size="9" text-anchor="end" direction="rtl" fill="var(--gng-text-muted)">{{ l.label }}</text>
+          <text *ngFor="let l of cc.xLabels" [attr.x]="l.x" [attr.y]="cc.h - 8" font-size="9" text-anchor="middle" fill="var(--gng-text-muted)">{{ l.label }}</text>
+        </svg>
+        <p-table [value]="p.rows" styleClass="p-datatable-sm gng-table gng-mt-sm">
+          <ng-template pTemplate="header"><tr><th>زمان</th><th>مقدار</th><th>منبع</th><th>وضعیت</th><th>توضیح</th></tr></ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr><td>{{ faTime(r.at) }}</td><td [style.color]="isOut(r) ? 'var(--gng-danger)' : ''" [style.font-weight]="isOut(r) ? 700 : 400">{{ faNum(r.value) }} {{ p.unit }}</td>
+              <td>{{ READING_SOURCE[r.sourceCode] }}</td><td><p-tag [value]="isOut(r) ? 'خارج از محدوده' : 'در محدوده'" [severity]="isOut(r) ? 'danger' : 'success'"></p-tag></td><td class="gng-small">{{ r.comment || '—' }}</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── دستورالعمل و چک‌لیست (F-PC-037) ───────── -->
+    <p-tabPanel [header]="'دستورالعمل و چک‌لیست (' + faInt(checksDone) + '/' + faInt(checks.length) + ')'">
+      <p class="gng-hint">برای کار انتخاب‌شده در کارتابل: {{ job?.woNumber }} · {{ faInt(job?.seq) }} {{ job?.opTitle }}</p>
+      <div *ngIf="checkIssues.length" class="gng-note gng-note--danger" style="margin-bottom: .7rem"><div *ngFor="let i of checkIssues">• {{ i }}</div></div>
+      <div class="gng-columns" style="grid-template-columns: 1fr 1fr; position: relative">
+        <gng-data-source-badge [source]="ds('pc05-checklist', 'دستورالعمل و چک‌لیست')"></gng-data-source-badge>
+        <div>
+          <h3>چک‌لیست کنترلی</h3>
+          <div *ngFor="let c of checks" class="check" [class.todo]="!c.done && c.isControl">
+            <i class="pi" [ngClass]="c.done ? 'pi-check-circle gng-sym--ok' : 'pi-circle gng-sym--no'"></i>
+            <div style="flex: 1">{{ c.description }}<div class="gng-small gng-text-muted">{{ c.done ? 'انجام ' + faTime(c.doneAt) + ' — ' + c.doneBy : 'انجام نشده' }}</div></div>
+            <p-tag *ngIf="c.isControl" value="کنترلی" severity="info"></p-tag>
+          </div>
+          <div *ngIf="!checks.length" class="gng-empty">چک‌لیستی برای این عملیات نیست.</div>
+        </div>
+        <div>
+          <h3>دستورالعمل‌ها</h3>
+          <div *ngFor="let d of docs" class="doc" [class.old]="d.superseded">
+            <i class="big" [ngClass]="media(d.mediaCode).icon"></i>
+            <div style="flex: 1">
+              <b>{{ d.instruction || d.description }}</b>
+              <div class="gng-small gng-text-muted">{{ d.doc }} · نسخه‌ی {{ faInt(d.rev) }} · {{ media(d.mediaCode).label }} · {{ d.file || '—' }}</div>
+              <div class="gng-small" *ngIf="d.instructionText">{{ d.instructionText }}</div>
+              <div class="gng-small" *ngIf="d.tools || d.uniforms"><i class="pi pi-wrench"></i> {{ d.tools || '—' }} · <i class="pi pi-user"></i> {{ d.uniforms || '—' }}</div>
+            </div>
+            <p-tag *ngIf="d.superseded" value="منسوخ" severity="danger"></p-tag>
+            <p-tag *ngIf="!d.superseded" [value]="d.done ? 'خوانده شد' : 'خوانده نشده'" [severity]="d.done ? 'success' : 'warning'"></p-tag>
+          </div>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── داده‌ی دستگاه (F-PC-038، 039) ───────── -->
+    <p-tabPanel [header]="'داده‌ی دستگاه (' + faInt(devices.length) + ')'">
+      <p class="gng-hint">اصل «دستگاه پیشنهاد می‌دهد، کاربر تأیید می‌کند». انحراف = |دستگاه − کاربر| ÷ دستگاه. بالاتر از آستانه‌ی ترمینال، توضیح انحراف الزامی است.</p>
+      <div class="chips">
+        <span class="chip" [class.on]="deviceScope === 'terminal'" (click)="setDeviceScope('terminal')">این ترمینال</span>
+        <span class="chip" [class.on]="deviceScope === 'all'" (click)="setDeviceScope('all')">همه (آستانه‌ی هر ترمینال)</span>
+      </div>
+      <div *ngIf="deviceScope === 'terminal'" class="gng-panel" style="max-width: 32rem; margin-bottom: .7rem">
+        <label class="gng-small">چه می‌شد اگر آستانه‌ی این ترمینال <b>{{ faPct(whatIfThreshold, 2) }}</b> بود؟ (تعریف‌شده: {{ terminal?.threshold === null ? '—' : faPct(terminal?.threshold, 1) }})</label>
+        <p-slider [(ngModel)]="whatIfThreshold" [min]="0.05" [max]="3" [step]="0.05" (ngModelChange)="buildDevices()" styleClass="gng-mt-sm"></p-slider>
+      </div>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc05-device', 'داده‌ی PLC')"></gng-data-source-badge>
+        <p-table [value]="devices" styleClass="p-datatable-sm gng-table">
+          <ng-template pTemplate="header"><tr><th>گزارش</th><th>قلم PLC</th><th>دستگاه</th><th>کاربر</th><th style="width: 10rem"></th><th>انحراف</th><th>وضعیت</th></tr></ng-template>
+          <ng-template pTemplate="body" let-v>
+            <tr [class.gng-row-active]="v.needsNote">
+              <td>{{ v.d.refNumber }}<div class="gng-small gng-text-muted">{{ faTime(v.d.from) }}–{{ faTime(v.d.to) }} · {{ v.terminal }}</div></td>
+              <td>{{ v.d.item }}<div class="gng-small gng-text-muted" style="direction: ltr; text-align: right">{{ v.d.tag }}</div></td>
+              <td>{{ faInt(v.d.result) }}</td><td>{{ faInt(v.d.userValue) }}</td>
+              <td><div class="dev-bars"><div style="background: var(--gng-teal)" [style.width.%]="devWidth(v.d.result, v.d)"></div><div style="background: var(--gng-info)" [style.width.%]="devWidth(v.d.userValue, v.d)"></div></div></td>
+              <td [style.color]="v.over ? 'var(--gng-danger)' : ''"><b>{{ faPct(v.d.deviation, 2) }}</b><div class="gng-small gng-text-muted">آستانه {{ v.threshold === null ? '—' : faPct(v.threshold, 2) }}</div></td>
+              <td><p-tag [value]="v.status" [severity]="v.tone"></p-tag><div class="gng-small" *ngIf="v.d.note">«{{ v.d.note }}»</div></td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="7" class="gng-empty">برای این ترمینال داده‌ی دستگاهی نیامده — «همه» را بزنید.</td></tr></ng-template>
+        </p-table>
+        <div class="gng-legend"><span><i class="pi pi-circle-fill" style="color: var(--gng-teal)"></i> شمارش دستگاه</span><span><i class="pi pi-circle-fill gng-legend-dot--info"></i> ورودی کاربر</span></div>
+      </div>
+      <div class="gng-note gng-note--info gng-mt"><strong>هنوز پیاده نشده.</strong> دکمه‌های شروع/توقف/ازسرگیری/پایان، ثبت توقف با درخت علل، ثبت ضایعات، ثبت پارامتر، تیک چک‌لیست، تأیید یا اصلاح داده‌ی پیشنهادی دستگاه با توضیح انحراف، و صف آفلاین و همگام‌سازی ترمینال — با فاز ایجاد/ویرایش می‌آیند.</div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="ds('pc05-terminals', 'ترمینال‌ها')"></gng-data-source-badge>
+    <div *ngFor="let t of data?.terminals" class="trm-tile" [class.sel]="t.id === terminal?.id" [class.off]="!t.online" (click)="selectTerminal(t)">
+      <div class="gng-flag-row"><b><span class="dot" [ngClass]="t.online ? 'on' : 'offl'"></span>{{ t.number }}</b><p-tag *ngIf="t.pending" [value]="faInt(t.pending) + ' در صف'" severity="danger"></p-tag></div>
+      <div class="gng-small">{{ t.station }}</div>
+      <div class="gng-small gng-text-muted">{{ t.line }} · همگام {{ faTime(t.lastSync) }}{{ activeStopsOf(t.id).length ? ' · توقف باز' : '' }}</div>
+    </div>
+  </div>
+</gng-opform-layout>

@@ -1,0 +1,338 @@
+<gng-opform-layout
+  domainTitle="مدیریت منابع"
+  title="کارکرد استاندارد و ظرفیت"
+  code="FRM-RM-06"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="مهندسی تولید"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-chart-bar"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="سلسله‌مراتب سازمانی و مکانی"
+  contextPanelHint="با انتخاب هر گره، خط یا ایستگاه، ظرفیت‌ها، نرخ‌ها و نمای بار به منابع همان دامنه محدود می‌شوند. ظرفیت گروه منبع با هر عضوش نمایش داده می‌شود."
+  auditFeatureRange="F-RM-038 تا F-RM-042، F-RM-044، F-RM-046 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-plus" label="تعریف نوع کارکرد پویا" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-sliders-h" label="ثبت ظرفیت و اعتبار" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-link" label="تعریف محدودیت متقابل منابع" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-thumbs-up" label="پذیرش پیشنهاد اصلاح استاندارد" class="p-button-outlined p-button-sm p-button-danger"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <ng-template #windowNav>
+    <div class="gng-window">
+      <button pButton type="button" icon="pi pi-angle-right" label="۱۴ روز قبل" class="p-button-text p-button-sm" (click)="moveWindow(-1)"></button>
+      <strong>{{ windowText }}</strong>
+      <button pButton type="button" icon="pi pi-angle-left" iconPos="right" label="۱۴ روز بعد" class="p-button-text p-button-sm" (click)="moveWindow(1)"></button>
+      <button pButton type="button" label="امروز" class="p-button-outlined p-button-sm" [disabled]="isCurrentWindow" (click)="goToday()"></button>
+    </div>
+  </ng-template>
+
+  <ng-template #resourceCell let-r>
+    {{ r.resource }}
+    <div class="gng-text-muted gng-small">{{ r.line }}</div>
+  </ng-template>
+
+  <ng-template #statusTag let-s>
+    <p-tag [value]="versionLabel(s)" [severity]="s === 'future' ? 'info' : 'success'"></p-tag>
+  </ng-template>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="scopeLoading">
+    <!-- ───────── انواع کارکرد ───────── -->
+    <p-tabPanel header="انواع کارکرد">
+      <p class="gng-hint">
+        انواع کارکرد را کاربر تعریف می‌کند — نه فقط نفرساعت و ماشین‌ساعت. هر نوع واحد، مبنای اندازه‌گیری و روش گردآوری خودش را دارد.
+        این فهرست بین همه‌ی منابع مشترک است.
+      </p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="typesSource()"></gng-data-source-badge>
+        <p-table [value]="types" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 5rem">کد</th>
+              <th>نوع کارکرد</th>
+              <th style="width: 5rem">واحد</th>
+              <th style="width: 8rem">مبنای اندازه‌گیری</th>
+              <th style="width: 7rem">روش گردآوری</th>
+              <th>منبع / فرمول</th>
+              <th style="width: 7rem">کاربرد</th>
+              <th style="width: 6rem">وضعیت</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-t>
+            <tr [class.gng-text-muted]="!t.active">
+              <td>{{ t.code }}</td>
+              <td>
+                {{ t.title }}
+                <p-tag *ngIf="t.builtIn" value="پایه" severity="secondary" styleClass="gng-mr-sm" [title]="'جانشین فیلد ثابت ' + t.legacy + ' نسخه‌ی قبل'"></p-tag>
+              </td>
+              <td>{{ t.unit }}</td>
+              <td>{{ t.basis }}</td>
+              <td>{{ t.collection }}</td>
+              <td>{{ t.collectionDetail }}</td>
+              <td>{{ fa(t.resourceCount) }} منبع<span *ngIf="t.rateCount"> · {{ fa(t.rateCount) }} نرخ</span></td>
+              <td><p-tag [value]="t.active ? 'فعال' : 'غیرفعال'" [severity]="t.active ? 'success' : 'secondary'"></p-tag></td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="8" class="gng-empty">نوع کارکردی تعریف نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+      <div class="gng-note gng-note--info gng-mt">
+        <strong>مبنای اندازه‌گیری:</strong> «زمان‌محور» یعنی ظرفیت = تعداد واحد هم‌زمان × ساعت در دسترس؛ «نرخی» یعنی مقدار در هر ساعت
+        (انرژی، بخار، ضربه)؛ «ثابت» یعنی مقدار فیزیکی بدون بُعد زمان (حجم مخزن، مساحت) که در نمای بار نمی‌آید.
+        <strong>هنوز پیاده نشده:</strong> مقایسه‌ی کارکرد واقعی با استاندارد و پیشنهاد اصلاح با گردش تأیید (F-RM-045، مهم، فاز ۳) —
+        به گزارش تولید نیاز دارد.
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── ظرفیت منبع ───────── -->
+    <p-tabPanel header="ظرفیت منبع">
+      <p class="gng-hint">
+        ظرفیت هر نوع کارکرد به‌ازای ایستگاه یا گروه منبع، با تاریخ اعتبار. «جاری» نسبت به ابتدای بازه‌ی {{ windowText }} سنجیده می‌شود؛
+        نسخه‌های «آینده» از تاریخ اعتبارشان در نمای بار اثر می‌کنند.
+      </p>
+      <p class="gng-note gng-note--info gng-mb-sm" *ngIf="isStationScope">
+        ظرفیتی که روی گروه منبعِ این ایستگاه تعریف شده هم نمایش داده می‌شود، چون بین اعضای گروه مشترک است.
+      </p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="capacitiesSource()"></gng-data-source-badge>
+        <p-table [value]="capacities" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>منبع</th>
+              <th>نوع کارکرد</th>
+              <th style="width: 8rem">مبنا</th>
+              <th style="width: 10rem">مقدار تعریف‌شده</th>
+              <th style="width: 11rem">ظرفیت مؤثر</th>
+              <th style="width: 12rem">اعتبار</th>
+              <th style="width: 5rem">نسخه</th>
+              <th>علت تغییر</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-c>
+            <tr>
+              <td><ng-container *ngTemplateOutlet="resourceCell; context: { $implicit: c }"></ng-container></td>
+              <td>{{ c.type }}</td>
+              <td>{{ c.basis }}</td>
+              <td>{{ c.defined }}</td>
+              <td>{{ c.effective }}</td>
+              <td>{{ c.validity }}</td>
+              <td><ng-container *ngTemplateOutlet="statusTag; context: { $implicit: c.status }"></ng-container></td>
+              <td>{{ c.reason }}</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="8" class="gng-empty">برای منابع «{{ contextLabel }}» ظرفیتی تعریف نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+      <p class="gng-hint gng-mt-sm">
+        ظرفیت مؤثر در ساعت = (تعداد در دسترس | نرخ) × درصد در دسترس‌بودن × درصد بهره‌وری — همان فرمول MachineCapacity نسخه‌ی قبل.
+      </p>
+    </p-tabPanel>
+
+    <!-- ───────── در دسترس‌بودن ───────── -->
+    <p-tabPanel header="در دسترس‌بودن">
+      <p class="gng-hint">درصد در دسترس‌بودن، تعداد در دسترس و توقف استاندارد، به تفکیک نوع کارکرد. توقف استاندارد از زمان هر شیفت کم می‌شود.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="availabilitySource()"></gng-data-source-badge>
+        <p-table [value]="availability" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>منبع</th>
+              <th>نوع کارکرد</th>
+              <th style="width: 8rem">تعداد در دسترس</th>
+              <th style="width: 8rem">در دسترس‌بودن</th>
+              <th style="width: 7rem">بهره‌وری</th>
+              <th style="width: 11rem">توقف استاندارد</th>
+              <th style="width: 5rem">نسخه</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-a>
+            <tr>
+              <td><ng-container *ngTemplateOutlet="resourceCell; context: { $implicit: a }"></ng-container></td>
+              <td>{{ a.type }}</td>
+              <td [class.gng-roster__count--short]="a.short">{{ a.count }}</td>
+              <td>{{ a.availPercent }}</td>
+              <td>{{ a.productivityPercent }}</td>
+              <td>{{ a.downtime }}</td>
+              <td><ng-container *ngTemplateOutlet="statusTag; context: { $implicit: a.status }"></ng-container></td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="7" class="gng-empty">برای منابع «{{ contextLabel }}» ظرفیتی تعریف نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── ظرفیت وابسته به محصول ───────── -->
+    <p-tabPanel header="ظرفیت وابسته به محصول">
+      <p class="gng-hint">نرخ تولید منبع بسته به محصول یا گروه محصول فرق می‌کند. نرخ مؤثر = نرخ اسمی × ضریب کارایی.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="productRatesSource()"></gng-data-source-badge>
+        <p-table [value]="productRates" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>منبع</th>
+              <th>محصول / گروه محصول</th>
+              <th style="width: 11rem">نرخ اسمی</th>
+              <th style="width: 6rem">ضریب کارایی</th>
+              <th style="width: 11rem">نرخ مؤثر</th>
+              <th style="width: 12rem">اعتبار</th>
+              <th style="width: 5rem">نسخه</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-p>
+            <tr>
+              <td><ng-container *ngTemplateOutlet="resourceCell; context: { $implicit: p }"></ng-container></td>
+              <td>
+                {{ p.product }}
+                <p-tag *ngIf="p.isProductGroup" value="گروه محصول" severity="info" styleClass="gng-mr-sm"></p-tag>
+              </td>
+              <td>{{ p.rate }}</td>
+              <td>{{ p.efficiency }}</td>
+              <td>{{ p.effectiveRate }}</td>
+              <td>{{ p.validity }}</td>
+              <td><ng-container *ngTemplateOutlet="statusTag; context: { $implicit: p.status }"></ng-container></td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="7" class="gng-empty">برای منابع «{{ contextLabel }}» نرخ وابسته به محصول تعریف نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+      <p class="gng-hint gng-mt-sm">عنوان محصول فعلاً متن است تا اصل کالا به این سیستم وصل شود.</p>
+    </p-tabPanel>
+
+    <!-- ───────── محدودیت متقابل (فاز ۳) ───────── -->
+    <p-tabPanel header="محدودیت متقابل">
+      <div class="gng-note gng-note--info">
+        <strong>هنوز پیاده نشده.</strong> محدودیت متقابل منابع (F-RM-043: یک اپراتور هم‌زمان دو دستگاه را پوشش دهد، یا دو خط از یک
+        منبع مشترک مثل بخار تغذیه شوند) اولویت «مهم» و فاز ۳ دارد و در فاز اول نیامده است. فعلاً منبع مشترکِ یک خط با «گروه منبع»
+        بیان می‌شود — مثلاً یک اپراتور برای هر دو پرس خط ۲.
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── نمای بار/ظرفیت ───────── -->
+    <p-tabPanel header="نمای بار/ظرفیت" [selected]="true">
+      <ng-container *ngTemplateOutlet="windowNav"></ng-container>
+      <div class="gng-window">
+        <span class="gng-legend"><span class="gng-load gng-load--ok">زیر {{ fa(warnPercent) }}٪</span></span>
+        <span class="gng-legend"><span class="gng-load gng-load--warn">{{ fa(warnPercent) }} تا ۱۰۰٪</span></span>
+        <span class="gng-legend"><span class="gng-load gng-load--over">بالای ۱۰۰٪</span></span>
+        <span class="gng-legend"><span class="gng-load gng-load--nocap">بدون ظرفیت</span></span>
+        <button
+          *ngIf="idleCount"
+          pButton
+          type="button"
+          class="p-button-text p-button-sm"
+          [label]="showIdle ? 'پنهان‌کردن منابع بی‌بار' : 'نمایش ' + fa(idleCount) + ' ظرفیت بی‌بار'"
+          (click)="showIdle = !showIdle"
+        ></button>
+      </div>
+      <p class="gng-empty" *ngIf="!visibleLoadRows.length">در این بازه باری روی منابع «{{ contextLabel }}» برنامه‌ریزی نشده است.</p>
+
+      <div style="position: relative; overflow-x: auto" *ngIf="visibleLoadRows.length">
+        <gng-data-source-badge [source]="loadSource()"></gng-data-source-badge>
+        <table class="gng-matrix gng-roster gng-loadgrid">
+          <thead>
+            <tr>
+              <th>منبع / نوع کارکرد</th>
+              <th style="min-width: 7rem">ظرفیت / بار</th>
+              <th style="min-width: 8rem">بار</th>
+              <th *ngFor="let d of load.days" [class.gng-roster__friday]="d.isFriday" [class.gng-roster__today]="d.isToday">
+                <div>{{ d.weekday }}</div>
+                <div class="gng-roster__date">{{ d.dayText }} {{ d.monthText }}</div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of visibleLoadRows">
+              <th>
+                <div>{{ r.resource }}</div>
+                <div class="gng-text-muted gng-small">{{ r.type }} · {{ r.line }}</div>
+              </th>
+              <td class="gng-small">{{ r.capacity }}<br />{{ r.load }}</td>
+              <td>
+                <span [ngClass]="loadClass(r.severity)">{{ r.percent === null ? 'بدون ظرفیت' : fa(r.percent) + '٪' }}</span>
+                <div class="gng-kpi__bar gng-mt-sm" *ngIf="r.percent !== null">
+                  <div class="gng-kpi__bar-fill" [ngClass]="barClass(r.severity)" [style.width.%]="barWidth(r.percent)"></div>
+                </div>
+              </td>
+              <td *ngFor="let c of r.cells" [title]="c.hint">
+                <span *ngIf="c.hint" [ngClass]="loadClass(c.severity)">{{ c.percent === null ? '—' : fa(c.percent) }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="gng-hint gng-mt-sm" *ngIf="load.rows.length">
+        ظرفیت روزانه = (ساعت در دسترسِ تقویم مؤثر خط − تعداد شیفت × توقف استاندارد) × ظرفیت مؤثر در ساعت. بار از زمان‌بندی ظرفیت
+        (CapacityRequirmentScheduling) می‌آید و به ایستگاه، یا اگر ایستگاه ظرفیت آن نوع را ندارد به گروه منبعش، نسبت داده می‌شود.
+        «—» یعنی خط در آن روز ساعت در دسترس ندارد، یا (برای بارِ بدون ظرفیت) درصدی قابل محاسبه نیست.
+      </p>
+    </p-tabPanel>
+
+    <!-- ───────── سابقه‌ی تغییرات ───────── -->
+    <p-tabPanel header="سابقه‌ی تغییرات">
+      <p class="gng-hint">
+        هر تغییر استاندارد نسخه‌ی تازه‌ای با تاریخ اثر است و نسخه‌ی قبل پاک نمی‌شود — مبنای تحلیل روند بهره‌وری.
+      </p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="historySource()"></gng-data-source-badge>
+        <p-table [value]="history" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 8rem">تاریخ اثر</th>
+              <th style="width: 6rem">نوع</th>
+              <th>منبع</th>
+              <th>کارکرد / محصول</th>
+              <th style="width: 9rem">مقدار قبلی</th>
+              <th style="width: 9rem">مقدار جدید</th>
+              <th style="width: 6rem">تغییر</th>
+              <th>علت / ثبت‌کننده</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-h>
+            <tr>
+              <td>
+                {{ h.date }}
+                <p-tag *ngIf="h.isFuture" value="آینده" severity="info" styleClass="gng-mr-sm"></p-tag>
+              </td>
+              <td>{{ h.kind }}</td>
+              <td><ng-container *ngTemplateOutlet="resourceCell; context: { $implicit: h }"></ng-container></td>
+              <td>
+                {{ h.target }}
+                <div class="gng-text-muted gng-small">{{ h.detail }}</div>
+              </td>
+              <td>{{ h.previous }}</td>
+              <td>{{ h.value }}</td>
+              <td [class.gng-sym--ok]="h.changeTone === 'up'" [class.gng-sym--no]="h.changeTone === 'down'">{{ h.change }}</td>
+              <td>{{ h.reason }}<div class="gng-text-muted gng-small">{{ h.changedBy }}</div></td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="8" class="gng-empty">برای منابع «{{ contextLabel }}» سابقه‌ای ثبت نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="orgTreeSource()"></gng-data-source-badge>
+    <p-tree
+      [value]="orgTree"
+      styleClass="gng-tree"
+      selectionMode="single"
+      [(selection)]="selectedTreeNode"
+      (onNodeSelect)="onTreeSelect($event)"
+      (onNodeUnselect)="onTreeUnselect($event)"
+    ></p-tree>
+  </div>
+</gng-opform-layout>

@@ -1,0 +1,111 @@
+<gng-opform-layout
+  domainTitle="مهندسی محصول"
+  title="بازیابی مواد در فرایند"
+  code="FRM-PE-05"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="مهندسی محصول / R&D"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-refresh"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  auditFeatureRange="F-PE-041 تا F-PE-048، F-PE-050 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-plus" label="تعریف ماده‌ی بازیابی‌شده" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-percentage" label="تعیین نرخ و تلفات" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-shield" label="حداقل خلوص و سقف چرخه" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <p-tabPanel header="ماده‌ی بازیابی‌شده" [selected]="true">
+      <div class="gng-note gng-note--info gng-mb-sm"><strong>سیاست شرکت: {{ policy }}.</strong> {{ policyNote }}</div>
+      <p class="gng-hint">ماده‌ی بازیابی‌شده یا قلم مستقل در کاتالوگ است یا گرید کیفی متمایز از همان قلم. این جریان استاندارد فرمول است، نه بازیافت ضایعات.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pe05-materials', 'ماده‌ی بازیابی‌شده')"></gng-data-source-badge>
+        <p-table [value]="materials" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th style="width: 6rem">کد</th><th>ماده‌ی بازیابی‌شده</th><th>از ماده‌ی</th><th style="width: 9rem">نوع تعریف</th><th>گرید</th><th style="width: 13rem">اولویت مصرف</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-m>
+            <tr>
+              <td>{{ m.code }}</td>
+              <td>{{ m.product }}<div *ngIf="m.description" class="gng-text-muted gng-small">{{ m.description }}</div></td>
+              <td>{{ m.source }}</td>
+              <td><p-tag [value]="m.mode" [severity]="m.mode === 'قلم مستقل' ? 'info' : 'secondary'"></p-tag></td>
+              <td>{{ m.grade }}</td>
+              <td class="gng-small">{{ m.priority }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+      <h3 class="gng-section-title">ماده‌ی بازیابی‌شده به‌عنوان خروجی صریح ساختار</h3>
+      <p-table [value]="outputs" styleClass="p-datatable-sm gng-table">
+        <ng-template pTemplate="header"><tr><th>ساختار</th><th>خروجی</th><th style="width: 9rem">مقدار استاندارد</th><th>محاسبه</th></tr></ng-template>
+        <ng-template pTemplate="body" let-o><tr><td>{{ o.structure }}</td><td>{{ o.product }}</td><td>{{ o.quantity }}</td><td class="gng-small">{{ o.description }}</td></tr></ng-template>
+        <ng-template pTemplate="emptymessage"><tr><td colspan="4" class="gng-empty">خروجی بازیابی ثبت نشده است.</td></tr></ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <p-tabPanel header="نرخ و تلفات بازیابی">
+      <p class="gng-hint">نرخ بازیابی: چه درصدی از ماده‌ی مصرف‌شده قابل بازیابی است. تلفات: چه درصدی در خودِ فرایند بازیابی از دست می‌رود (تبخیر، ته‌مانده) — ورودی موازنه‌ی جرم.</p>
+      <p-table [value]="materials" styleClass="p-datatable-sm gng-table">
+        <ng-template pTemplate="header"><tr><th>ماده</th><th style="width: 8rem">نرخ بازیابی</th><th style="width: 8rem">تلفات بازیابی</th><th style="width: 8rem">بازیابی خالص</th></tr></ng-template>
+        <ng-template pTemplate="body" let-m><tr><td>{{ m.code }} — {{ m.product }}</td><td>{{ m.rate }}</td><td>{{ m.loss }}</td><td><strong>{{ m.net }}</strong></td></tr></ng-template>
+      </p-table>
+      <p class="gng-hint gng-mt-sm">بازیابی خالص = نرخ بازیابی × (۱ − تلفات). نرخ بازیابی در سطح ردیف فرمول هم ثبت می‌شود (برگه‌ی «درصد مجاز در فرمول»).</p>
+    </p-tabPanel>
+
+    <p-tabPanel header="درصد مجاز در فرمول">
+      <p class="gng-hint">در هر ردیف فرمول، درصد مجاز مصرف ماده‌ی بازیابی‌شده: صفر یعنی ممنوع، صد یعنی جایگزینی کامل.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pe05-formula', 'ردیف‌های فرمول')"></gng-data-source-badge>
+        <p-table [value]="formulaRows" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th style="width: 8rem">ساختار</th><th>ردیف</th><th style="width: 8rem">مقدار</th><th style="width: 9rem">بازیابی از ردیف</th><th style="width: 9rem">سقف بازیابی‌شده</th><th style="width: 11rem">ماده‌ی بازیابی‌شده</th></tr></ng-template>
+          <ng-template pTemplate="body" let-f>
+            <tr>
+              <td>{{ f.structure }}</td>
+              <td>{{ f.item }}</td>
+              <td>{{ f.quantity }}</td>
+              <td>{{ f.recovery }}</td>
+              <td>{{ f.maxUse !== null ? fa(f.maxUse) + '٪' : '—' }}</td>
+              <td><p-tag [value]="f.hasMaterial ? 'تعریف شده' : 'تعریف نشده'" [severity]="f.hasMaterial ? 'success' : (f.maxUse ? 'warning' : 'secondary')"></p-tag></td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="نسبت جایگزینی">
+      <p class="gng-hint">نسبت جایگزینی ماده‌ی بازیابی‌شده با ماده‌ی نو بر مبنای خلوص یا عیار (PF-81).</p>
+      <p-table [value]="materials" styleClass="p-datatable-sm gng-table">
+        <ng-template pTemplate="header"><tr><th>ماده</th><th style="width: 7rem">نسبت</th><th>یعنی</th></tr></ng-template>
+        <ng-template pTemplate="body" let-m><tr><td>{{ m.code }} — {{ m.product }}</td><td>{{ m.ratio }}</td><td>{{ m.ratioText }}</td></tr></ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <p-tabPanel header="کنترل کیفی و سقف چرخه">
+      <p class="gng-hint">حداقل خلوص قابل قبول، الزام تأیید کیفی پیش از مصرف، و سقف دفعات بازیابی؛ پس از عبور از سقف، مصرف ممنوع است.</p>
+      <p-table [value]="materials" styleClass="p-datatable-sm gng-table">
+        <ng-template pTemplate="header"><tr><th>ماده</th><th style="width: 9rem">حداقل خلوص</th><th style="width: 8rem">تأیید کیفی</th><th style="width: 9rem">سقف چرخه</th></tr></ng-template>
+        <ng-template pTemplate="body" let-m>
+          <tr>
+            <td>{{ m.code }} — {{ m.product }}</td>
+            <td>{{ m.purity }}</td>
+            <td><p-tag [value]="m.qc ? 'الزامی' : 'لازم نیست'" [severity]="m.qc ? 'warning' : 'secondary'"></p-tag></td>
+            <td>{{ m.cycles }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+      <p class="gng-hint gng-mt-sm">شمارش تجمعی چرخه‌ی بازیابی روی هر بچ هنگام ثبت مصرف و رسید (کنترل تولید) انجام می‌شود.</p>
+    </p-tabPanel>
+
+    <p-tabPanel header="بازیابی متقاطع">
+      <div class="gng-note gng-note--info"><strong>هنوز پیاده نشده.</strong> مصرف ماده‌ی بازیابی‌شده در محصولی غیر از محصول مبدأ (F-PE-049) اولویت «مهم» دارد.</div>
+    </p-tabPanel>
+
+    <p-tabPanel header="ارزش‌گذاری">
+      <div class="gng-note gng-note--info"><strong>هنوز پیاده نشده.</strong> ارزش‌گذاری ماده‌ی بازیابی‌شده برای سیستم بهای تمام‌شده (F-PE-051) اولویت «مهم» دارد.</div>
+    </p-tabPanel>
+  </p-tabView>
+</gng-opform-layout>

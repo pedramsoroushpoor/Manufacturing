@@ -1,0 +1,100 @@
+<gng-opform-layout
+  domainTitle="چارچوب مشترک"
+  title="انطباق و ممیزی"
+  code="FRM-PF-06"
+  formTypeLabel="کنسول / داشبورد"
+  owner="مدیر انطباق"
+  contextLabel="رکوردهای ممیزی"
+  contextIcon="pi pi-shield"
+  [bannerText]="bannerInfo"
+  bannerTone="info"
+  [auditFeatureRange]="auditRange"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-filter" label="مرور و فیلتر لاگ" class="p-button-sm p-button-primary"></button>
+    <button pButton type="button" icon="pi pi-download" label="خروجی گزارش انطباق" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-pencil" label="تنظیم نقاط امضای الکترونیک — مدیر سیستم" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-undo" label="سیاست سند معکوس — مدیر سیستم" class="p-button-sm p-button-warning"></button>
+    <button pButton type="button" icon="pi pi-box" label="بایگانی و نگهداشت" class="p-button-outlined p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs">
+    <p-tabPanel header="لاگ ممیزی" [selected]="true">
+      <div class="gng-columns">
+        <div style="display:flex; flex-direction:column; gap:0.9rem">
+          <div>
+            <h3>نقاط امضای الکترونیک <span class="gng-hint" style="display:inline; margin:0">— {{ signatureNote }}</span></h3>
+            <div class="gng-flag-list gng-mt-sm">
+              <div class="gng-flag-row" *ngFor="let s of signaturePoints">
+                <span class="gng-flag-row__label">{{ s.label }}</span>
+                <p-tag [value]="s.status" [severity]="pointSeverity(s.status)"></p-tag>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3>انطباق ALCOA+ و CFR Part 11</h3>
+            <div class="gng-flag-list gng-mt-sm">
+              <div class="gng-flag-row" *ngFor="let c of complianceItems">
+                <span class="gng-flag-row__label"><i class="pi" [ngClass]="c.tone === 'ok' ? 'pi-circle-fill gng-sym--ok' : 'pi-circle-fill gng-sym--warn'" style="font-size:0.55rem"></i>{{ c.code }} — {{ c.label }}</span>
+                <span class="gng-hint" style="margin:0" *ngIf="c.meta">{{ c.meta }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="gng-field-grid">
+            <div class="gng-field"><span class="gng-field__label">{{ statSignatures.label }}</span><span class="gng-field__value">{{ statSignatures.value }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">{{ statAuditRecords.label }}</span><span class="gng-field__value">{{ statAuditRecords.value }}</span></div>
+          </div>
+
+          <div class="gng-note gng-note--info">{{ deleteNote }}</div>
+        </div>
+
+        <div>
+          <h3>لاگ ممیزی <span class="gng-hint" style="display:inline; margin:0">— چه کسی، چه زمانی، چه مقداری را به چه مقداری و چرا تغییر داد</span></h3>
+          <p-table [value]="auditLog" styleClass="p-datatable-sm gng-table gng-mt-sm" responsiveLayout="scroll">
+            <ng-template pTemplate="header">
+              <tr><th>زمان</th><th>کاربر</th><th>موجودیت</th><th>فیلد</th><th>مقدار پیشین</th><th>مقدار جدید</th><th>دلیل</th><th>امضا</th></tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-a>
+              <tr>
+                <td class="gng-hint" style="margin:0">{{ a.time }}</td>
+                <td>{{ a.user }}</td>
+                <td>{{ a.entity }}</td>
+                <td>{{ a.field }}</td>
+                <td>{{ a.oldValue }}</td>
+                <td><b>{{ a.newValue }}</b></td>
+                <td>{{ a.reason }}</td>
+                <td><i class="pi" [ngClass]="a.signed ? 'pi-verified gng-sym--ok' : 'pi-minus gng-sym--no'"></i></td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="امضای الکترونیک">
+      <div class="gng-note gng-note--info">{{ signatureMechNote }}</div>
+      <div class="gng-flag-list gng-mt">
+        <div class="gng-flag-row" *ngFor="let s of signaturePoints">
+          <span class="gng-flag-row__label">{{ s.label }}</span>
+          <p-tag [value]="s.status" [severity]="pointSeverity(s.status)"></p-tag>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="ALCOA+ و Part 11">
+      <div class="gng-note gng-note--info">{{ alcoaNote }}</div>
+      <div class="gng-flag-list gng-mt">
+        <div class="gng-flag-row" *ngFor="let c of complianceItems">
+          <span class="gng-flag-row__label"><i class="pi" [ngClass]="c.tone === 'ok' ? 'pi-circle-fill gng-sym--ok' : 'pi-circle-fill gng-sym--warn'" style="font-size:0.55rem"></i>{{ c.code }} — {{ c.label }}</span>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="سیاست سند معکوس">
+      <div class="gng-note gng-note--info">{{ noDeleteNote }}</div>
+      <div class="gng-note gng-note--info gng-mt-sm">{{ auditTrailNote }}</div>
+    </p-tabPanel>
+  </p-tabView>
+</gng-opform-layout>

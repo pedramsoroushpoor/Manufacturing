@@ -1,0 +1,85 @@
+<gng-opform-layout
+  domainTitle="مهندسی تولید"
+  title="تولید پیوسته و کمپین"
+  code="FRM-ME-09"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="مهندسی تولید / برنامه‌ریزی"
+  contextLabel="روش‌های پیوسته و دستور شیفتی"
+  contextIcon="pi pi-sync"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  auditFeatureRange="F-ME-068، F-ME-069، F-ME-072 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-plus" label="روش پیوسته" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-calendar" label="الگوی دستور شیفتی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <!-- ───────── روش ساخت پیوسته (F-ME-068) ───────── -->
+    <p-tabPanel header="روش ساخت پیوسته" [selected]="true">
+      <p class="gng-hint">مبنای روش پیوسته نرخ است (مقدار در واحد زمان)، نه مقدار در هر بچ. عملیات و نسخه‌ها از FRM-ME-02 و FRM-ME-08.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me09-routings', 'روش‌های پیوسته')"></gng-data-source-badge>
+        <p-table [value]="data?.routings ?? []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th>روش</th><th style="width: 12rem">نرخ</th><th style="width: 9rem">خط</th><th>عملیات</th><th>نسخه‌های تولید</th></tr></ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr><td>{{ r.routing }}</td><td><strong>{{ r.rateText }}</strong></td><td>{{ r.line }}</td><td>{{ r.operations }}</td><td>{{ r.versions || '—' }}</td></tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="5" class="gng-empty">روش ساخت پیوسته‌ای تعریف نشده است.</td></tr></ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── دستور شیفتی (F-ME-069) ───────── -->
+    <p-tabPanel header="دستور شیفتی">
+      <p class="gng-hint">الگوی مبنای دستور روی نسخه‌ی تولید شیفتی: هر شیفت یک دستور با مقدار برنامه؛ ظرفیت نظری = نرخ روش × زمان خالص اجرا. جمع روزانه: {{ num(dayTotal) }}.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me09-templates', 'الگوی دستور شیفتی')"></gng-data-source-badge>
+        <p-table [value]="data?.templates ?? []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th>نسخه‌ی تولید</th><th style="width: 8rem">شیفت</th><th style="width: 9rem">ساعت</th><th style="width: 8rem">زمان خالص</th><th style="width: 9rem">برنامه</th><th style="width: 9rem">ظرفیت نظری</th><th style="width: 10rem">بهره‌گیری</th><th>شرح</th></tr></ng-template>
+          <ng-template pTemplate="body" let-t>
+            <tr>
+              <td>{{ t.version }}</td><td>{{ t.shift }}</td><td>{{ hhmm(t.fromTime) }} تا {{ hhmm(t.toTime) }}</td>
+              <td>{{ t.netRunMinutes !== null ? fa(t.netRunMinutes) + ' دقیقه' : '—' }}</td>
+              <td><strong>{{ num(t.planned) }}</strong></td><td>{{ num(t.capacity) }}</td>
+              <td><p-tag [value]="num(utilization(t.planned, t.capacity), 1) + '٪'" [severity]="utilization(t.planned, t.capacity) > 100 ? 'danger' : utilization(t.planned, t.capacity) >= 95 ? 'warning' : 'success'"></p-tag></td>
+              <td class="gng-text-muted">{{ t.description || '—' }}</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="8" class="gng-empty">الگوی دستور شیفتی تعریف نشده است.</td></tr></ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── کمپین (F-ME-070، مهم) ───────── -->
+    <p-tabPanel header="کمپین">
+      <div class="gng-note gng-note--info"><strong>هنوز پیاده نشده.</strong> کمپین — توالی محصولات روی خط پیوسته با زمان تعویض و حداقل زمان اجرا (F-ME-070) — اولویت «مهم» دارد؛ زمان تعویض آن از ماتریس FRM-ME-03 می‌آید.</div>
+    </p-tabPanel>
+
+    <!-- ───────── موازنه‌ی جرم (F-ME-071، مهم) ───────── -->
+    <p-tabPanel header="موازنه‌ی جرم">
+      <div class="gng-note gng-note--info"><strong>هنوز پیاده نشده.</strong> قواعد موازنه‌ی جرم و انرژی روش پیوسته (F-ME-071، PF-83) اولویت «مهم» دارد. موازنه‌ی خروجی‌های ساختار در FRM-PE-04 کنترل می‌شود.</div>
+    </p-tabPanel>
+
+    <!-- ───────── انتقال شیفت (F-ME-072) ───────── -->
+    <p-tabPanel header="انتقال شیفت">
+      <p class="gng-hint">موجودی در جریان پایان شیفت به‌عنوان ورودی دستور شیفت بعد، یا بسته و رسید می‌شود، یا به انبار پای کار برمی‌گردد.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me09-handovers', 'انتقال شیفت')"></gng-data-source-badge>
+        <p-table [value]="data?.handovers ?? []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th style="width: 9rem">روش</th><th style="width: 5rem">ردیف</th><th>عملیات</th><th style="width: 14rem">قاعده</th><th style="width: 9rem">حداکثر نگهداری</th><th style="width: 8rem">شمارش</th><th>شرح</th></tr></ng-template>
+          <ng-template pTemplate="body" let-h>
+            <tr>
+              <td>{{ h.routing }}</td><td>{{ fa(h.sequence) }}</td><td>{{ h.operation }}</td>
+              <td><p-tag [value]="h.mode" [severity]="h.modeCode ? 'info' : 'warning'"></p-tag></td>
+              <td>{{ h.maxCarryHours !== null ? num(h.maxCarryHours) + ' ساعت' : '—' }}</td><td>{{ h.requiresCount === null ? '—' : h.requiresCount ? 'الزامی' : 'خیر' }}</td>
+              <td class="gng-text-muted">{{ h.description || '—' }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+</gng-opform-layout>

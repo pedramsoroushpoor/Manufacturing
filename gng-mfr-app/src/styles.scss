@@ -1,0 +1,1762 @@
+@import 'styles/theme';
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body.gng-body {
+  font-family: var(--gng-font);
+  background: var(--gng-bg);
+  color: var(--gng-text);
+  direction: rtl;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: rgba(247, 148, 29, 0.25);
+}
+
+// بازنویسی سبک نازک روی PrimeNG برای هماهنگی با پالت GNG
+// (کامپوننت‌ها همچنان از PrimeNG هستند؛ فقط رنگ/شکل با برند هماهنگ می‌شود)
+.p-component {
+  font-family: var(--gng-font);
+}
+
+.p-button.p-button-primary,
+.p-button:not(.p-button-outlined):not(.p-button-text) {
+  background: var(--gng-primary);
+  border-color: var(--gng-primary);
+
+  &:enabled:hover {
+    background: var(--gng-primary-dark);
+    border-color: var(--gng-primary-dark);
+  }
+}
+
+.p-inputtext:enabled:focus,
+.p-dropdown:not(.p-disabled).p-focus {
+  border-color: var(--gng-primary);
+  box-shadow: 0 0 0 1px var(--gng-primary-light);
+}
+
+.p-datatable .p-datatable-thead > tr > th {
+  background: var(--gng-bg);
+  color: var(--gng-text);
+  font-weight: 600;
+}
+
+.p-tree {
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gng-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gng-text-muted);
+}
+
+// اسکرول‌بار تیره‌ی مخصوص سایدبار/ریل منو
+.gng-shell__sidebar ::-webkit-scrollbar-thumb,
+.gng-menu-tree ::-webkit-scrollbar-thumb {
+  background: var(--gng-dark-border);
+}
+
+// پیکر انتخاب سیستم (سطح صفر منو) در نوار برند سایدبار — روی زمینه‌ی
+// تیره. چون p-dropdown کامپوننت جداگانه‌ی PrimeNG است (Emulated
+// encapsulation خودش)، این بازنویسی باید Global باشد، نه در
+// shell.component.scss — همانند سایر بازنویسی‌های PrimeNG در همین فایل.
+.gng-system-dropdown.p-dropdown {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--gng-dark-border);
+  border-radius: var(--gng-radius-sm);
+  height: 30px;
+  min-width: 0;
+
+  .p-dropdown-label {
+    color: #fff;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 0 10px;
+    line-height: 28px;
+
+    &.p-placeholder {
+      color: #93a3b3;
+      font-weight: 400;
+    }
+  }
+
+  .p-dropdown-trigger {
+    width: 24px;
+    color: #93a3b3;
+  }
+
+  &:not(.p-disabled):hover {
+    border-color: var(--gng-primary);
+  }
+
+  &:not(.p-disabled).p-focus {
+    border-color: var(--gng-primary);
+    box-shadow: 0 0 0 1px var(--gng-primary);
+  }
+}
+
+// ==========================================================================
+// کلاس‌های عمومی «فرم عملیاتی» — چون محتوای پروجکت‌شده در ng-content سبک
+// کامپوننت میزبان (فرم‌های اختصاصی) را می‌گیرد نه لایه‌ی مشترک، این
+// کلاس‌ها Global تعریف شده‌اند تا هر فرم اختصاصی بدون تکرار CSS از آن‌ها
+// استفاده کند: تب، جدول، کارت KPI، دیاگرام جریان، و نوت رنگی داخل تب.
+// ==========================================================================
+
+.gng-tabs {
+  .p-tabview-nav {
+    background: transparent;
+    border-color: var(--gng-border);
+  }
+  .p-tabview-panels {
+    background: var(--gng-surface);
+    border: 1px solid var(--gng-border);
+    border-top: none;
+    border-radius: 0 0 var(--gng-radius) var(--gng-radius);
+    padding: 1.1rem 1.3rem;
+  }
+}
+
+.gng-table {
+  font-size: 0.85rem;
+}
+.gng-mt {
+  margin-top: 0.9rem;
+}
+.gng-mt-sm {
+  margin-top: 0.6rem;
+}
+.gng-mr-sm {
+  margin-inline-end: 0.4rem;
+  margin-bottom: 0.4rem;
+  display: inline-block;
+}
+.gng-mb-sm {
+  margin-bottom: 0.6rem;
+}
+
+.gng-panel {
+  background: var(--gng-surface);
+  border: 1px solid var(--gng-border);
+  border-radius: var(--gng-radius);
+  box-shadow: var(--gng-shadow);
+  padding: 1rem 1.2rem;
+
+  h3 {
+    margin: 0 0 0.7rem;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--gng-text);
+  }
+}
+
+.gng-hint {
+  margin: 0 0 0.7rem;
+  font-size: 0.8rem;
+  color: var(--gng-text-muted);
+}
+
+// نوت رنگی داخل تب (متمایز از بنر بالای فرم، برای هشدار/پیشنهاد محلی)
+.gng-note {
+  border-radius: var(--gng-radius-sm);
+  border: 1px solid transparent;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.8rem;
+  line-height: 1.8;
+
+  strong {
+    color: var(--gng-text);
+  }
+}
+.gng-note--info {
+  background: rgba(46, 134, 222, 0.08);
+  border-color: rgba(46, 134, 222, 0.25);
+}
+.gng-note--warning {
+  background: rgba(242, 177, 52, 0.12);
+  border-color: rgba(242, 177, 52, 0.35);
+}
+.gng-note--danger {
+  background: rgba(235, 87, 87, 0.1);
+  border-color: rgba(235, 87, 87, 0.3);
+}
+.gng-note--success {
+  background: rgba(39, 174, 96, 0.1);
+  border-color: rgba(39, 174, 96, 0.3);
+}
+
+// کارت‌های KPI با نوار پیشرفت (نمونه: عمر ابزار، ظرفیت/بار، تحویل به‌موقع)
+.gng-kpi-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.gng-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.gng-kpi__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 0.82rem;
+
+  b {
+    font-size: 0.95rem;
+    color: var(--gng-text);
+  }
+  span {
+    color: var(--gng-text-muted);
+  }
+}
+.gng-kpi__bar {
+  height: 7px;
+  border-radius: 999px;
+  background: var(--gng-bg);
+  border: 1px solid var(--gng-border);
+  overflow: hidden;
+}
+.gng-kpi__bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--gng-success);
+}
+.gng-kpi__bar-fill--warning {
+  background: var(--gng-warning);
+}
+.gng-kpi__bar-fill--danger {
+  background: var(--gng-danger);
+}
+.gng-kpi__bar-fill--info {
+  background: var(--gng-info);
+}
+.gng-kpi__note {
+  font-size: 0.72rem;
+  color: var(--gng-text-muted);
+}
+
+// دیاگرام جریان (توپولوژی خط / زنجیره‌ی مرکز هزینه ← فعالیت ← محرک)
+.gng-flow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.3rem 0.2rem;
+}
+.gng-flow-node {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 8rem;
+  padding: 0.65rem 0.6rem;
+  background: rgba(46, 134, 222, 0.07);
+  border: 1px solid rgba(46, 134, 222, 0.3);
+  border-radius: var(--gng-radius-sm);
+  text-align: center;
+}
+.gng-flow-node--alt {
+  background: rgba(155, 89, 182, 0.08);
+  border-color: rgba(155, 89, 182, 0.3);
+}
+.gng-flow-node--neutral {
+  background: var(--gng-bg);
+  border-color: var(--gng-border);
+}
+.gng-flow-node--buffer {
+  background: rgba(242, 177, 52, 0.1);
+  border-color: rgba(242, 177, 52, 0.4);
+  border-style: dashed;
+}
+.gng-flow-node__label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--gng-text);
+}
+.gng-flow-node__sublabel {
+  font-size: 0.72rem;
+  color: var(--gng-text-muted);
+}
+.gng-flow-arrow {
+  flex: 0 0 auto;
+  color: var(--gng-text-muted);
+  font-size: 0.85rem;
+}
+
+.gng-flow-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+
+  span {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--gng-text);
+  }
+  small {
+    font-weight: 400;
+    color: var(--gng-text-muted);
+    font-size: 0.75rem;
+  }
+}
+
+.gng-tree.p-tree {
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 0.82rem;
+}
+
+.gng-legend {
+  display: flex;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+  margin-top: 0.6rem;
+  font-size: 0.78rem;
+  color: var(--gng-text-muted);
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+}
+.gng-legend-dot {
+  font-size: 0.55rem;
+}
+.gng-legend-dot--info {
+  color: var(--gng-info);
+}
+.gng-legend-dot--success {
+  color: var(--gng-success);
+}
+.gng-legend-dot--warning {
+  color: var(--gng-warning);
+}
+.gng-legend-dot--danger {
+  color: var(--gng-danger);
+}
+
+// دو یا سه‌ستونه‌ی محتوای داخل تب (مثلاً جدول اصلی + پنل کناری کوچک)
+.gng-columns {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+@media (max-width: 800px) {
+  .gng-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+// جدول ماتریسی (سطر/ستون هم‌نام) — سلول قطری کمرنگ می‌شود
+.gng-matrix-diag {
+  background: var(--gng-bg) !important;
+  color: var(--gng-text-muted);
+}
+
+// شبکه‌ی لایه‌ای تقویم (نمای گانت ساده‌شده) — هر لایه یک ردیف، هر روز یک سلول رنگی
+.gng-layer-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.gng-layer-row {
+  display: grid;
+  grid-template-columns: 9rem 1fr;
+  align-items: center;
+  gap: 0.6rem;
+}
+.gng-layer-label {
+  font-size: 0.78rem;
+  color: var(--gng-text-muted);
+}
+.gng-layer-cells {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0.25rem;
+}
+.gng-layer-cell {
+  height: 1.7rem;
+  border-radius: 4px;
+  background: var(--gng-bg);
+  border: 1px solid var(--gng-border);
+}
+.gng-layer-cell--base {
+  background: var(--gng-border);
+}
+.gng-layer-cell--pattern {
+  background: rgba(46, 134, 222, 0.45);
+  border-color: var(--gng-info);
+}
+.gng-layer-cell--exception {
+  background: rgba(242, 177, 52, 0.55);
+  border-color: var(--gng-warning);
+}
+.gng-layer-cell--maintenance {
+  background: rgba(155, 89, 182, 0.5);
+  border-color: var(--gng-purple);
+}
+.gng-layer-cell--absence {
+  background: rgba(235, 87, 87, 0.5);
+  border-color: var(--gng-danger);
+}
+.gng-layer-cell--available {
+  background: var(--gng-success);
+  border-color: var(--gng-success);
+}
+.gng-layer-cell--holiday {
+  background: var(--gng-text-muted);
+  border-color: var(--gng-text-muted);
+}
+.gng-layer-days {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0.25rem;
+  font-size: 0.68rem;
+  color: var(--gng-text-muted);
+  text-align: center;
+}
+
+.gng-stack-bar {
+  display: flex;
+  height: 1.6rem;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--gng-border);
+}
+.gng-stack-bar__seg--a {
+  background: var(--gng-info);
+}
+.gng-stack-bar__seg--b {
+  background: var(--gng-purple);
+}
+.gng-stack-bar__seg--c {
+  background: var(--gng-danger);
+}
+.gng-stack-legend {
+  display: flex;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--gng-text-muted);
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+}
+
+.gng-matrix {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+
+  th,
+  td {
+    border: 1px solid var(--gng-border);
+    padding: 0.5rem 0.6rem;
+    text-align: center;
+  }
+
+  th {
+    background: var(--gng-bg);
+    color: var(--gng-text);
+    font-weight: 600;
+  }
+
+  th:first-child,
+  td:first-child {
+    text-align: start;
+    background: var(--gng-bg);
+    font-weight: 600;
+  }
+}
+
+// ==========================================================================
+// کلاس‌های عمومی حوزه‌ی مهندسی محصول (PE) — پرچم وضعیت، نماد ماتریس سازگاری،
+// سلول حرارتی ماتریس ابعادی، دیاگرام جریان دوبعدی (بازیابی/زنجیره)، نوار
+// مرحله‌ای گردش کار ECO، زنجیره‌ی تایید و امضای الکترونیک.
+// ==========================================================================
+
+.gng-flag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.gng-flag-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+.gng-flag-row__label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--gng-text);
+}
+.gng-flag-dot {
+  font-size: 0.55rem;
+}
+.gng-flag-dot--on {
+  color: var(--gng-danger);
+}
+.gng-flag-dot--off {
+  color: var(--gng-text-muted);
+}
+.gng-flag-dot--partial {
+  color: var(--gng-warning);
+}
+
+.gng-sym--ok {
+  color: var(--gng-success);
+  font-weight: 700;
+}
+.gng-sym--no {
+  color: var(--gng-danger);
+  font-weight: 700;
+}
+.gng-sym--warn {
+  color: var(--gng-warning);
+  font-weight: 700;
+}
+.gng-sym--muted {
+  color: var(--gng-text-muted);
+}
+
+.gng-heat-1 {
+  background: rgba(46, 134, 222, 0.08) !important;
+}
+.gng-heat-2 {
+  background: rgba(46, 134, 222, 0.18) !important;
+}
+.gng-heat-3 {
+  background: rgba(46, 134, 222, 0.3) !important;
+}
+.gng-heat-4 {
+  background: rgba(46, 134, 222, 0.42) !important;
+}
+
+// دیاگرام جریان دوبعدی (بازیابی مواد، زنجیره‌های چندشاخه) — گرید آزاد با گره‌های رنگی
+.gng-diagram {
+  display: grid;
+  gap: 0.75rem 1rem;
+  padding: 0.5rem;
+  overflow-x: auto;
+}
+.gng-diagram-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  min-height: 4.2rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--gng-radius-sm);
+  border: 1px solid var(--gng-border);
+  background: var(--gng-bg);
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--gng-text);
+
+  small {
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: var(--gng-text-muted);
+  }
+}
+.gng-diagram-node--source {
+  background: rgba(46, 134, 222, 0.08);
+  border-color: rgba(46, 134, 222, 0.35);
+}
+.gng-diagram-node--process {
+  background: var(--gng-bg);
+  border-color: var(--gng-border);
+}
+.gng-diagram-node--recovery {
+  background: rgba(39, 174, 96, 0.1);
+  border-color: rgba(39, 174, 96, 0.35);
+}
+.gng-diagram-node--waste {
+  background: rgba(235, 87, 87, 0.1);
+  border-color: rgba(235, 87, 87, 0.35);
+}
+.gng-diagram-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gng-text-muted);
+  font-size: 0.9rem;
+}
+.gng-diagram-arrow--success {
+  color: var(--gng-success);
+}
+.gng-diagram-arrow--danger {
+  color: var(--gng-danger);
+}
+.gng-diagram-edge-label {
+  font-size: 0.7rem;
+  color: var(--gng-text-muted);
+  text-align: center;
+}
+
+// نوار مرحله‌ای (Stepper) — گردش کار ECO
+.gng-stepper {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  margin-bottom: 1.1rem;
+}
+.gng-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 1;
+  position: relative;
+  font-size: 0.74rem;
+  color: var(--gng-text-muted);
+  text-align: center;
+}
+.gng-step::before {
+  content: '';
+  position: absolute;
+  top: 0.9rem;
+  right: 50%;
+  width: 100%;
+  height: 2px;
+  background: var(--gng-border);
+  z-index: 0;
+}
+.gng-step:first-child::before {
+  display: none;
+}
+.gng-step__circle {
+  z-index: 1;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gng-surface);
+  border: 2px solid var(--gng-border);
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: var(--gng-text-muted);
+}
+.gng-step--done .gng-step__circle {
+  background: var(--gng-success);
+  border-color: var(--gng-success);
+  color: #fff;
+}
+.gng-step--done::before {
+  background: var(--gng-success);
+}
+.gng-step--active .gng-step__circle {
+  background: var(--gng-primary);
+  border-color: var(--gng-primary);
+  color: #fff;
+}
+.gng-step--active {
+  color: var(--gng-text);
+  font-weight: 600;
+}
+
+// زنجیره‌ی تایید و امضای الکترونیک
+.gng-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+.gng-chain-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+}
+.gng-chain-dot {
+  margin-top: 0.2rem;
+  font-size: 0.7rem;
+}
+.gng-chain-dot--done {
+  color: var(--gng-success);
+}
+.gng-chain-dot--pending {
+  color: var(--gng-text-muted);
+}
+.gng-chain-body strong {
+  display: block;
+  color: var(--gng-text);
+}
+.gng-chain-meta {
+  color: var(--gng-text-muted);
+  font-size: 0.72rem;
+}
+
+// شبکه‌ی فیلدهای فقط‌خواندنی (نمای ورودی غیرفعال) — نمایش ویژگی‌های ثابت یک قلم/ساختار
+.gng-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 0.8rem 1rem;
+}
+.gng-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.gng-field__label {
+  font-size: 0.74rem;
+  color: var(--gng-text-muted);
+}
+.gng-field__value {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--gng-text);
+  background: var(--gng-bg);
+  border: 1px solid var(--gng-border);
+  border-radius: var(--gng-radius-sm);
+  padding: 0.5rem 0.7rem;
+}
+
+// ==========================================================================
+// کلاس‌های عمومی حوزه‌ی مهندسی تولید (ME) — دو سگمنت رنگی بیشتر برای نوار
+// پشته‌ای (تفکیک زمان ۵ بخشی)، دو نوع گره‌ی جدید برای گراف عملیات
+// (جایگزین/بازرسی)، و نوار توالی کمپین شیفتی با مرز شیفت.
+// ==========================================================================
+.gng-stack-bar__seg--d {
+  background: var(--gng-teal);
+}
+.gng-stack-bar__seg--e {
+  background: var(--gng-warning);
+}
+
+.gng-diagram-node--alt {
+  background: rgba(242, 177, 52, 0.1);
+  border-color: rgba(242, 177, 52, 0.45);
+  border-style: dashed;
+}
+.gng-diagram-node--quality {
+  background: rgba(155, 89, 182, 0.1);
+  border-color: rgba(155, 89, 182, 0.35);
+}
+
+// نوار توالی کمپین روی خط پیوسته — بلوک‌های محصول/تعویض/تمیزکاری به‌همراه
+// خط چین مرز شیفت و محور زمان زیر آن (FRM-ME-09)
+.gng-campaign {
+  position: relative;
+}
+.gng-campaign-bar {
+  display: flex;
+  height: 3rem;
+  border-radius: var(--gng-radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--gng-border);
+}
+.gng-campaign-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--gng-text);
+  padding: 0.2rem 0.4rem;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.gng-campaign-seg--product {
+  background: rgba(46, 134, 222, 0.14);
+}
+.gng-campaign-seg--changeover {
+  background: rgba(242, 177, 52, 0.35);
+  font-size: 0.72rem;
+}
+.gng-campaign-seg--cleaning {
+  background: rgba(235, 87, 87, 0.22);
+  font-size: 0.72rem;
+}
+.gng-campaign-boundary {
+  position: absolute;
+  top: -0.4rem;
+  bottom: 1.6rem;
+  border-inline-start: 2px dashed var(--gng-text-muted);
+}
+.gng-campaign-boundary__label {
+  position: absolute;
+  top: -1.1rem;
+  transform: translateX(50%);
+  font-size: 0.68rem;
+  color: var(--gng-text-muted);
+  white-space: nowrap;
+}
+.gng-campaign-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.4rem;
+  font-size: 0.7rem;
+  color: var(--gng-text-muted);
+}
+
+// ردیف/گره‌ی انتخاب‌شده‌ی جاری در جدول یا درخت (مثلاً عملیات جاری در کتابخانه)
+tr.gng-row-active td {
+  background: rgba(247, 148, 29, 0.08) !important;
+}
+.gng-tree-selected .p-treenode-label {
+  color: var(--gng-primary);
+  font-weight: 700;
+}
+
+// ==========================================================================
+// کلاس‌های عمومی حوزه‌ی کنترل تولید (PC) — گره‌ی مرکزی نارنجی و گره‌ی
+// جانگهدار (placeholder) برای دیاگرام‌های تجمیع/تفکیک و تعیین‌تکلیف
+// نامنطبق، و بستر تیره‌ی «ترمینال کف کارگاه» / «تابلوی آندون» برای
+// فرم‌های اپراتور-محور که در ماک‌آپ پس‌زمینه‌ی تیره دارند.
+// ==========================================================================
+.gng-diagram-node--primary {
+  background: rgba(247, 148, 29, 0.12);
+  border-color: rgba(247, 148, 29, 0.55);
+}
+.gng-diagram-node--placeholder {
+  background: var(--gng-bg);
+  border-color: var(--gng-border);
+  border-style: dashed;
+  color: var(--gng-text-muted);
+}
+
+// ترمینال کف کارگاه (FRM-PC-05) — پنل تیره‌ی تمام‌عرض با کارت‌های آماری
+// بزرگ و شبکه‌ی دکمه‌های لمسی، مستقل از تم روشن بقیه‌ی فرم
+.gng-terminal {
+  background: #12161f;
+  border-radius: var(--gng-radius);
+  padding: 1.2rem 1.4rem;
+  color: #eef1f6;
+}
+.gng-terminal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-bottom: 0.9rem;
+  flex-wrap: wrap;
+}
+.gng-terminal-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.gng-terminal-meta {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+.gng-terminal-stats {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  margin: 0.9rem 0;
+}
+.gng-terminal-stat {
+  flex: 1;
+  min-width: 8rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--gng-radius-sm);
+  padding: 0.8rem;
+  text-align: center;
+}
+.gng-terminal-stat--danger {
+  border-color: rgba(235, 87, 87, 0.5);
+  background: rgba(235, 87, 87, 0.14);
+}
+.gng-terminal-stat--accent {
+  border-color: rgba(46, 134, 222, 0.5);
+  background: rgba(46, 134, 222, 0.14);
+}
+.gng-terminal-stat__value {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+.gng-terminal-stat__label {
+  font-size: 0.74rem;
+  color: rgba(255, 255, 255, 0.62);
+  margin-top: 0.3rem;
+}
+.gng-terminal-progress {
+  height: 0.6rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+  margin: 0.8rem 0;
+}
+.gng-terminal-progress__fill {
+  height: 100%;
+  background: var(--gng-primary);
+}
+.gng-terminal-actions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+@media (max-width: 900px) {
+  .gng-terminal-actions {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.gng-terminal-btn {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #eef1f6;
+  border-radius: var(--gng-radius-sm);
+  padding: 0.9rem 0.6rem;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.gng-terminal-btn--danger {
+  background: rgba(235, 87, 87, 0.2);
+  border-color: rgba(235, 87, 87, 0.45);
+}
+.gng-terminal-btn--success {
+  background: rgba(39, 174, 96, 0.22);
+  border-color: rgba(39, 174, 96, 0.5);
+}
+
+// تابلوی آندون (FRM-PC-12) — ردیف کارت‌های وضعیت خط روی زمینه‌ی تیره
+.gng-andon-row {
+  display: flex;
+  gap: 0.8rem;
+  overflow-x: auto;
+  padding-bottom: 0.2rem;
+}
+.gng-andon-card {
+  flex: 1 0 11rem;
+  border-radius: var(--gng-radius-sm);
+  padding: 0.9rem 1rem;
+  color: #eef1f6;
+}
+.gng-andon-card--run {
+  background: #123321;
+  border: 1px solid rgba(39, 174, 96, 0.55);
+}
+.gng-andon-card--stop {
+  background: #331414;
+  border: 1px solid rgba(235, 87, 87, 0.55);
+}
+.gng-andon-card--warn {
+  background: #332a10;
+  border: 1px solid rgba(242, 177, 52, 0.55);
+}
+.gng-andon-card--idle {
+  background: #1c2028;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.65);
+}
+.gng-andon-card__line {
+  font-size: 0.78rem;
+  opacity: 0.85;
+}
+.gng-andon-card__status {
+  font-size: 1.02rem;
+  font-weight: 700;
+  margin: 0.35rem 0;
+}
+.gng-andon-card__meta {
+  font-size: 0.72rem;
+  opacity: 0.8;
+}
+
+// ==========================================================================
+// کلاس‌های عمومی حوزه‌ی چارچوب مشترک (PF) — انتخاب‌گر پروفایل صنعت، خط
+// زمانی اعتبار نسخه، گره‌ی تصمیم لوزی‌شکل گردش کار، بلوک قاعده/کد،
+// کارت‌های آماری سبک‌روشن، و زنجیره‌ی ردیابی افقی.
+// ==========================================================================
+
+// انتخاب‌گر پروفایل صنعت (FRM-PF-01) — شبکه‌ی کارت‌های صنعت با یک گزینه‌ی فعال
+.gng-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 0.8rem;
+}
+.gng-profile-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.3rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--gng-radius-sm);
+  border: 1px solid var(--gng-border);
+  background: var(--gng-surface);
+  text-align: right;
+  cursor: default;
+}
+.gng-profile-card__title {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--gng-text);
+}
+.gng-profile-card__meta {
+  font-size: 0.72rem;
+  color: var(--gng-text-muted);
+}
+.gng-profile-card--active {
+  border-color: var(--gng-primary);
+  border-width: 2px;
+  background: rgba(247, 148, 29, 0.08);
+}
+.gng-profile-card--active .gng-profile-card__title {
+  color: var(--gng-primary-dark);
+}
+.gng-profile-card__badge {
+  align-self: flex-start;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--gng-primary);
+  border-radius: 999px;
+  padding: 0.12rem 0.6rem;
+}
+
+// خط زمانی اعتبار نسخه‌ها (FRM-PF-02) — بلوک‌های نسخه روی محور زمان با نشانگر «امروز»
+.gng-timeline {
+  position: relative;
+  padding-top: 1.6rem;
+  padding-bottom: 0.4rem;
+  overflow-x: auto;
+}
+.gng-timeline-track {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-height: 6rem;
+}
+.gng-timeline-block {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.6rem;
+  border-radius: var(--gng-radius-sm);
+  border: 1px solid var(--gng-border);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0 0.9rem;
+}
+.gng-timeline-block--obsolete {
+  background: var(--gng-bg);
+  border-color: var(--gng-border);
+  color: var(--gng-text-muted);
+}
+.gng-timeline-block--active {
+  background: rgba(39, 174, 96, 0.12);
+  border-color: var(--gng-success);
+  color: var(--gng-success);
+}
+.gng-timeline-block--upcoming {
+  background: rgba(46, 134, 222, 0.12);
+  border-color: var(--gng-info);
+  color: var(--gng-info);
+}
+.gng-timeline-block--draft {
+  background: rgba(242, 177, 52, 0.1);
+  border-color: var(--gng-warning);
+  color: #b8791a;
+  border-style: dashed;
+}
+.gng-timeline-today {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--gng-primary);
+  z-index: 2;
+}
+.gng-timeline-today__label {
+  position: absolute;
+  top: -1.5rem;
+  transform: translateX(50%);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--gng-primary-dark);
+  white-space: nowrap;
+}
+.gng-timeline-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed var(--gng-border);
+  font-size: 0.72rem;
+  color: var(--gng-text-muted);
+}
+
+// گره‌ی تصمیم لوزی‌شکل روی دیاگرام گردش کار (FRM-PF-03)
+.gng-diagram-node--decision {
+  background: rgba(155, 89, 182, 0.08);
+  border-color: rgba(155, 89, 182, 0.4);
+  border-radius: var(--gng-radius);
+}
+.gng-diagram-node--start {
+  background: rgba(46, 134, 222, 0.1);
+  border-color: rgba(46, 134, 222, 0.35);
+  border-radius: 999px;
+}
+.gng-diagram-node--end {
+  background: rgba(39, 174, 96, 0.12);
+  border-color: var(--gng-success);
+  border-radius: 999px;
+  color: var(--gng-success);
+}
+
+// بلوک قاعده/فرمول کاربرساخته — ویرایشگر کد تیره (FRM-PF-04)
+.gng-code-block {
+  background: #12161f;
+  border: 1px solid #232c39;
+  border-radius: var(--gng-radius-sm);
+  padding: 0.9rem 1.1rem;
+  font-family: 'Courier New', monospace;
+  font-size: 0.86rem;
+  line-height: 1.9;
+  color: #d7dee7;
+  overflow-x: auto;
+  direction: ltr;
+  text-align: left;
+}
+.gng-code-block .gng-code-kw {
+  color: #f7941d;
+  font-weight: 700;
+}
+.gng-code-block .gng-code-str {
+  color: #6fcf97;
+}
+.gng-code-block .gng-code-fn {
+  color: #56ccf2;
+}
+
+// کارت‌های آماری سبک‌روشن (FRM-PF-05/06/07) — اعداد بزرگ زمینه‌روشن
+.gng-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.8rem;
+}
+.gng-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--gng-radius-sm);
+  border: 1px solid var(--gng-border);
+  background: var(--gng-surface);
+}
+.gng-stat-card__label {
+  font-size: 0.74rem;
+  color: var(--gng-text-muted);
+}
+.gng-stat-card__value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--gng-text);
+}
+.gng-stat-card__meta {
+  font-size: 0.7rem;
+  color: var(--gng-text-muted);
+}
+.gng-stat-card--success .gng-stat-card__value {
+  color: var(--gng-success);
+}
+.gng-stat-card--danger .gng-stat-card__value {
+  color: var(--gng-danger);
+}
+.gng-stat-card--warning .gng-stat-card__value {
+  color: #b8791a;
+}
+
+// زنجیره‌ی ردیابی افقی — نیازمندی ← فیچر ← فرم ← تسک (FRM-PF-07)
+.gng-trace-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.6rem;
+  overflow-x: auto;
+  padding: 0.3rem;
+}
+.gng-trace-card {
+  flex: 1;
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.9rem 1rem;
+  border-radius: var(--gng-radius-sm);
+  border: 2px solid var(--gng-border);
+  background: var(--gng-surface);
+  text-align: center;
+}
+.gng-trace-card__label {
+  font-size: 0.72rem;
+  color: var(--gng-text-muted);
+}
+.gng-trace-card__value {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--gng-text);
+}
+.gng-trace-card__meta {
+  font-size: 0.72rem;
+  color: var(--gng-text-muted);
+}
+.gng-trace-card--req {
+  border-color: var(--gng-info);
+  background: rgba(46, 134, 222, 0.08);
+}
+.gng-trace-card--feature {
+  border-color: var(--gng-success);
+  background: rgba(39, 174, 96, 0.08);
+}
+.gng-trace-card--form {
+  border-color: var(--gng-purple);
+  background: rgba(155, 89, 182, 0.08);
+}
+.gng-trace-card--task {
+  border-color: var(--gng-primary);
+  background: rgba(247, 148, 29, 0.08);
+}
+.gng-trace-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gng-text-muted);
+  font-size: 1rem;
+  padding: 0 0.1rem;
+}
+
+// ==========================================================================
+// FRM-RM-01 — بلوک هر خط در تب «خط تولید و توپولوژی» (چند خط زیر هم) و
+// نشانه‌های خطیِ راهنمای نمودار.
+// ==========================================================================
+.gng-line-block {
+  border: 1px solid var(--gng-border);
+  border-radius: var(--gng-radius-sm);
+  padding: 0.55rem 0.7rem 0.4rem;
+  margin-bottom: 0.7rem;
+  background: var(--gng-surface);
+}
+.gng-line-block__head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.3rem;
+}
+.gng-line-block__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--gng-text);
+
+  i {
+    color: var(--gng-primary);
+    font-size: 0.85rem;
+  }
+}
+.gng-line-block__code {
+  font-size: 0.72rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: var(--gng-bg);
+  border: 1px solid var(--gng-border);
+  color: var(--gng-text-muted);
+  direction: ltr;
+}
+.gng-line-block__meta {
+  font-size: 0.75rem;
+  color: var(--gng-text-muted);
+}
+.gng-loading {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+.gng-legend-line {
+  display: inline-block;
+  width: 1.6rem;
+  height: 0;
+  margin-inline-end: 0.35rem;
+  vertical-align: middle;
+  border-top: 2px dashed var(--gng-danger);
+}
+.gng-legend-line--off {
+  border-top-color: var(--gng-border);
+}
+.gng-tree.p-tree .p-treenode-content {
+  cursor: pointer;
+}
+// درخت سلسله‌مراتب حالا تا هفت سطح عمق دارد (مجموعه ← … ← ایستگاه)؛ فشرده‌تر
+// تا در پنل کناری جا شود.
+.gng-tree.p-tree .p-treenode-content {
+  padding: 0.12rem 0.2rem;
+}
+.gng-tree.p-tree .p-tree-toggler {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-inline-end: 0.15rem;
+}
+.gng-tree.p-tree .p-treenode-children {
+  padding-inline-start: 0.75rem;
+  padding-left: 0;
+  padding-right: 0.75rem;
+}
+
+// ردیف خالیِ جدول/بخش و نشانه‌ی «زیرمجموعه» در جدول‌های سلسله‌مراتبی.
+.gng-empty {
+  margin: 0;
+  padding: 0.8rem 0.4rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--gng-text-muted);
+}
+.gng-sub-icon {
+  font-size: 0.7rem;
+  margin-inline-end: 0.35rem;
+  color: var(--gng-text-muted);
+}
+
+// ==========================================================================
+// FRM-RM-03 — ماتریس مهارت: نشان سطح (۱ تا ۴) و پرچم اعتبار. سطح همیشه با عدد
+// نوشته می‌شود و وضعیت اعتبار با آیکن؛ رنگ فقط تقویت‌کننده است.
+// ==========================================================================
+.gng-section-title {
+  margin: 1.4rem 0 0.5rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--gng-text);
+}
+.gng-text-muted {
+  color: var(--gng-text-muted);
+}
+.gng-skill-level {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: var(--gng-radius-sm);
+  border: 1px solid var(--gng-border);
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: var(--gng-text);
+  background: var(--gng-surface);
+}
+.gng-skill-level--1 {
+  background: rgba(46, 134, 222, 0.08);
+  border-color: rgba(46, 134, 222, 0.3);
+}
+.gng-skill-level--2 {
+  background: rgba(46, 134, 222, 0.2);
+  border-color: rgba(46, 134, 222, 0.45);
+}
+.gng-skill-level--3 {
+  background: rgba(46, 134, 222, 0.4);
+  border-color: rgba(46, 134, 222, 0.6);
+}
+.gng-skill-level--4 {
+  background: var(--gng-info);
+  border-color: var(--gng-info);
+  color: #fff;
+}
+.gng-skill-level--expired {
+  background: var(--gng-surface);
+  border: 1px dashed var(--gng-danger);
+  color: var(--gng-text-muted);
+  text-decoration: line-through;
+}
+.gng-skill-flag {
+  font-size: 0.8rem;
+  margin-inline-start: 0.3rem;
+  vertical-align: middle;
+  color: var(--gng-text-muted);
+
+  &.pi-times-circle {
+    color: var(--gng-danger);
+  }
+  &.pi-refresh {
+    color: var(--gng-primary-dark);
+  }
+}
+.gng-skill-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.1rem;
+  margin: 0 0 0.7rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+  color: var(--gng-text);
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .gng-skill-level {
+    width: 1.4rem;
+    height: 1.4rem;
+    font-size: 0.74rem;
+  }
+}
+
+// ==========================================================================
+// FRM-RM-04 — شیفت و برنامه‌ی حضور: نشان شیفت (نام شیفت همیشه نوشته می‌شود؛
+// رنگ فقط کمک‌کننده است)، نوار ۲۴ساعته، نوار چرخه و جدول برنامه‌ی حضور.
+// ==========================================================================
+.gng-shift {
+  display: inline-block;
+  padding: 0.12rem 0.55rem;
+  border-radius: var(--gng-radius-sm);
+  border: 1px solid var(--gng-border);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--gng-text);
+  background: var(--gng-surface);
+}
+.gng-shift--1 {
+  background: rgba(242, 177, 52, 0.22);
+  border-color: var(--gng-warning);
+}
+.gng-shift--2 {
+  background: rgba(23, 162, 184, 0.2);
+  border-color: var(--gng-teal);
+}
+.gng-shift--3 {
+  background: rgba(39, 174, 96, 0.2);
+  border-color: var(--gng-success);
+}
+.gng-shift--4 {
+  background: rgba(247, 148, 29, 0.24);
+  border-color: var(--gng-primary);
+}
+.gng-shift--5 {
+  background: rgba(155, 89, 182, 0.22);
+  border-color: var(--gng-purple);
+}
+.gng-shift--rest {
+  font-weight: 400;
+  color: var(--gng-text-muted);
+  background: var(--gng-bg);
+  border-style: dashed;
+}
+
+.gng-day {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.gng-day__row {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  align-items: center;
+  gap: 0.6rem;
+}
+.gng-day__label {
+  font-size: 0.82rem;
+  color: var(--gng-text);
+}
+.gng-day__track {
+  position: relative;
+  height: 1.5rem;
+  border-radius: var(--gng-radius-sm);
+  border: 1px solid var(--gng-border);
+  background: var(--gng-bg);
+  overflow: hidden;
+}
+.gng-day__track--axis {
+  height: 1.1rem;
+  border: 0;
+  background: none;
+  overflow: visible;
+}
+.gng-day__tick {
+  position: absolute;
+  top: 0;
+  font-size: 0.68rem;
+  color: var(--gng-text-muted);
+  border-inline-start: 1px solid var(--gng-border);
+  padding-inline-start: 0.2rem;
+  line-height: 1.1rem;
+}
+.gng-day__seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+.gng-day__seg--paid-break {
+  top: 25%;
+  bottom: 25%;
+  background: var(--gng-surface);
+  opacity: 0.85;
+}
+.gng-day__seg--unpaid-break {
+  background: var(--gng-bg);
+  background-image: repeating-linear-gradient(45deg, transparent 0 4px, var(--gng-border) 4px 6px);
+}
+.gng-day__swatch {
+  display: inline-block;
+  width: 1.4rem;
+  height: 0.8rem;
+  border-radius: 3px;
+  border: 1px solid var(--gng-border);
+}
+.gng-day__swatch--work {
+  background: rgba(242, 177, 52, 0.4);
+  border-color: var(--gng-warning);
+}
+.gng-day__swatch--paid {
+  background: var(--gng-surface);
+}
+.gng-day__swatch--unpaid {
+  background-image: repeating-linear-gradient(45deg, transparent 0 4px, var(--gng-border) 4px 6px);
+}
+
+.gng-rotation {
+  padding: 0.8rem 0;
+  border-bottom: 1px solid var(--gng-border);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+.gng-rotation__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.8rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.88rem;
+
+  span {
+    font-size: 0.78rem;
+  }
+}
+.gng-rotation__days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.gng-rotation__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 4.6rem;
+}
+.gng-rotation__no {
+  font-size: 0.7rem;
+  color: var(--gng-text-muted);
+}
+
+.gng-window {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.8rem;
+  font-size: 0.86rem;
+}
+.gng-roster {
+  min-width: 54rem;
+
+  th,
+  td {
+    padding: 0.4rem 0.15rem;
+  }
+  .gng-shift {
+    padding: 0.1rem 0.35rem;
+    font-size: 0.74rem;
+  }
+  thead th {
+    font-size: 0.74rem;
+    white-space: nowrap;
+  }
+}
+.gng-roster__date {
+  font-weight: 400;
+  color: var(--gng-text-muted);
+}
+.gng-roster__friday {
+  background: rgba(235, 87, 87, 0.06) !important;
+}
+.gng-roster__today {
+  box-shadow: inset 0 -3px 0 var(--gng-primary);
+}
+.gng-roster__count {
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  color: var(--gng-text-muted);
+  font-variant-numeric: tabular-nums;
+
+  i {
+    font-size: 0.66rem;
+  }
+}
+.gng-roster__count--short {
+  color: var(--gng-danger);
+  font-weight: 700;
+}
+
+// ==========================================================================
+// FRM-RM-05 — تقویم تولید: جدول لایه‌ای تقویم مؤثر. منشأ هر لایه با متن نوشته
+// می‌شود؛ رنگ فقط کمک‌کننده است.
+// ==========================================================================
+.gng-origin {
+  display: inline-block;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  border: 1px solid var(--gng-border);
+  color: var(--gng-text);
+  background: var(--gng-bg);
+  white-space: normal;
+}
+.gng-origin--holiday,
+.gng-origin--closure {
+  border-color: var(--gng-danger);
+  background: rgba(235, 87, 87, 0.1);
+}
+.gng-origin--extra-day {
+  border-color: var(--gng-info);
+  background: rgba(46, 134, 222, 0.1);
+}
+.gng-origin--maintenance {
+  border-color: var(--gng-purple);
+  background: rgba(155, 89, 182, 0.14);
+}
+.gng-origin--no-rule {
+  border-style: dashed;
+}
+.gng-effective + .gng-effective {
+  margin-top: 1.2rem;
+}
+.gng-effective__total td {
+  background: rgba(39, 174, 96, 0.1);
+}
+.gng-effective__total td.gng-effective__zero {
+  background: var(--gng-bg);
+  color: var(--gng-text-muted);
+}
+
+// ==========================================================================
+// FRM-RM-06 — نمای بار/ظرفیت: درصد بار همیشه با عدد نوشته می‌شود؛ رنگ فقط
+// کمک‌کننده است (زیر ۹۰٪، ۹۰ تا ۱۰۰٪، بالای ۱۰۰٪، بار بدون ظرفیت).
+// ==========================================================================
+.gng-small {
+  font-size: 0.74rem;
+  font-weight: 400;
+}
+.gng-load {
+  display: inline-block;
+  min-width: 2.2rem;
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.gng-load--ok {
+  background: rgba(39, 174, 96, 0.12);
+}
+.gng-load--warn {
+  background: rgba(242, 153, 74, 0.2);
+  border-color: var(--gng-warning);
+}
+.gng-load--over {
+  background: rgba(235, 87, 87, 0.16);
+  border-color: var(--gng-danger);
+  color: var(--gng-danger);
+  font-weight: 700;
+}
+.gng-load--nocap {
+  border-style: dashed;
+  border-color: var(--gng-warning);
+}
+.gng-load--idle {
+  color: var(--gng-text-muted);
+}
+.gng-loadgrid {
+  min-width: 70rem;
+
+  tbody th {
+    min-width: 13rem;
+  }
+}
+
+// ==========================================================================
+// FRM-RM-07 — طبقه‌بندی علل: درخت علل (TreeTable) و برچسب علت در نگاشت OEE.
+// ==========================================================================
+.gng-reason-tree__group > td:first-child {
+  font-weight: 600;
+}
+.gng-reason-tree td .p-treetable-toggler {
+  margin-inline-end: 0.35rem;
+}
+.gng-reason-chip {
+  margin: 0.15rem 0 0.15rem 0.35rem;
+  font-size: 0.74rem;
+}
+
+// FRM-PE-02 — انتخاب طرفین مقایسه‌ی ساختار؛ نماد رنگی راهنمای نوار ترکیب (رنگ متن = رنگ سگمنت).
+.gng-diff-pick {
+  min-width: 16rem;
+}
+.gng-stack-legend .gng-legend-dot[class*='gng-stack-bar__seg--'] {
+  background: transparent !important;
+}
+.gng-stack-legend .gng-stack-bar__seg--a { color: var(--gng-info); }
+.gng-stack-legend .gng-stack-bar__seg--b { color: var(--gng-purple); }
+.gng-stack-legend .gng-stack-bar__seg--c { color: var(--gng-danger); }
+.gng-stack-legend .gng-stack-bar__seg--d { color: var(--gng-teal); }
+.gng-stack-legend .gng-stack-bar__seg--e { color: var(--gng-warning); }

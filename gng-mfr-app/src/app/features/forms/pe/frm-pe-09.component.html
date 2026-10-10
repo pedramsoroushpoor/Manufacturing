@@ -1,0 +1,177 @@
+<gng-opform-layout
+  domainTitle="مهندسی محصول"
+  title="مدیریت تغییر مهندسی (ECO)"
+  code="FRM-PE-09"
+  formTypeLabel="فرم عملیاتی"
+  owner="مهندسی محصول / R&D"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-history"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="درخواست‌های تغییر"
+  contextPanelHint="ثبت و تأیید در یک فرم با دو مجوز مجزا انجام می‌شود."
+  auditFeatureRange="F-PE-069 تا F-PE-071، F-PE-073، F-PE-074 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-file-plus" label="ثبت درخواست تغییر" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-play" label="اجرای تحلیل اثر" class="p-button-sm p-button-success"></button>
+    <button pButton type="button" icon="pi pi-database" label="تعیین سیاست موجودی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-lock" label="تأیید با امضای الکترونیک" class="p-button-sm p-button-warning"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <div class="gng-stepper" *ngIf="eco">
+    <div class="gng-step" *ngFor="let s of steps; let i = index" [ngClass]="stepClass(i)">
+      <div class="gng-step__circle"><i class="pi pi-check" *ngIf="stepClass(i) === 'gng-step--done'"></i><span *ngIf="stepClass(i) !== 'gng-step--done'">{{ fa(i + 1) }}</span></div>
+      <span>{{ s }}</span>
+    </div>
+    <div class="gng-step" *ngIf="eco.statusCode === 6"><p-tag value="ردشده" severity="danger"></p-tag></div>
+  </div>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <!-- ───────── درخواست تغییر (F-PE-069) ───────── -->
+    <p-tabPanel header="درخواست تغییر">
+      <div *ngIf="eco as e" style="position: relative">
+        <gng-data-source-badge [source]="ds('pe09-ecos', 'ECOها')"></gng-data-source-badge>
+        <div class="gng-field-grid">
+          <div class="gng-field"><span class="gng-field__label">شماره</span><span class="gng-field__value">{{ e.number }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">عنوان تغییر *</span><span class="gng-field__value">{{ e.title }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">منشأ تغییر *</span><span class="gng-field__value">{{ e.origin }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">اولویت</span><span class="gng-field__value">{{ e.priority }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">درخواست‌کننده</span><span class="gng-field__value">{{ e.requestedBy }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">تاریخ درخواست</span><span class="gng-field__value">{{ e.requestDate }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">تاریخ اثر *</span><span class="gng-field__value">{{ e.effectiveDate }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">وضعیت</span><span class="gng-field__value"><p-tag [value]="e.status" [severity]="statusSeverity(e.statusCode)"></p-tag></span></div>
+          <div class="gng-field"><span class="gng-field__label">علت</span><span class="gng-field__value">{{ e.reason || '—' }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">نسخه‌های ساختار ثبت‌شده با این ECO</span><span class="gng-field__value">{{ e.linkedRevisions || '—' }}</span></div>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── دامنه‌ی چندموجودیتی (F-PE-069) ───────── -->
+    <p-tabPanel header="دامنه‌ی چندموجودیتی">
+      <p class="gng-hint">یک ECO می‌تواند هم‌زمان ساختار، کالا، گروه جایگزین و الگو را تغییر دهد.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pe09-items', 'دامنه')"></gng-data-source-badge>
+        <p-table [value]="data?.items ?? []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th style="width: 9rem">موجودیت</th><th>عنوان</th><th style="width: 9rem">نوع تغییر</th><th>پیش از تغییر</th><th>پس از تغییر</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr>
+              <td>{{ r.entityType }}</td>
+              <td>{{ r.entity }}<div *ngIf="r.description" class="gng-text-muted gng-small">{{ r.description }}</div></td>
+              <td>{{ r.changeType }}</td>
+              <td class="gng-text-muted">{{ r.before }}</td>
+              <td><strong>{{ r.after }}</strong></td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="5" class="gng-empty">دامنه‌ای ثبت نشده است.</td></tr></ng-template>
+        </p-table>
+      </div>
+      <div class="gng-note gng-note--info gng-mt">
+        <strong>هنوز پیاده نشده.</strong> فعال‌سازی اتمیک همه‌ی تغییرات دامنه در تاریخ اثر — همه با هم یا هیچ‌کدام — (F-PE-072) اولویت «مهم» دارد.
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── تحلیل اثر (F-PE-070) ───────── -->
+    <p-tabPanel header="تحلیل اثر" [selected]="true">
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.8rem">
+        <div class="gng-panel" style="text-align: center; padding: 0.9rem 0.6rem">
+          <div style="font-size: 1.5rem; font-weight: 700">{{ fa(directImpact.length) }}</div>
+          <div style="font-size: 0.78rem">کالای مستقیماً متأثر</div>
+        </div>
+        <div class="gng-panel" style="text-align: center; padding: 0.9rem 0.6rem">
+          <div style="font-size: 1.5rem; font-weight: 700">{{ fa(upstreamImpact.length) }}</div>
+          <div style="font-size: 0.78rem">ساختار بالادستی</div>
+          <div class="gng-text-muted" style="font-size: 0.7rem">تا {{ fa(maxLevel) }} سطح</div>
+        </div>
+        <div class="gng-panel" style="text-align: center; padding: 0.9rem 0.6rem">
+          <div style="font-size: 1.5rem; font-weight: 700">{{ fa(upstreamInCurrent) }}</div>
+          <div style="font-size: 0.78rem">در نسخه‌ی جاری</div>
+          <div class="gng-text-muted" style="font-size: 0.7rem">بقیه فقط در نسخه‌ی قدیم</div>
+        </div>
+      </div>
+
+      <div style="position: relative" class="gng-mt">
+        <gng-data-source-badge [source]="ds('pe09-impact', 'تحلیل اثر')"></gng-data-source-badge>
+        <p-table [value]="data?.impact ?? []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th style="width: 8rem">نوع اثر</th><th style="width: 5rem">فاصله</th><th>کالا / محصول</th><th>ساختار متأثر</th><th style="width: 10rem">وضعیت</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr>
+              <td><p-tag [value]="r.kind === 'direct' ? 'مستقیم' : 'بالادستی'" [severity]="r.kind === 'direct' ? 'warning' : 'info'"></p-tag></td>
+              <td>{{ r.kind === 'direct' ? '—' : fa(r.level) }}</td>
+              <td>{{ r.product }}</td>
+              <td>{{ r.structure || '—' }}</td>
+              <td>
+                <p-tag *ngIf="r.inCurrent !== null" [value]="r.inCurrent ? 'در نسخه‌ی جاری' : 'فقط نسخه‌ی قدیم'" [severity]="r.inCurrent ? 'success' : 'secondary'"></p-tag>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="5" class="gng-empty">اثری یافت نشد.</td></tr></ng-template>
+        </p-table>
+      </div>
+      <p class="gng-hint gng-mt">سفارش‌های تولید باز، موجودی و درخواست‌های خرید باز به سیستم‌های تولید، انبار و خرید وابسته‌اند که هنوز وصل نشده‌اند.</p>
+    </p-tabPanel>
+
+    <!-- ───────── سیاست موجودی (F-PE-071) ───────── -->
+    <p-tabPanel header="سیاست موجودی">
+      <div *ngIf="eco as e">
+        <div class="gng-field-grid">
+          <div class="gng-field"><span class="gng-field__label">سیاست موجودی موجود از تغییر</span>
+            <span class="gng-field__value"><p-tag [value]="e.inventoryPolicy" [severity]="e.inventoryPolicyCode ? 'info' : 'warning'"></p-tag></span></div>
+          <div class="gng-field"><span class="gng-field__label">شرط</span><span class="gng-field__value">{{ e.inventoryCondition || '—' }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">تاریخ اثر</span><span class="gng-field__value">{{ e.effectiveDate }}</span></div>
+        </div>
+        <p class="gng-hint gng-mt">سیاست‌ها: مصرف تا اتمام · کنارگذاری · اختلاط با شرط (شرط اختلاط الزامی است).</p>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── تأیید و امضا (F-PE-074) و اطلاع‌رسانی (F-PE-073) ───────── -->
+    <p-tabPanel header="تأیید و امضا">
+      <div class="gng-columns">
+        <div class="gng-panel" style="position: relative">
+          <gng-data-source-badge [source]="ds('pe09-approvals', 'امضاها')"></gng-data-source-badge>
+          <h3>زنجیره‌ی تأیید و امضای الکترونیک</h3>
+          <p class="gng-hint">احراز هویت مجدد در هر امضا.</p>
+          <div class="gng-chain">
+            <div class="gng-chain-item" *ngFor="let a of data?.approvals ?? []">
+              <i class="pi pi-circle-fill gng-chain-dot" [ngClass]="a.decisionCode === 1 ? 'gng-chain-dot--done' : 'gng-chain-dot--pending'"></i>
+              <div class="gng-chain-body">
+                <strong>{{ fa(a.sequence) }}. {{ a.role }} — {{ a.approver }}</strong>
+                <div class="gng-mt-sm" style="display: inline-block; margin-inline-start: 0.5rem">
+                  <p-tag [value]="decisionLabel(a.decisionCode)" [severity]="decisionSeverity(a.decisionCode)"></p-tag>
+                </div>
+                <div class="gng-chain-meta" *ngIf="a.signedOn">{{ a.signedOn }} · {{ a.method }}</div>
+                <div class="gng-chain-meta" *ngIf="a.comment">{{ a.comment }}</div>
+              </div>
+            </div>
+            <p *ngIf="!data?.approvals?.length" class="gng-empty">هنوز زنجیره‌ی تأیید تعیین نشده است.</p>
+          </div>
+        </div>
+        <div class="gng-panel">
+          <h3>اطلاع‌رسانی به واحدهای متأثر</h3>
+          <p-table [value]="data?.notifications ?? []" styleClass="p-datatable-sm gng-table">
+            <ng-template pTemplate="header"><tr><th>واحد</th><th style="width: 8rem">وضعیت</th><th>زمان ارسال</th></tr></ng-template>
+            <ng-template pTemplate="body" let-n>
+              <tr>
+                <td>{{ n.unit }}<div class="gng-text-muted gng-small">{{ n.message }}</div></td>
+                <td><p-tag [value]="n.statusCode === 2 ? 'ارسال شد' : 'در صف'" [severity]="n.statusCode === 2 ? 'success' : 'secondary'"></p-tag></td>
+                <td>{{ n.sentOn || '—' }}</td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage"><tr><td colspan="3" class="gng-empty">پس از ارسال برای تأیید، اطلاع‌رسانی در صف قرار می‌گیرد.</td></tr></ng-template>
+          </p-table>
+        </div>
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="ds('pe09-ecos', 'ECOها')"></gng-data-source-badge>
+    <p-tree [value]="ecoTree" styleClass="gng-tree" selectionMode="single" [(selection)]="selectedNode" (onNodeSelect)="onPick($event)"></p-tree>
+  </div>
+</gng-opform-layout>

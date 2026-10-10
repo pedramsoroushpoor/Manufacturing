@@ -1,0 +1,218 @@
+<gng-opform-layout
+  domainTitle="مدیریت منابع"
+  title="پیمانکاران تولید"
+  code="FRM-RM-08"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="برون‌سپاری تولید"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-briefcase"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="پیمانکاران"
+  contextPanelHint="با انتخاب یک پیمانکار، همه‌ی تب‌ها به همان پیمانکار محدود می‌شوند. پیمانکار فعلاً جدا از درخت سازمانی و منابع داخلی تعریف می‌شود."
+  auditFeatureRange="F-RM-054 تا F-RM-057 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-plus" label="تعریف پیمانکار" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-sliders-h" label="ثبت قابلیت و ظرفیت" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-money-bill" label="ثبت نرخ کارمزد" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-star" label="ارزیابی دوره‌ای" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <!-- ───────── پیمانکار ───────── -->
+    <p-tabPanel header="پیمانکار" [selected]="true">
+      <p class="gng-hint">پیمانکار تولید منبع بیرونی است با قرارداد، وضعیت تأیید صلاحیت و تقویم کاری خودش. ظرفیت و کارکرد استاندارد در تب «قابلیت» است.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="contractorsSource()"></gng-data-source-badge>
+        <p-table [value]="visibleContractors" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 5rem">کد</th>
+              <th>پیمانکار</th>
+              <th>قرارداد</th>
+              <th style="width: 7rem">صلاحیت</th>
+              <th style="width: 9rem">نوع همکاری</th>
+              <th>تقویم کاری</th>
+              <th style="width: 7rem">قابلیت / انبار</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-c>
+            <tr [class.gng-text-muted]="!c.active">
+              <td>{{ c.code }}</td>
+              <td>
+                {{ c.title }}
+                <p-tag *ngIf="!c.active" value="غیرفعال" severity="secondary" styleClass="gng-mr-sm"></p-tag>
+                <div class="gng-text-muted gng-small">{{ c.city }} · {{ c.contact }}</div>
+                <div *ngIf="c.description" class="gng-text-muted gng-small">{{ c.description }}</div>
+              </td>
+              <td>
+                {{ c.contract }}
+                <div><p-tag [value]="c.contractState" [severity]="c.contractTone"></p-tag></div>
+              </td>
+              <td><p-tag [value]="c.qualification" [severity]="c.qualificationTone"></p-tag></td>
+              <td>{{ c.materialMode }}</td>
+              <td>{{ c.calendar }}</td>
+              <td>{{ fa(c.capabilityCount) }} / {{ fa(c.inventoryCount) }}</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="7" class="gng-empty">پیمانکاری تعریف نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── قابلیت ───────── -->
+    <p-tabPanel header="قابلیت">
+      <p class="gng-hint">چه عملیاتی (از کتابخانه‌ی عملیات)، روی چه محصولی و با چه ظرفیتی. تأیید صلاحیت (ممیزی GMP) تاریخ انقضا دارد.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="capabilitiesSource()"></gng-data-source-badge>
+        <p-table [value]="capabilities" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th *ngIf="!selected">پیمانکار</th>
+              <th>عملیات</th>
+              <th>محصول / گروه محصول</th>
+              <th style="width: 13rem">ظرفیت</th>
+              <th style="width: 13rem">تأیید صلاحیت تا</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-x>
+            <tr>
+              <td *ngIf="!selected">{{ x.contractor }}</td>
+              <td>{{ x.operation }}</td>
+              <td>
+                {{ x.product }}
+                <p-tag *ngIf="x.isProductGroup" value="گروه محصول" severity="info" styleClass="gng-mr-sm"></p-tag>
+                <p-tag *ngIf="x.isFuture" value="آینده" severity="info" styleClass="gng-mr-sm"></p-tag>
+              </td>
+              <td>{{ x.capacity }}</td>
+              <td>{{ x.qualifiedUntil }} <p-tag [value]="x.qualificationState" [severity]="x.qualificationTone" styleClass="gng-mr-sm"></p-tag></td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td [attr.colspan]="selected ? 4 : 5" class="gng-empty">قابلیتی ثبت نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── نرخ و زمان تحویل ───────── -->
+    <p-tabPanel header="نرخ و زمان تحویل">
+      <p class="gng-hint">نرخ کارمزد و زمان تحویل به‌ازای پیمانکار × عملیات × محصول، با اعتبار زمانی. نسخه‌های گذشته برای سابقه می‌مانند.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ratesSource()"></gng-data-source-badge>
+        <p-table [value]="rates" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th *ngIf="!selected">پیمانکار</th>
+              <th>عملیات / محصول</th>
+              <th style="width: 15rem">نرخ کارمزد</th>
+              <th style="width: 6rem">زمان تحویل</th>
+              <th style="width: 7rem">حداقل سفارش</th>
+              <th style="width: 12rem">اعتبار</th>
+              <th>علت</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr [class.gng-text-muted]="r.status === 'past'">
+              <td *ngIf="!selected">{{ r.contractor }}</td>
+              <td>
+                {{ r.operation }}
+                <div class="gng-small">
+                  {{ r.product }}
+                  <p-tag *ngIf="r.isProductGroup" value="گروه محصول" severity="info" styleClass="gng-mr-sm"></p-tag>
+                </div>
+                <div *ngIf="!r.hasCapability && r.status !== 'past'" class="gng-sym--warn gng-small">
+                  <i class="pi pi-exclamation-triangle"></i> قابلیتی برای این عملیات و محصول ثبت نشده
+                </div>
+              </td>
+              <td>
+                {{ r.fee }}
+                <div *ngIf="r.change" class="gng-text-muted gng-small">{{ r.change }}</div>
+              </td>
+              <td>{{ r.leadTime }}</td>
+              <td>{{ r.minOrder }}</td>
+              <td>{{ r.validity }} <p-tag [value]="rateLabel(r.status)" [severity]="rateTone(r.status)" styleClass="gng-mr-sm"></p-tag></td>
+              <td>{{ r.reason }}</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td [attr.colspan]="selected ? 6 : 7" class="gng-empty">نرخی ثبت نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── انبار امانی ───────── -->
+    <p-tabPanel header="انبار امانی">
+      <p class="gng-hint">
+        انبار امانی نزد پیمانکار: مواد ما که برای کارمزدی نزد او است، و محصول یا نیمه‌ساخته‌ای که هنوز تحویل نشده. انبار باید از
+        سیستم انبار فراخوانی شود؛ تا آن اتصال، کد مرجع انبار به‌صورت متن نگه داشته می‌شود (مثل انبار پای کار در FRM-RM-01).
+      </p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="inventoriesSource()"></gng-data-source-badge>
+        <p-table [value]="inventories" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th *ngIf="!selected">پیمانکار</th>
+              <th style="width: 7rem">کد</th>
+              <th>انبار</th>
+              <th style="width: 10rem">نوع</th>
+              <th>انبار مرجع در سیستم انبار</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-i>
+            <tr>
+              <td *ngIf="!selected">{{ i.contractor }}</td>
+              <td>{{ i.code }}</td>
+              <td>
+                {{ i.title }}
+                <div *ngIf="i.description" class="gng-text-muted gng-small">{{ i.description }}</div>
+              </td>
+              <td>{{ i.type }}</td>
+              <td>
+                {{ i.reference }}
+                <p-tag *ngIf="!i.linked" value="هنوز وصل نیست" severity="secondary" styleClass="gng-mr-sm"></p-tag>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td [attr.colspan]="selected ? 4 : 5" class="gng-empty">انبار امانی تعریف نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── ظرفیت در نمای کل (فاز ۳) ───────── -->
+    <p-tabPanel header="ظرفیت در نمای کل">
+      <div class="gng-note gng-note--info">
+        <strong>هنوز پیاده نشده.</strong> لحاظ ظرفیت پیمانکار در نمای ظرفیت کل با تفکیک داخلی/بیرونی (F-RM-058) اولویت «مهم» و فاز ۳
+        دارد. چون پیمانکار فعلاً جدا از منابع داخلی تعریف شده، این نما باید ظرفیت تب «قابلیت» را کنار نمای بار FRM-RM-06 بگذارد.
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── ارزیابی عملکرد (فاز ۴) ───────── -->
+    <p-tabPanel header="ارزیابی عملکرد">
+      <div class="gng-note gng-note--info">
+        <strong>هنوز پیاده نشده.</strong> ارزیابی عملکرد پیمانکار — به‌موقع بودن، نرخ ضایعات و انطباق کیفی (F-RM-059) — اولویت «مطلوب»
+        و فاز ۴ دارد و به داده‌ی اجرای برون‌سپاری (FRM-PC-10) نیاز دارد.
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="contractorsSource()"></gng-data-source-badge>
+    <p-tree
+      [value]="pickTree"
+      styleClass="gng-tree"
+      selectionMode="single"
+      [(selection)]="selectedPick"
+      (onNodeSelect)="onPick($event)"
+      (onNodeUnselect)="onUnpick($event)"
+    ></p-tree>
+  </div>
+</gng-opform-layout>

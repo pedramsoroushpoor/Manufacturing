@@ -1,0 +1,98 @@
+:host {
+  display: block;
+  padding: 8px 10px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.gng-menu-node {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.gng-menu-node__icon {
+  font-size: 15px;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+::ng-deep .gng-menu-tree {
+  background: transparent;
+  border: none;
+  padding: 0;
+
+  .p-treenode-label {
+    color: #d7dee5;
+    font-size: 13.5px;
+    width: 100%;
+  }
+
+  .p-tree-toggler {
+    color: #7c8a99;
+  }
+
+  .p-treenode-content {
+    border-radius: var(--gng-radius-sm);
+    padding: 2px 4px;
+    transition: background 0.15s ease;
+  }
+
+  .p-treenode-content:hover {
+    background: var(--gng-dark-700) !important;
+
+    .gng-menu-node__icon {
+      transform: scale(1.08);
+    }
+  }
+
+  .p-treenode-content.p-highlight {
+    background: var(--gng-primary) !important;
+    box-shadow: 0 2px 8px rgba(247, 148, 29, 0.35);
+
+    .p-treenode-label,
+    .p-tree-toggler {
+      color: #fff !important;
+    }
+
+    .gng-menu-node__icon {
+      color: #fff !important;
+    }
+  }
+
+  // سطح ۱ (دامنه‌ها) کمی برجسته‌تر از فرم‌های زیرمجموعه‌شان
+  .p-treenode:not(.p-treenode-leaf) > .p-treenode-content .p-treenode-label {
+    font-weight: 600;
+  }
+}
+
+// ریل آیکونی حالت جمع‌شده — به‌جای پنهان‌شدن کامل منو
+.gng-menu-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding-top: 6px;
+}
+
+.gng-menu-rail__item {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--gng-radius-sm);
+  border: 1px solid var(--gng-dark-border);
+  background: var(--gng-dark-800);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    background: var(--gng-dark-700);
+    transform: scale(1.08);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  }
+}

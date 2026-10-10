@@ -1,0 +1,289 @@
+<gng-opform-layout
+  domainTitle="مدیریت منابع"
+  title="تقویم تولید"
+  code="FRM-RM-05"
+  formTypeLabel="فرم عملیاتی"
+  owner="برنامه‌ریزی تولید"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-calendar"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="سلسله‌مراتب سازمانی و مکانی"
+  contextPanelHint="با انتخاب هر گره یا خط، تقویم مؤثر، استثناها و رزرو نت به خطوط همان دامنه محدود می‌شوند."
+  auditFeatureRange="F-RM-030 تا F-RM-034، F-RM-037 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-calendar-plus" label="تعریف تقویم در هر سطح" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-exclamation-circle" label="ثبت استثنا" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-wrench" label="رزرو توقف برنامه‌ریزی‌شده" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <ng-template #windowNav>
+    <div class="gng-window">
+      <button pButton type="button" icon="pi pi-angle-right" label="۱۴ روز قبل" class="p-button-text p-button-sm" (click)="moveWindow(-1)"></button>
+      <strong>{{ windowText }}</strong>
+      <button pButton type="button" icon="pi pi-angle-left" iconPos="right" label="۱۴ روز بعد" class="p-button-text p-button-sm" (click)="moveWindow(1)"></button>
+      <button pButton type="button" label="امروز" class="p-button-outlined p-button-sm" [disabled]="isCurrentWindow" (click)="goToday()"></button>
+    </div>
+  </ng-template>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="scopeLoading">
+    <!-- ───────── تعریف تقویم ───────── -->
+    <p-tabPanel header="تعریف تقویم">
+      <p class="gng-hint">تقویم پایه را می‌توان در هر سطح تعریف کرد. هر خط نزدیک‌ترین تعریف را از خودش به بالا به ارث می‌برد.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="rulesSource()"></gng-data-source-badge>
+        <p-table [value]="rules" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 6rem">کد</th>
+              <th>عنوان</th>
+              <th style="width: 7rem">سطح</th>
+              <th>تعریف‌شده روی</th>
+              <th>روزهای کاری</th>
+              <th style="width: 10rem">ساعت کار</th>
+              <th style="width: 12rem">نوع</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr>
+              <td>{{ r.code }}</td>
+              <td>{{ r.title }}</td>
+              <td>{{ r.level }}</td>
+              <td>{{ r.levelTitle }}</td>
+              <td>{{ r.workDays }}</td>
+              <td>{{ r.hours }}</td>
+              <td>
+                <ng-container *ngIf="r.continuous; else dayWork">
+                  <p-tag value="پیوسته ۲۴/۷" severity="info" styleClass="gng-mr-sm"></p-tag>{{ r.campaign }}
+                </ng-container>
+                <ng-template #dayWork>روزکاری</ng-template>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="7" class="gng-empty">تقویمی تعریف نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+
+      <h3 class="gng-section-title">ارث‌بری — کدام تقویم به هر خط می‌رسد</h3>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="inheritanceSource()"></gng-data-source-badge>
+        <p-table [value]="inheritance" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th>خط</th><th>تقویم مؤثر</th><th>منشأ</th><th style="width: 9rem">نحوه</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-i>
+            <tr>
+              <td>{{ i.line }}</td>
+              <td>{{ i.rule }}</td>
+              <td>{{ i.source }}</td>
+              <td>
+                <p-tag *ngIf="!i.hasRule" value="بدون تقویم" severity="danger"></p-tag>
+                <p-tag *ngIf="i.hasRule && i.inherited" value="به ارث رسیده" severity="info"></p-tag>
+                <p-tag *ngIf="i.hasRule && !i.inherited" value="تعریف مستقل" severity="success"></p-tag>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="4" class="gng-empty">در «{{ contextLabel }}» خط تولیدی نیست.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── تقویم مؤثر ───────── -->
+    <p-tabPanel header="تقویم مؤثر" [selected]="true">
+      <ng-container *ngTemplateOutlet="windowNav"></ng-container>
+      <p class="gng-note gng-note--info gng-mb-sm" *ngIf="isStationScope">
+        تقویم مؤثر در سطح خط حساب می‌شود؛ برای ایستگاه انتخاب‌شده، تقویم خطِ آن نمایش داده شده است.
+      </p>
+      <p class="gng-empty" *ngIf="!effective.lines.length">در «{{ contextLabel }}» خط تولیدی نیست.</p>
+
+      <div class="gng-effective" *ngFor="let l of effective.lines" style="position: relative">
+        <gng-data-source-badge [source]="effectiveSource()"></gng-data-source-badge>
+        <h3 class="gng-section-title">{{ l.line }} <span class="gng-text-muted">— {{ l.totalHours }} ساعت در دسترس در این بازه</span></h3>
+        <div style="overflow-x: auto">
+          <table class="gng-matrix gng-roster">
+            <thead>
+              <tr>
+                <th>لایه \ روز (ساعت)</th>
+                <th *ngFor="let d of effective.days" [class.gng-roster__friday]="d.isFriday" [class.gng-roster__today]="d.isToday">
+                  <div>{{ d.weekday }}</div>
+                  <div class="gng-roster__date">{{ d.dayText }} {{ d.monthText }}</div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th>پایه</th>
+                <td *ngFor="let c of l.cells" [title]="c?.hint ?? ''">
+                  <ng-container *ngIf="c">
+                    <span *ngIf="c.baseMinutes > 0">{{ hours(c.baseMinutes) }}</span>
+                    <span *ngIf="c.baseMinutes === 0 || c.baseOrigin === 'extra-day'" class="gng-origin" [ngClass]="'gng-origin--' + c.baseOrigin">{{ originLabel(c.baseOrigin) }}</span>
+                  </ng-container>
+                </td>
+              </tr>
+              <tr>
+                <th>شیفت</th>
+                <td *ngFor="let c of l.cells" [title]="c?.hint ?? ''">
+                  <ng-container *ngIf="c">
+                    <span *ngIf="c.shiftMinutes > 0; else dash" [class.gng-roster__count--short]="c.conflict">
+                      <i class="pi pi-exclamation-triangle" *ngIf="c.conflict"></i> {{ hours(c.shiftMinutes) }}
+                    </span>
+                  </ng-container>
+                </td>
+              </tr>
+              <tr>
+                <th>استثنا</th>
+                <td *ngFor="let c of l.cells" [title]="c?.hint ?? ''">
+                  <span *ngIf="c && c.exceptionMinutes > 0; else dash" class="gng-origin gng-origin--closure">−{{ hours(c.exceptionMinutes) }}</span>
+                </td>
+              </tr>
+              <tr>
+                <th>رزرو نت</th>
+                <td *ngFor="let c of l.cells" [title]="c?.hint ?? ''">
+                  <span *ngIf="c && c.maintenanceMinutes > 0; else dash" class="gng-origin gng-origin--maintenance">−{{ hours(c.maintenanceMinutes) }}</span>
+                </td>
+              </tr>
+              <tr>
+                <th>نفر (حاضر / برنامه‌ای)</th>
+                <td *ngFor="let c of l.cells" [title]="c?.hint ?? ''">
+                  <span *ngIf="c && c.planned > 0; else dash" [class.gng-roster__count--short]="c.available < c.planned">
+                    {{ fa(c.available) }}/{{ fa(c.planned) }}
+                  </span>
+                </td>
+              </tr>
+              <tr class="gng-effective__total">
+                <th>در دسترس</th>
+                <td *ngFor="let c of l.cells" [title]="c?.hint ?? ''" [class.gng-effective__zero]="c && c.effectiveMinutes === 0">
+                  <strong *ngIf="c">{{ hours(c.effectiveMinutes) }}</strong>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <ng-template #dash><span class="gng-text-muted">—</span></ng-template>
+      <p class="gng-hint gng-mt-sm" *ngIf="effective.lines.length">
+        در دسترس = کمینه‌ی (پایه، شیفت) − تعطیلی جزئی − رزرو نت. محاسبه در سطح روز و با جمع ساعت‌هاست؛ هم‌پوشانی ساعتی بازه‌ها
+        هنوز حساب نمی‌شود. برنامه‌ریزی تولید همین خروجی را به‌صورت سرویس می‌گیرد و تقویم مستقل ندارد.
+      </p>
+    </p-tabPanel>
+
+    <!-- ───────── استثناها ───────── -->
+    <p-tabPanel header="استثناها">
+      <ng-container *ngTemplateOutlet="windowNav"></ng-container>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="exceptionsSource()"></gng-data-source-badge>
+        <p-table [value]="exceptions" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 8rem">تاریخ</th>
+              <th style="width: 10rem">نوع</th>
+              <th>سطح اعمال</th>
+              <th style="width: 9rem">ساعت</th>
+              <th>شرح</th>
+              <th style="width: 9rem">وضعیت</th>
+              <th>درخواست / تأیید</th>
+              <th style="width: 7rem">خطوط متأثر</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-x>
+            <tr>
+              <td>{{ x.dates }}</td>
+              <td><p-tag [value]="exceptionLabel(x.kind)" [severity]="exceptionSeverity(x.kind)"></p-tag></td>
+              <td>{{ x.scope }}</td>
+              <td>{{ x.time }}</td>
+              <td>{{ x.description }}</td>
+              <td><p-tag [value]="approvalLabel(x.status)" [severity]="approvalSeverity(x.status)"></p-tag></td>
+              <td>{{ x.requestedBy }} / {{ x.approvedBy }}</td>
+              <td>{{ fa(x.affectedLines) }} خط</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="8" class="gng-empty">در این بازه استثنایی برای «{{ contextLabel }}» ثبت نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+      <div class="gng-note gng-note--info gng-mt">
+        فقط استثنای «تأییدشده» بر تقویم مؤثر اثر دارد. تعطیل رسمی روی تقویم پیوسته (۲۴/۷) اعمال نمی‌شود.
+        <strong>هنوز پیاده نشده:</strong> تحلیل اثر استثنا بر سفارش‌های زمان‌بندی‌شده — به جدول‌های سفارش تولید نیاز دارد که هنوز
+        در این سیستم نیامده‌اند.
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── رزرو نت ───────── -->
+    <p-tabPanel header="رزرو نت">
+      <ng-container *ngTemplateOutlet="windowNav"></ng-container>
+      <p class="gng-hint">نت توقف برنامه‌ریزی‌شده را روی همین تقویم رزرو می‌کند؛ تقویم موازی ساخته نمی‌شود.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="shutdownsSource()"></gng-data-source-badge>
+        <p-table [value]="shutdowns" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 11rem">تاریخ</th>
+              <th style="width: 9rem">نوع توقف</th>
+              <th>محل</th>
+              <th style="width: 9rem">ساعت</th>
+              <th style="width: 5rem">مدت</th>
+              <th>شرح</th>
+              <th>درخواست‌کننده</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-m>
+            <tr>
+              <td>{{ m.date }}</td>
+              <td>{{ m.type }}</td>
+              <td>{{ m.location }}</td>
+              <td>{{ m.time }}</td>
+              <td>{{ m.hours }} ساعت</td>
+              <td>{{ m.description }}</td>
+              <td>{{ m.requestedBy }}</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="7" class="gng-empty">در این بازه توقفی برای «{{ contextLabel }}» رزرو نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+
+      <h3 class="gng-section-title">بازه‌های آزاد پیشنهادی برای نت</h3>
+      <p class="gng-hint">ساعت‌هایی که طبق تقویم پایه کاری‌اند ولی شیفتی برایشان برنامه‌ریزی نشده — تولید این‌ها را به نت پیشنهاد می‌دهد.</p>
+      <p-table [value]="freeSlots" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr><th>خط</th><th style="width: 8rem">تاریخ</th><th style="width: 7rem">روز</th><th style="width: 8rem">ساعت آزاد</th><th>دلیل</th></tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-f>
+          <tr><td>{{ f.line }}</td><td>{{ f.date }}</td><td>{{ f.weekday }}</td><td>{{ f.freeHours }}</td><td>{{ f.reason }}</td></tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr><td colspan="5" class="gng-empty">در این بازه ساعت کاریِ بدون شیفت نیست.</td></tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── سناریو (فاز ۳) ───────── -->
+    <p-tabPanel header="سناریو">
+      <div class="gng-note gng-note--info">
+        <strong>هنوز پیاده نشده.</strong> سناریوی تقویم (F-RM-036: نسخه‌ی موازی برای بررسی «اگر شیفت سوم اضافه شود چه می‌شود»)
+        و ویرایش مستقیم روی نما (F-RM-035) اولویت «مهم» و فاز ۳ دارند و در فاز اول نیامده‌اند.
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="orgTreeSource()"></gng-data-source-badge>
+    <p-tree
+      [value]="orgTree"
+      styleClass="gng-tree"
+      selectionMode="single"
+      [(selection)]="selectedTreeNode"
+      (onNodeSelect)="onTreeSelect($event)"
+      (onNodeUnselect)="onTreeUnselect($event)"
+    ></p-tree>
+  </div>
+</gng-opform-layout>

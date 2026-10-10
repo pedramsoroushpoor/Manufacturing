@@ -1,0 +1,112 @@
+<gng-opform-layout
+  domainTitle="چارچوب مشترک"
+  title="مرکز یکپارچگی"
+  code="FRM-PF-05"
+  formTypeLabel="کنسول تنظیمات"
+  owner="مدیر سیستم / پلتفرم"
+  contextLabel="رویداد امروز"
+  contextIcon="pi pi-share-alt"
+  [bannerText]="bannerDanger"
+  bannerTone="danger"
+  [auditFeatureRange]="auditRange"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-file" label="تعریف قرارداد و انتشار API" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-code" label="API و انتشار" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-bolt" label="پیکربندی رویداد و Webhook" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-desktop" label="پیکربندی اتصال دستگاه — با مشارکت فنی" class="p-button-sm p-button-warning"></button>
+    <button pButton type="button" icon="pi pi-check-circle" label="آزمون اتصال" class="p-button-sm p-button-success"></button>
+    <button pButton type="button" icon="pi pi-refresh" label="ارسال مجدد صف ناموفق" class="p-button-outlined p-button-sm"></button>
+  </ng-container>
+
+  <div class="gng-note gng-note--warning gng-mb-sm">{{ bannerWarning }}</div>
+
+  <p-tabView styleClass="gng-tabs">
+    <p-tabPanel header="قرارداد و API">
+      <div class="gng-note gng-note--info">{{ contractNote }}</div>
+      <div class="gng-note gng-note--info gng-mt-sm">{{ apiNote }}</div>
+    </p-tabPanel>
+
+    <p-tabPanel header="رویدادها" [selected]="true">
+      <div class="gng-columns">
+        <div style="display:flex; flex-direction:column; gap:0.9rem">
+          <div>
+            <h3>سلامت یکپارچگی</h3>
+            <div class="gng-stat-grid gng-mt-sm">
+              <div [class]="statClass(s.tone)" *ngFor="let s of healthStats">
+                <span class="gng-stat-card__label">{{ s.label }}</span>
+                <span class="gng-stat-card__value">{{ s.value }}</span>
+                <span class="gng-stat-card__meta" *ngIf="s.meta">{{ s.meta }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="gng-panel">
+            <h3>قراردادهای مجاور سیستم‌ها</h3>
+            <div class="gng-flag-list gng-mt-sm">
+              <div class="gng-flag-row" *ngFor="let c of adjacentContracts">
+                <span class="gng-flag-row__label">{{ c.name }} ({{ c.code }})</span>
+                <p-tag [value]="c.direction" [severity]="c.tone"></p-tag>
+              </div>
+            </div>
+          </div>
+
+          <div class="gng-note gng-note--danger">{{ criticalNote }}</div>
+        </div>
+
+        <div>
+          <h3>کاتالوگ رویداد <span class="gng-hint" style="display:inline; margin:0">— معماری رویدادمحور؛ مصرف‌کننده‌ها به دادهٔ دیگر سیستم دسترسی مستقیم ندارند</span></h3>
+          <p-table [value]="eventCatalog" styleClass="p-datatable-sm gng-table gng-mt-sm" responsiveLayout="scroll">
+            <ng-template pTemplate="header"><tr><th>رویداد</th><th>منتشرکننده</th><th>مصرف‌کننده‌ها</th><th>حجم امروز</th><th>تاخیر میانگین</th><th>وضعیت</th></tr></ng-template>
+            <ng-template pTemplate="body" let-e>
+              <tr>
+                <td style="direction:ltr; text-align:left">{{ e.event }}</td>
+                <td>{{ e.publisher }}</td>
+                <td>{{ e.consumers }}</td>
+                <td>{{ e.volumeToday }}</td>
+                <td>{{ e.avgLatency }}</td>
+                <td><p-tag [value]="e.status" [severity]="eventSeverity(e.status)"></p-tag></td>
+              </tr>
+            </ng-template>
+          </p-table>
+
+          <h3 class="gng-mt">اتصال به تجهیزات <span class="gng-hint" style="display:inline; margin:0">— داده‌ی دستگاه پیشنهاد می‌دهد، کاربر نهایی تایید می‌کند</span></h3>
+          <p-table [value]="equipmentRows" styleClass="p-datatable-sm gng-table gng-mt-sm" responsiveLayout="scroll">
+            <ng-template pTemplate="header"><tr><th>خط / دستگاه</th><th>پروتکل</th><th>تگ‌های نگاشت‌شده</th><th>حالت</th><th>آخرین داده</th><th>وضعیت</th></tr></ng-template>
+            <ng-template pTemplate="body" let-eq>
+              <tr>
+                <td>{{ eq.line }}</td>
+                <td style="direction:ltr; text-align:left">{{ eq.protocol }}</td>
+                <td>{{ eq.tags }}</td>
+                <td>{{ eq.mode }}</td>
+                <td>{{ eq.lastData }}</td>
+                <td><p-tag [value]="eq.status" [severity]="equipmentSeverity(eq.status)"></p-tag></td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="Webhook">
+      <div class="gng-note gng-note--info">{{ webhookNote }}</div>
+    </p-tabPanel>
+
+    <p-tabPanel header="اتصال تجهیزات (PLC/SCADA/MES)">
+      <div class="gng-note gng-note--info">{{ equipmentLayerNote }}</div>
+      <p-table [value]="equipmentRows" styleClass="p-datatable-sm gng-table gng-mt-sm" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th>خط / دستگاه</th><th>پروتکل</th><th>تگ‌های نگاشت‌شده</th><th>حالت</th><th>آخرین داده</th><th>وضعیت</th></tr></ng-template>
+        <ng-template pTemplate="body" let-eq>
+          <tr>
+            <td>{{ eq.line }}</td>
+            <td style="direction:ltr; text-align:left">{{ eq.protocol }}</td>
+            <td>{{ eq.tags }}</td>
+            <td>{{ eq.mode }}</td>
+            <td>{{ eq.lastData }}</td>
+            <td><p-tag [value]="eq.status" [severity]="equipmentSeverity(eq.status)"></p-tag></td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+  </p-tabView>
+</gng-opform-layout>

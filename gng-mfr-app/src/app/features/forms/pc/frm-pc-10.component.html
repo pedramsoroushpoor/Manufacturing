@@ -1,0 +1,374 @@
+<gng-opform-layout
+  domainTitle="کنترل تولید"
+  title="اجرای برون‌سپاری و کارمزدی"
+  code="FRM-PC-10"
+  formTypeLabel="فرم عملیاتی"
+  owner="کارشناس برون‌سپاری / برنامه‌ریزی"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-truck"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="کار با بیرون"
+  contextPanelHint="سفارش‌های نزد پیمانکار و قراردادهای کارمزدی دریافتی."
+  auditFeatureRange="F-PC-080 تا F-PC-089"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-send" label="صدور دستور برون‌سپاری" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-box" label="ارسال مواد امانی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-inbox" label="دریافت از پیمانکار" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-wallet" label="ثبت کارمزد" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-file" label="صدور صورت‌حساب مشتری" class="p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading" [(activeIndex)]="activeTab">
+    <!-- ───────── دستور برون‌سپاری و پایش (F-PC-080، 086) ───────── -->
+    <p-tabPanel header="دستور برون‌سپاری">
+      <ng-container *ngIf="order as o">
+        <div style="position: relative">
+          <gng-data-source-badge [source]="ds('pc10-orders', 'دستورهای برون‌سپاری')"></gng-data-source-badge>
+          <div class="gng-field-grid">
+            <div class="gng-field"><span class="gng-field__label">دستور / عملیات</span><span class="gng-field__value">{{ o.workOrder }} / {{ faInt(o.opSeq) }} — {{ o.opTitle }} <p-tag [value]="opStatus[o.opStatusCode]" [severity]="opStatusTone(o.opStatusCode)"></p-tag></span></div>
+            <div class="gng-field"><span class="gng-field__label">محصول / بچ</span><span class="gng-field__value">{{ o.product }} · {{ o.batch }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">پیمانکار</span><span class="gng-field__value">{{ o.contractorCode }} — {{ o.contractor }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">نیاز خدمت خودکار در تدارکات</span><span class="gng-field__value"><i class="pi pi-bolt" style="color: var(--gng-warning)"></i> {{ o.serviceRequest || '—' }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">نرخ قرارداد</span><span class="gng-field__value">{{ o.rateTitle }} · {{ faInt(o.feePerUnit) }} ریال {{ o.feeUnitTitle }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">زمان تحویل قرارداد</span><span class="gng-field__value">{{ faInt(o.leadDays) }} روز ← موعد {{ faDay(o.dueDate) }}</span></div>
+          </div>
+        </div>
+
+        <h3 class="gng-mt">ردیاب وضعیت نزد پیمانکار</h3>
+        <div class="gng-stepper">
+          <div class="gng-step" *ngFor="let s of stageSteps; let i = index" [ngClass]="stepClass(s)">
+            <div class="gng-step__circle"><i class="pi pi-check" *ngIf="s.state === 'done'"></i><span *ngIf="s.state !== 'done'">{{ faInt(i + 1) }}</span></div>
+            <span>{{ s.label }}</span>
+            <span class="gng-hint" style="margin: 0">{{ s.meta }}</span>
+          </div>
+        </div>
+
+        <div class="pc10-hero">
+          <div class="gng-panel">
+            <h3 style="margin-top: 0">موعد و تأخیر</h3>
+            <div class="pc10-count">
+              <div>
+                <div class="pc10-count__big" [ngClass]="o.delayDays > 0 ? 'pc10-count__big--danger' : 'pc10-count__big--ok'">{{ o.delayDays > 0 ? faInt(o.delayDays) + ' روز' : 'به‌موقع' }}</div>
+                <div class="gng-hint" style="margin: 0">تأخیر طبق پیش‌بینی پیمانکار</div>
+              </div>
+              <div>
+                <div class="pc10-count__big" style="font-size: 1.3rem">{{ dueCountdown }}</div>
+                <div class="gng-hint" style="margin: 0">ساعت کارگاه {{ faDateTime(shopNow.toISOString()) }}</div>
+              </div>
+            </div>
+            <div class="pc10-tl">
+              <div class="pc10-tl__track"></div>
+              <div class="pc10-tl__done" [style.width.%]="pos(shopNow)"></div>
+              <div class="pc10-tl__late" *ngIf="o.delayDays > 0" [style.right.%]="pos(o.dueDate)" [style.width.%]="pos(o.expectedReady) - pos(o.dueDate)"></div>
+              <div class="pc10-tl__mk" [style.right.%]="pos(o.sentAt)"><i></i><span>ارسال {{ faDay(o.sentAt) }}</span></div>
+              <div class="pc10-tl__mk pc10-tl__mk--now" [style.right.%]="pos(shopNow)"><i></i><span>اکنون</span></div>
+              <div class="pc10-tl__mk pc10-tl__mk--due" [style.right.%]="pos(o.dueDate)"><i></i><span>موعد {{ faDay(o.dueDate) }}</span></div>
+              <div class="pc10-tl__mk pc10-tl__mk--fc" [style.right.%]="pos(o.expectedReady)"><i></i><span>پیمانکار {{ faDay(o.expectedReady) }}</span></div>
+            </div>
+            <div class="gng-window gng-mt-sm">
+              <span class="gng-small">پیش‌بینی ما با ظرفیت روزانه</span>
+              <p-inputNumber [(ngModel)]="dailyCapacity" [min]="1000" [step]="5000" [showButtons]="true" inputStyleClass="p-inputtext-sm" [style]="{ width: '10rem' }"></p-inputNumber>
+              <p-checkbox [(ngModel)]="secondPanBack" [binary]="true" inputId="pan2" label="پان دوم از تعمیر برگشت (×۲)"></p-checkbox>
+            </div>
+            <div class="gng-note gng-mt-sm" [ngClass]="ourDelayDays > 0.05 ? 'gng-note--danger' : 'gng-note--success'">
+              نرخ مشاهده‌شده از گزارش‌ها: {{ faInt(observedRatePerDay) }} واحد در روز · باقی‌مانده {{ faInt(remainingToProcess) }} ←
+              پایان <strong>{{ faDateTime(ourForecastIso) }}</strong>
+              ({{ ourDelayDays > 0.05 ? faNum(ourDelayDays, 1) + ' روز بعد از موعد' : 'پیش از موعد' }})
+            </div>
+          </div>
+
+          <div class="gng-panel">
+            <h3 style="margin-top: 0">تاریخچه‌ی پیشرفت اعلامی</h3>
+            <svg class="pc10-spark" viewBox="0 0 300 120" preserveAspectRatio="none">
+              <line x1="10" x2="290" [attr.y1]="spark.goalY" [attr.y2]="spark.goalY" stroke="var(--gng-border)" stroke-dasharray="4 3"></line>
+              <polyline [attr.points]="spark.line" fill="none" stroke="var(--gng-info)" stroke-width="2"></polyline>
+              <circle *ngFor="let d of spark.dots" [attr.cx]="d.x" [attr.cy]="d.y" r="4" [attr.fill]="d.drop ? 'var(--gng-danger)' : 'var(--gng-info)'"><title>{{ d.label }}</title></circle>
+            </svg>
+            <div class="gng-legend"><span><i class="gng-legend-dot gng-legend-dot--info"></i> تکمیل‌شده‌ی اعلامی</span><span><i class="gng-legend-dot gng-legend-dot--danger"></i> کاهش نسبت به گزارش قبل</span></div>
+            <div *ngIf="progressDrops.length" class="gng-note gng-note--warning gng-mt-sm">
+              گزارش {{ faDateTime(progressDrops[0].reportedAt) }} مقدار تکمیل‌شده را از گزارش قبل کمتر اعلام کرده — یکسان نبودن مبنای «تجمعی» در اعلام پیمانکار.
+            </div>
+          </div>
+        </div>
+
+        <h3 class="gng-mt">گزارش‌های پیمانکار</h3>
+        <p-table [value]="orderProgress" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th style="width: 9rem">زمان</th><th style="width: 8rem">مرحله</th><th style="width: 8rem">تکمیل</th><th style="width: 7rem">ضایعات</th><th style="width: 10rem">آماده‌شدن</th><th>گزارش‌دهنده</th><th>یادداشت</th></tr></ng-template>
+          <ng-template pTemplate="body" let-p>
+            <tr>
+              <td>{{ faDateTime(p.reportedAt) }}</td>
+              <td><p-tag [value]="stage[p.stageCode]" [severity]="p.stageCode === 3 ? 'success' : 'info'"></p-tag></td>
+              <td>{{ faInt(p.completed) }}</td><td>{{ faInt(p.wasted) }}</td>
+              <td>{{ faDay(p.expectedReady) }} <p-tag *ngIf="readyShift(p) > 0" [value]="'+' + faInt(readyShift(p)) + ' روز'" severity="danger"></p-tag></td>
+              <td>{{ p.reportedBy }} <span class="gng-text-muted gng-small">({{ source[p.sourceCode] }})</span></td>
+              <td class="gng-text-muted">{{ p.note || '—' }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </ng-container>
+      <div *ngIf="!order && !loading" class="gng-empty">سفارشی نزد پیمانکار نیست.</div>
+    </p-tabPanel>
+
+    <!-- ───────── ارسال مواد امانی + برگه‌ی همراه (F-PC-081) ───────── -->
+    <p-tabPanel [header]="'ارسال مواد امانی (' + faInt(outShipments.length) + ')'">
+      <p class="gng-hint">سند انتقال به انبار امانی نزد پیمانکار + برگه‌ی همراه بار؛ موجودی در حساب ما می‌ماند.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc10-shipments', 'اسناد جابه‌جایی')"></gng-data-source-badge>
+        <ng-container *ngFor="let s of outShipments"><ng-container *ngTemplateOutlet="slip; context: { $implicit: s }"></ng-container></ng-container>
+      </div>
+      <div *ngIf="!outShipments.length" class="gng-empty">ارسالی ثبت نشده.</div>
+    </p-tabPanel>
+
+    <!-- ───────── دریافت از پیمانکار + ادامه‌ی مسیر (F-PC-082، 084) ───────── -->
+    <p-tabPanel [header]="'دریافت از پیمانکار (' + faInt(inShipments.length) + ')'">
+      <ng-container *ngIf="order as o">
+        <div class="gng-panel">
+          <h3 style="margin-top: 0">تفکیک خروجی اعلامی پیمانکار ({{ faInt(o.receivedGood + o.receivedDefective + o.declaredWaste) }} قرص مصرف‌شده)</h3>
+          <div class="pc10-bar"><div *ngFor="let g of receiptSegs" [ngClass]="g.cls" [style.width.%]="g.pct" [pTooltip]="g.label + ': ' + faInt(g.value)">{{ g.label }} {{ faPct(g.pct) }}</div></div>
+          <p class="gng-hint">پذیرفته‌شده‌ی بازرسی ورود: {{ faInt(o.accepted) }} · معیوب و ضایعات پیمانکار {{ faPct(contractorWastePct, 2) }} از مصرف — بر کارمزد اثر دارد.</p>
+        </div>
+
+        <h3 class="gng-mt">ادامه‌ی خودکار مسیر داخلی</h3>
+        <div class="pc10-chain">
+          <div class="pc10-chain__node"><strong>{{ faInt(o.opSeq) }} — {{ o.opTitle }}</strong><div class="gng-small">{{ o.contractor }}</div><p-tag [value]="opStatus[o.opStatusCode]" [severity]="opStatusTone(o.opStatusCode)"></p-tag></div>
+          <div class="pc10-chain__arrow"><i class="pi pi-arrow-left"></i><div class="gng-small">{{ faInt(o.accepted) }} پذیرفته</div></div>
+          <div class="pc10-chain__node" *ngIf="o.nextSeq !== null">
+            <strong>{{ faInt(o.nextSeq) }} — {{ o.nextOpTitle }}</strong>
+            <div class="gng-small">دریافتی عملیات: {{ faInt(o.nextReceived) }}</div>
+            <p-tag [value]="opStatus[o.nextStatusCode || 1]" [severity]="opStatusTone(o.nextStatusCode || 1)"></p-tag>
+          </div>
+        </div>
+        <div class="gng-note gng-mt-sm" [ngClass]="continuationOk ? 'gng-note--success' : 'gng-note--warning'">
+          {{ continuationOk ? 'با رسید پیمانکار، عملیات بعد خودکار «' + opStatus[o.nextStatusCode || 1] + '» شد و ' + faInt(o.nextReceived) + ' قرص دریافت کرد — بدون ثبت دستی.' : 'عملیات بعد هنوز مقدار رسید پیمانکار را دریافت نکرده است.' }}
+        </div>
+      </ng-container>
+      <h3 class="gng-mt">اسناد دریافت</h3>
+      <ng-container *ngFor="let s of inShipments"><ng-container *ngTemplateOutlet="slip; context: { $implicit: s }"></ng-container></ng-container>
+      <div *ngIf="!inShipments.length" class="gng-empty">دریافتی ثبت نشده.</div>
+    </p-tabPanel>
+
+    <!-- ───────── مغایرت‌گیری (F-PC-083) ───────── -->
+    <p-tabPanel header="مغایرت‌گیری">
+      <div class="gng-window">
+        <span class="gng-small">تلورانس مجاز مغایرت</span>
+        <p-inputNumber [(ngModel)]="tolerancePct" [min]="0" [max]="10" [step]="0.5" [minFractionDigits]="1" suffix="٪" [showButtons]="true" inputStyleClass="p-inputtext-sm" [style]="{ width: '7rem' }"></p-inputNumber>
+        <span class="gng-hint" style="margin: 0">ارسالی = مصرف اعلامی + برگشتی + مانده نزد پیمانکار + بی‌توضیح</span>
+      </div>
+      <div style="position: relative" class="gng-mt-sm">
+        <gng-data-source-badge [source]="ds('pc10-recon', 'مغایرت مواد امانی')"></gng-data-source-badge>
+        <div class="pc10-wf" *ngFor="let r of orderRecon" [class.pc10-wf--bad]="diffPct(r) > tolerancePct">
+          <div style="display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap">
+            <strong>{{ r.product }} <span class="gng-text-muted gng-small">· {{ r.batch }}</span></strong>
+            <p-tag [value]="r.difference === 0 ? 'بی‌مغایرت' : diffPct(r) > tolerancePct ? 'بیش از تلورانس' : 'در تلورانس'" [severity]="r.difference === 0 ? 'success' : diffPct(r) > tolerancePct ? 'danger' : 'warning'"></p-tag>
+          </div>
+          <div class="pc10-eq">
+            <b>{{ faNum(r.sent, 3) }}</b> ارسالی =
+            <span>{{ faNum(r.declared, 3) }} مصرف</span> + <span>{{ faNum(r.returned, 3) }} برگشتی</span> + <span>{{ faNum(r.remaining, 3) }} مانده</span> +
+            <b [style.color]="r.difference ? 'var(--gng-danger)' : ''">{{ faNum(r.difference, 3) }} بی‌توضیح</b> {{ r.unit }}
+            <span *ngIf="r.difference" class="gng-text-muted">({{ faPct(diffPct(r), 2) }} ارسالی)</span>
+          </div>
+          <div class="pc10-bar"><div *ngFor="let g of reconSegs(r)" [ngClass]="g.cls" [style.width.%]="g.pct" [pTooltip]="g.label + ': ' + faNum(g.value, 3)">{{ g.pct > 8 ? g.label : '' }}</div></div>
+          <div *ngIf="r === mainRecon && processedNotShipped > 0" class="gng-hint gng-mt-sm">
+            از {{ faInt(r.remaining) }} مانده، طبق آخرین گزارش پیشرفت {{ faInt(processedNotShipped) }} فرآوری شده و منتظر ارسال است و {{ faInt(r.remaining - processedNotShipped) }} هنوز فرآوری نشده.
+          </div>
+          <div *ngIf="needForRemaining(r) !== null" class="gng-note gng-mt-sm" [ngClass]="needForRemaining(r)! > r.remaining ? 'gng-note--danger' : 'gng-note--success'">
+            برای {{ faInt(mainRecon!.remaining) }} {{ mainRecon!.unit }} باقی‌مانده، به نسبت مصرف تا کنون {{ faNum(needForRemaining(r), 2) }} {{ r.unit }} لازم است؛ مانده {{ faNum(r.remaining, 2) }} {{ r.unit }}
+            ← {{ needForRemaining(r)! > r.remaining ? 'کسری ' + faNum(needForRemaining(r)! - r.remaining, 2) + ' ' + r.unit + ' — ارسال تکمیلی لازم است' : 'کافی است' }}.
+          </div>
+        </div>
+      </div>
+      <div *ngIf="!orderRecon.length" class="gng-empty">مواد امانی برای این دستور ارسال نشده.</div>
+    </p-tabPanel>
+
+    <!-- ───────── کارمزد (F-PC-085) ───────── -->
+    <p-tabPanel header="کارمزد">
+      <ng-container *ngIf="order as o">
+        <div class="gng-columns" style="grid-template-columns: 340px 1fr">
+          <div class="gng-panel">
+            <h3 style="margin-top: 0">ماشین‌حساب «اگر…»</h3>
+            <div class="gng-field"><span class="gng-field__label">مقدار پذیرفته‌شده</span>
+              <p-inputNumber [(ngModel)]="whatIfAccepted" [min]="0" [max]="o.toComplete" [step]="10000" inputStyleClass="p-inputtext-sm" [style]="{ width: '100%' }"></p-inputNumber>
+            </div>
+            <p-slider [(ngModel)]="whatIfAccepted" [min]="0" [max]="o.toComplete" [step]="1000" styleClass="gng-mt-sm"></p-slider>
+            <div class="gng-mt">× {{ faInt(o.feePerUnit) }} ریال {{ o.feeUnitTitle }} =</div>
+            <div class="pc10-fee">{{ faInt(whatIfFee) }} <span class="gng-small">ریال</span></div>
+            <button pButton type="button" class="p-button-text p-button-sm" icon="pi pi-replay" label="بازگشت به پذیرفته‌ی واقعی" (click)="whatIfAccepted = o.accepted"></button>
+          </div>
+          <div>
+            <div class="gng-stat-grid">
+              <div class="gng-stat-card gng-stat-card--success"><span class="gng-stat-card__label">کارمزد پرداختنی تا کنون</span><span class="gng-stat-card__value">{{ faInt(o.feePayable) }}</span><span class="gng-stat-card__meta">{{ faInt(o.accepted) }} پذیرفته‌شده</span></div>
+              <div class="gng-stat-card"><span class="gng-stat-card__label">سقف کارمزد کل سفارش</span><span class="gng-stat-card__value">{{ faInt(fullOrderFee) }}</span><span class="gng-stat-card__meta">اگر همه‌ی {{ faInt(o.toComplete) }} پذیرفته شود</span></div>
+              <div class="gng-stat-card gng-stat-card--warning"><span class="gng-stat-card__label">کارمزد پرداخت‌نشدنی</span><span class="gng-stat-card__value">{{ faInt(withheldFee) }}</span><span class="gng-stat-card__meta">معیوب {{ faInt(o.receivedDefective) }} + ضایعات {{ faInt(o.declaredWaste) }}</span></div>
+            </div>
+            <p class="gng-hint gng-mt">مبنای کارمزد فقط مقدار پذیرفته‌شده در بازرسی ورود است، نه مقدار اعلامی پیمانکار. کارمزد پس از تأیید به بهای تمام‌شده‌ی دستور (PF) می‌رود.</p>
+          </div>
+        </div>
+      </ng-container>
+    </p-tabPanel>
+
+    <!-- ───────── کارمزدی دریافتی (F-PC-087، 088) ───────── -->
+    <p-tabPanel [header]="'کارمزدی دریافتی (' + faInt(data?.contracts?.length || 0) + ')'">
+      <ng-container *ngIf="contract as c">
+        <div style="position: relative">
+          <gng-data-source-badge [source]="ds('pc10-toll', 'کارمزدی دریافتی')"></gng-data-source-badge>
+          <div class="gng-field-grid">
+            <div class="gng-field"><span class="gng-field__label">قرارداد / مشتری</span><span class="gng-field__value">{{ c.number }} — {{ c.customer }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">محصول</span><span class="gng-field__value">{{ c.product }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">نرخ کارمزد</span><span class="gng-field__value">{{ faInt(c.feePerUnit) }} ریال {{ c.feeUnitTitle }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">ضایعات مجاز</span><span class="gng-field__value">{{ faPct(c.allowedWastePct, 1) }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">اعتبار</span><span class="gng-field__value">{{ faDay(c.validFrom) }} تا {{ faDay(c.validTo) }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">دستور کارمزدی</span><span class="gng-field__value">← {{ c.workOrder }} · {{ c.batch }} <p-tag [value]="woStatus[c.woStatusCode]" [severity]="woStatusTone(c.woStatusCode)"></p-tag></span></div>
+          </div>
+          <p class="gng-hint">{{ c.description }}</p>
+        </div>
+
+        <div class="gng-stat-grid gng-mt">
+          <div class="gng-stat-card"><span class="gng-stat-card__label">مقدار سفارش</span><span class="gng-stat-card__value">{{ faInt(c.orderQty) }}</span><span class="gng-stat-card__meta">تحویل‌شده {{ faInt(c.delivered) }}</span></div>
+          <div class="gng-stat-card" [ngClass]="tollWasteExcess > 0 ? 'gng-stat-card--danger' : 'gng-stat-card--success'"><span class="gng-stat-card__label">ضایعات تا کنون</span><span class="gng-stat-card__value">{{ faInt(c.wastedSoFar) }}</span><span class="gng-stat-card__meta">{{ faPct(tollWastePct, 2) }} · مازاد بر مجاز {{ faInt(tollWasteExcess) }}</span></div>
+          <div class="gng-stat-card"><span class="gng-stat-card__label">کارمزد کسب‌شده</span><span class="gng-stat-card__value">{{ faInt(c.feeEarned) }}</span><span class="gng-stat-card__meta">پیش‌بینی کل {{ faInt(c.feeProjected) }}</span></div>
+        </div>
+
+        <div class="gng-window gng-mt">
+          <span class="gng-small">اگر تحویل شود</span>
+          <p-inputNumber [(ngModel)]="whatIfDelivered" [min]="0" [max]="c.orderQty" [step]="10000" inputStyleClass="p-inputtext-sm" [style]="{ width: '10rem' }"></p-inputNumber>
+          <span>قرص ← کارمزد دریافتنی <strong>{{ faInt(tollFeeWhatIf) }}</strong> ریال</span>
+        </div>
+
+        <h3 class="gng-mt">صورت‌حساب مواد مشتری</h3>
+        <div class="pc10-wf" *ngFor="let r of tollStatement" [class.pc10-wf--bad]="r.difference > allowedLoss(r)">
+          <div style="display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap">
+            <strong>{{ r.product }} <span class="gng-text-muted gng-small">· {{ r.batch }} · ورود {{ faDay(r.firstReceipt) }}</span></strong>
+            <p-tag [value]="r.difference === 0 ? 'بی‌مغایرت' : r.difference > allowedLoss(r) ? 'بیش از افت مجاز' : 'در افت مجاز'" [severity]="r.difference === 0 ? 'success' : r.difference > allowedLoss(r) ? 'danger' : 'warning'"></p-tag>
+          </div>
+          <div class="pc10-eq">
+            <b>{{ faNum(r.received, 3) }}</b> دریافتی = <span>{{ faNum(r.consumed, 3) }} مصرف</span> + <span>{{ faNum(r.remaining, 3) }} مانده</span> +
+            <b [style.color]="r.difference ? 'var(--gng-danger)' : ''">{{ faNum(r.difference, 3) }} بی‌توضیح</b> {{ r.unit }}
+          </div>
+          <div class="pc10-bar"><div *ngFor="let g of statementSegs(r)" [ngClass]="g.cls" [style.width.%]="g.pct" [pTooltip]="g.label + ': ' + faNum(g.value, 3)">{{ g.pct > 8 ? g.label : '' }}</div></div>
+          <div *ngIf="r.difference" class="gng-hint gng-mt-sm">افت مجاز قرارداد روی مصرف: {{ faNum(allowedLoss(r), 2) }} {{ r.unit }} — {{ r.difference > allowedLoss(r) ? 'مازاد ' + faNum(r.difference - allowedLoss(r), 2) + ' ' + r.unit + ' باید توضیح داده یا به مشتری جبران شود.' : 'در حد مجاز.' }}</div>
+        </div>
+
+        <div class="gng-columns gng-mt" style="grid-template-columns: 1fr 1fr">
+          <div>
+            <h3>مصرف مواد مشتری</h3>
+            <p-table [value]="tollCustomerMaterials" styleClass="p-datatable-sm gng-table">
+              <ng-template pTemplate="header"><tr><th>ماده</th><th style="width: 8rem">مصرف</th></tr></ng-template>
+              <ng-template pTemplate="body" let-m><tr><td>{{ m.product }}</td><td>{{ faNum(m.consumed, 3) }} {{ m.unit }}</td></tr></ng-template>
+            </p-table>
+          </div>
+          <div>
+            <h3>مواد ما در دستور کارمزدی</h3>
+            <p-table [value]="tollOurMaterials" styleClass="p-datatable-sm gng-table">
+              <ng-template pTemplate="header"><tr><th>ماده</th><th style="width: 8rem">مصرف</th></tr></ng-template>
+              <ng-template pTemplate="body" let-m><tr><td>{{ m.product }}</td><td>{{ faNum(m.consumed, 3) }} {{ m.unit }}</td></tr></ng-template>
+              <ng-template pTemplate="emptymessage"><tr><td colspan="2" class="gng-empty">همه‌ی مواد از مشتری است.</td></tr></ng-template>
+            </p-table>
+            <p *ngIf="tollOurMaterials.length" class="gng-hint">این مواد مال ماست و باید در کارمزد یا صورت‌حساب مشتری دیده شود.</p>
+          </div>
+        </div>
+        <h3 class="gng-mt">ورود مواد مشتری</h3>
+        <ng-container *ngFor="let s of tollShipments"><ng-container *ngTemplateOutlet="slip; context: { $implicit: s }"></ng-container></ng-container>
+      </ng-container>
+      <div *ngIf="!contract && !loading" class="gng-empty">قرارداد کارمزدی دریافتی نیست.</div>
+    </p-tabPanel>
+
+    <!-- ───────── تفکیک مالکیت (F-PC-089) ───────── -->
+    <p-tabPanel header="تفکیک مالکیت">
+      <div class="gng-window">
+        <span class="p-input-icon-right"><i class="pi pi-search"></i><input pInputText type="text" class="p-inputtext-sm" placeholder="جست‌وجوی کالا، بچ یا انبار" [(ngModel)]="stockSearch" (ngModelChange)="buildOwnership()" /></span>
+        <span class="gng-hint" style="margin: 0">سه دفتر جدا؛ مقدارها هرگز با هم جمع نمی‌شوند.</span>
+      </div>
+      <div *ngIf="multiOwnerProducts.length" class="gng-note gng-note--warning gng-mt-sm">
+        کالای هم‌کد با مالکان متفاوت (برجسته در جدول‌ها): <strong>{{ multiOwnerProducts.join('، ') }}</strong> — رزرو و صدور باید مالک را بشناسد.
+      </div>
+      <div class="pc10-own gng-mt-sm" style="position: relative">
+        <gng-data-source-badge [source]="ds('pc10-ownership', 'تفکیک مالکیت')"></gng-data-source-badge>
+        <div *ngFor="let sec of ownerSections" class="pc10-own__col" [ngClass]="'pc10-own__col--' + sec.key">
+          <div class="pc10-own__head"><strong>{{ sec.title }}</strong><span class="gng-small">{{ faInt(sec.rows.length) }} ردیف</span></div>
+          <div class="gng-hint" style="margin: 0 0 0.4rem">{{ sec.hint }}</div>
+          <div class="gng-small"><span *ngFor="let x of sec.totals; let last = last">{{ faNum(x.qty, 2) }} {{ x.unit }}{{ last ? '' : ' · ' }}</span></div>
+          <ng-container *ngFor="let g of inventoriesOf(sec)">
+            <div class="pc10-own__inv">{{ g.inventory }}</div>
+            <div class="pc10-own__row" *ngFor="let r of g.rows" [class.pc10-own__row--hit]="isMultiOwner(r)">
+              <span>{{ r.product }} <span class="gng-text-muted">· {{ r.batch }}</span> <p-tag *ngIf="r.qcCode !== 1" [value]="qc[r.qcCode]" severity="warning"></p-tag></span>
+              <span>{{ faNum(r.onHand, 3) }} {{ r.unit }}</span>
+            </div>
+          </ng-container>
+          <div *ngIf="!sec.rows.length" class="gng-empty">—</div>
+        </div>
+      </div>
+      <div class="gng-note gng-note--info gng-mt">
+        <strong>هنوز پیاده نشده.</strong> صدور دستور برون‌سپاری و نیاز خدمت، ثبت ارسال مواد امانی و چاپ برگه‌ی همراه، ثبت دریافت از پیمانکار و تأیید کیفیت ورود،
+        ارسال کارمزد پرداختنی/دریافتنی به بهای تمام‌شده، ثبت ورود مواد مشتری و تحویل محصول کارمزدی، و صدور صورت‌حساب دوره‌ای مواد مشتری با تعیین تکلیف مازاد/ضایعات با فاز ایجاد/ویرایش می‌آید.
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <!-- ───────── برگه‌ی همراه (قالب مشترک ارسال/دریافت/ورود مواد مشتری) ───────── -->
+  <ng-template #slip let-s>
+    <div class="pc10-slip">
+      <div class="pc10-slip__head">
+        <div>
+          <div class="pc10-slip__title">برگه‌ی همراه بار — {{ direction[s.directionCode] }}</div>
+          <div class="gng-small">{{ s.number }} · {{ faDateTime(s.date) }} · ← {{ s.workOrder }}{{ s.opSeq ? ' / ' + faInt(s.opSeq) : '' }}</div>
+        </div>
+        <svg *ngIf="barcode(s.number) as b" [attr.viewBox]="'0 0 ' + b.total + ' 30'" style="width: 13rem; height: 2.4rem; direction: ltr" preserveAspectRatio="none">
+          <rect *ngFor="let bar of b.bars" [attr.x]="bar.x" y="0" [attr.width]="bar.w" height="30" fill="currentColor"></rect>
+        </svg>
+      </div>
+      <div class="pc10-slip__route">
+        <span class="pc10-slip__box">{{ s.directionCode === 1 ? 'گلرنگ' : s.directionCode === 3 ? s.customer : s.contractor }}</span>
+        <i class="pi pi-arrow-left"></i>
+        <span class="pc10-slip__box">{{ s.directionCode === 1 ? s.contractor + ' — ' + s.contractorInventory : 'گلرنگ' }}</span>
+        <span *ngIf="s.referenceInventory" class="gng-text-muted gng-small">انبار مرجع: {{ s.referenceInventory }}</span>
+      </div>
+      <div class="gng-field-grid">
+        <div class="gng-field"><span class="gng-field__label">سند انتقال</span><span class="gng-field__value">{{ s.transferDoc || '—' }}</span></div>
+        <div class="gng-field"><span class="gng-field__label">بارنامه</span><span class="gng-field__value">{{ s.waybill || '—' }}</span></div>
+        <div class="gng-field"><span class="gng-field__label">خودرو / راننده</span><span class="gng-field__value">{{ s.vehicle || '—' }} · {{ s.driver || '—' }}</span></div>
+        <div class="gng-field" *ngIf="s.serviceRequest"><span class="gng-field__label">نیاز خدمت</span><span class="gng-field__value">{{ s.serviceRequest }}</span></div>
+        <div class="gng-field" *ngIf="s.expectedReturn"><span class="gng-field__label">بازگشت مورد انتظار</span><span class="gng-field__value">{{ faDay(s.expectedReturn) }}</span></div>
+      </div>
+      <p-table [value]="s.items" styleClass="p-datatable-sm gng-table gng-mt-sm">
+        <ng-template pTemplate="header"><tr><th style="width: 9rem">نقش</th><th>کالا</th><th style="width: 9rem">بچ</th><th style="width: 9rem">مقدار</th><th style="width: 9rem">پذیرش / رد</th><th>شرح</th></tr></ng-template>
+        <ng-template pTemplate="body" let-i>
+          <tr>
+            <td><p-tag [value]="role[i.roleCode]" [severity]="roleTone(i.roleCode)"></p-tag></td>
+            <td>{{ i.product }} <p-tag *ngIf="i.customerOwned" [value]="'مال ' + i.owner" severity="warning"></p-tag></td>
+            <td>{{ i.batch }}</td><td>{{ faNum(i.quantity, 3) }} {{ i.unit }}</td>
+            <td>{{ i.accepted !== null ? faInt(i.accepted) : '—' }} / {{ i.rejected !== null ? faInt(i.rejected) : '—' }}</td>
+            <td class="gng-text-muted">{{ i.description || '—' }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+      <div class="gng-hint gng-mt-sm" *ngIf="s.description">{{ s.description }}</div>
+      <div class="pc10-slip__foot"><div class="pc10-slip__sign">تحویل‌دهنده</div><div class="pc10-slip__sign">راننده</div><div class="pc10-slip__sign">تحویل‌گیرنده</div></div>
+    </div>
+  </ng-template>
+
+  <!-- ───────── انتخاب‌گر ───────── -->
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="ds('pc10-orders', 'دستورهای برون‌سپاری')"></gng-data-source-badge>
+    <div class="pc10-pick" *ngIf="data">
+      <div class="pc10-pick__group"><i class="pi pi-arrow-up-left"></i> برون‌سپاری (نزد پیمانکار)</div>
+      <div *ngFor="let o of data.orders" class="pc10-pick__item" [class.pc10-pick__item--on]="selKey === 'sub-' + o.workOrderId + '-' + o.opSeq" (click)="pickOrder(o, true)">
+        <div class="pc10-pick__title">{{ o.workOrder }} / {{ faInt(o.opSeq) }}</div>
+        <div class="pc10-pick__meta">{{ o.contractorCode }} — {{ o.contractor }}</div>
+        <div class="pc10-pick__meta">{{ o.opTitle }} · {{ stage[o.stageCode || 1] }}</div>
+        <div class="gng-kpi__bar gng-mt-sm"><div class="gng-kpi__bar-fill gng-kpi__bar-fill--info" [style.width.%]="(o.accepted / o.toComplete) * 100"></div></div>
+        <p-tag *ngIf="o.delayDays > 0" [value]="faInt(o.delayDays) + ' روز تأخیر'" severity="danger" styleClass="gng-mt-sm"></p-tag>
+      </div>
+      <div *ngIf="!data.orders.length" class="gng-empty">—</div>
+      <div class="pc10-pick__group"><i class="pi pi-arrow-down-right"></i> کارمزدی دریافتی (مواد مشتری)</div>
+      <div *ngFor="let c of data.contracts" class="pc10-pick__item" [class.pc10-pick__item--on]="selKey === 'toll-' + c.id" (click)="pickContract(c)">
+        <div class="pc10-pick__title">{{ c.number }}</div>
+        <div class="pc10-pick__meta">{{ c.customer }} · ← {{ c.workOrder }}</div>
+        <div class="pc10-pick__meta">نرخ {{ faInt(c.feePerUnit) }} {{ c.feeUnitTitle }}</div>
+      </div>
+      <div *ngIf="!data.contracts.length" class="gng-empty">—</div>
+    </div>
+  </div>
+</gng-opform-layout>

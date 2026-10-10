@@ -1,0 +1,144 @@
+<gng-opform-layout
+  domainTitle="مهندسی تولید"
+  title="سیاست‌های تغذیه، مصرف و رسید"
+  code="FRM-ME-06"
+  formTypeLabel="کنسول پیکربندی"
+  owner="مهندسی تولید / انبار"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-sliders-h"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="لایه‌های سیاست"
+  contextPanelHint="شرکت ← گروه کالا ← کالا ← عملیات روش؛ فیلد خالی از لایه‌ی بالاتر به ارث می‌رسد."
+  auditFeatureRange="F-ME-040 تا F-ME-049 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-plus" label="سیاست لایه‌ی جدید" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-ban" label="استثنا از Backflush" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <div *ngIf="selectedPolicy as p" class="gng-note gng-note--info" style="margin-bottom: 0.6rem">
+    <strong>{{ p.code }} — {{ p.name }}</strong> ({{ p.scope }}) · {{ p.description || 'بدون شرح' }} · سیاست مؤثر {{ fa(visible.length) }} قلم × عملیات در جدول‌ها
+  </div>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <!-- ───────── سیاست تغذیه (F-ME-040) ───────── -->
+    <p-tabPanel header="سیاست تغذیه" [selected]="true">
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me06-policies', 'سیاست‌ها')"></gng-data-source-badge>
+        <p-table [value]="visible" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th>قلم</th><th style="width: 9rem">گروه</th><th>عملیات</th><th style="width: 13rem">سیاست تغذیه</th><th style="width: 8rem">از لایه</th></tr></ng-template>
+          <ng-template pTemplate="body" let-e>
+            <tr><td>{{ e.item.product }}</td><td>{{ e.item.group }}</td><td>{{ e.item.operation }}</td><td>{{ label('feeding', e.eff.feeding) }}</td><td><span class="gng-text-muted gng-small">{{ e.eff.feeding.from }}</span></td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── سیاست مصرف و Backflush (F-ME-041، 042) ───────── -->
+    <p-tabPanel header="سیاست مصرف و Backflush">
+      <p-table [value]="visible" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th>قلم</th><th>عملیات</th><th style="width: 12rem">سیاست مصرف</th><th style="width: 9rem">مبنا</th><th style="width: 8rem">لحظه</th><th style="width: 10rem">کسری موجودی</th><th>انبار مبدأ</th></tr></ng-template>
+        <ng-template pTemplate="body" let-e>
+          <tr>
+            <td>{{ e.item.product }}</td><td>{{ e.item.operation }}</td>
+            <td>{{ label('consumption', e.eff.consumption) }}<div class="gng-text-muted gng-small">{{ e.eff.consumption.from }}</div></td>
+            <td>{{ label('backflushBasis', e.eff.backflushBasis) }}</td><td>{{ label('backflushMoment', e.eff.backflushMoment) }}</td>
+            <td [style.color]="e.eff.shortage.value === 2 ? 'var(--gng-warning, #d08a00)' : null">{{ label('shortage', e.eff.shortage) }}</td>
+            <td>{{ text(e.eff.backflushSource) }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── اقلام مستثنی (F-ME-043) ───────── -->
+    <p-tabPanel header="اقلام مستثنی">
+      <p class="gng-hint">اقلام گران، عیاردار و دارای ردیابی سریالی باید دستی ثبت شوند. فهرست: اقلام استثناشده + اقلام عیاردار/سریالی.</p>
+      <p-table [value]="excludedRows" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th>قلم</th><th>عملیات</th><th style="width: 10rem">ویژگی</th><th style="width: 10rem">استثنا از Backflush</th><th style="width: 9rem">دلیل</th><th style="width: 12rem">مصرف مؤثر</th></tr></ng-template>
+        <ng-template pTemplate="body" let-e>
+          <tr>
+            <td>{{ e.item.product }}</td><td>{{ e.item.operation }}</td>
+            <td><p-tag *ngIf="e.item.isActiveIngredient" value="عیاردار" severity="warning"></p-tag><p-tag *ngIf="e.item.trackingCode >= 2" value="سریالی" severity="info"></p-tag></td>
+            <td><p-tag [value]="e.eff.excluded.value === true ? 'استثنا شده' : 'استثنا نشده'" [severity]="e.eff.excluded.value === true ? 'success' : 'danger'"></p-tag></td>
+            <td>{{ label('exclusionReason', e.eff.exclusionReason) }}</td><td>{{ label('consumption', e.eff.consumption) }}</td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage"><tr><td colspan="6" class="gng-empty">قلم استثنا یا عیاردار در این لایه نیست.</td></tr></ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── سیاست رسید (F-ME-044) ───────── -->
+    <p-tabPanel header="سیاست رسید">
+      <p class="gng-hint">سیاست رسید خروجی عملیات و محصول: رسید مستقیم، مجوز ورود، مشروط به تأیید کیفی یا انبار قرنطینه.</p>
+      <p-table [value]="data?.policies ?? []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th style="width: 9rem">لایه</th><th>دامنه</th><th style="width: 14rem">سیاست رسید</th><th>انبار رسید</th></tr></ng-template>
+        <ng-template pTemplate="body" let-p>
+          <tr [class.gng-row-active]="p.id === selectedPolicy?.id">
+            <td>{{ p.scope }}</td><td>{{ scopeTitle(p) }}</td>
+            <td>{{ p.values.receipt ? label('receipt', { value: p.values.receipt, from: '' }) : 'به ارث' }}</td><td>{{ p.values.receiptInventory || 'به ارث' }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── انبار و الگوی سند (F-ME-045) ───────── -->
+    <p-tabPanel header="انبار و الگوی سند">
+      <p class="gng-hint">انبار پیش‌فرض مصرف و رسید و الگوی سند انبار به تفکیک قلم، گروه قلم و عملیات. لایه‌ی «نسخه‌ی تولید» (FRM-ME-08) هنگام صدور دستور کار روی همه‌ی اقلام آن نسخه اعمال می‌شود.</p>
+      <p-table [value]="visible" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th>قلم</th><th>عملیات</th><th>انبار مصرف</th><th>انبار رسید</th><th>الگوی سند</th></tr></ng-template>
+        <ng-template pTemplate="body" let-e>
+          <tr><td>{{ e.item.product }}</td><td>{{ e.item.operation }}</td>
+            <td>{{ text(e.eff.consumptionInventory) }}<div class="gng-text-muted gng-small">{{ e.eff.consumptionInventory.from }}</div></td>
+            <td>{{ text(e.eff.receiptInventory) }}</td><td>{{ text(e.eff.documentPattern) }}</td></tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── تخصیص موجودی (F-ME-046) ───────── -->
+    <p-tabPanel header="تخصیص موجودی">
+      <p-table [value]="visible" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th>قلم</th><th>عملیات</th><th style="width: 12rem">سیاست تخصیص</th><th style="width: 8rem">از لایه</th></tr></ng-template>
+        <ng-template pTemplate="body" let-e>
+          <tr><td>{{ e.item.product }}</td><td>{{ e.item.operation }}</td><td>{{ label('allocation', e.eff.allocation) }}</td><td class="gng-text-muted gng-small">{{ e.eff.allocation.from }}</td></tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── انتقال پای کار (F-ME-047، 048) ───────── -->
+    <p-tabPanel header="انتقال پای کار">
+      <p class="gng-hint">مقدار انتقال بر مبنای اندازه‌ی بچ عملیات یا اندازه‌ی بسته — نه کل مقدار سفارش (رفتار نسخه‌ی قبل)؛ با حداقل/حداکثر و نقطه‌ی فراخوان انبار پای کار.</p>
+      <p-table [value]="visible" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th>قلم</th><th>عملیات</th><th style="width: 11rem">مبنای انتقال</th><th style="width: 7rem">بسته</th><th>انبار پای کار</th><th style="width: 7rem">حداقل</th><th style="width: 7rem">حداکثر</th><th style="width: 7rem">فراخوان</th></tr></ng-template>
+        <ng-template pTemplate="body" let-e>
+          <tr>
+            <td>{{ e.item.product }}</td><td>{{ e.item.operation }}</td><td>{{ label('transferBasis', e.eff.transferBasis) }}</td><td>{{ text(e.eff.packageSize) }}</td>
+            <td>{{ text(e.eff.lineSide) }}</td>
+            <td [style.color]="e.eff.minStock.value !== null && e.eff.maxStock.value !== null && e.eff.minStock.value > e.eff.maxStock.value ? 'var(--gng-danger, #e24c4c)' : null">{{ text(e.eff.minStock) }}</td>
+            <td>{{ text(e.eff.maxStock) }}</td><td>{{ text(e.eff.reorderPoint) }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── محدوده‌ی مصرف (F-ME-049) ───────── -->
+    <p-tabPanel header="محدوده‌ی مصرف">
+      <p class="gng-hint">کنترل مصرف مجاز هنگام ثبت گزارش تولید بر مبنای حداقل/حداکثر مصرف ردیف ساختار (FRM-PE-02).</p>
+      <p-table [value]="visible" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th>قلم</th><th>عملیات</th><th style="width: 12rem">محدوده‌ی ساختار</th><th style="width: 10rem">کنترل</th><th style="width: 8rem">از لایه</th></tr></ng-template>
+        <ng-template pTemplate="body" let-e>
+          <tr><td>{{ e.item.product }}</td><td>{{ e.item.operation }}</td>
+            <td>{{ e.item.minConsumption !== null ? fa(e.item.minConsumption) + '٪ تا ' + fa(e.item.maxConsumption ?? 0) + '٪' : '—' }}</td>
+            <td>{{ label('consumptionControl', e.eff.consumptionControl) }}</td><td class="gng-text-muted gng-small">{{ e.eff.consumptionControl.from }}</td></tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="ds('me06-items', 'اقلام مصرفی')"></gng-data-source-badge>
+    <p-tree [value]="pickTree" styleClass="gng-tree" selectionMode="single" [(selection)]="selectedPick" (onNodeSelect)="onPick($event)" (onNodeUnselect)="onUnpick($event)"></p-tree>
+  </div>
+</gng-opform-layout>

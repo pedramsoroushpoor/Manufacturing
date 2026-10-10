@@ -1,0 +1,133 @@
+<gng-opform-layout
+  domainTitle="چارچوب مشترک"
+  title="مدیریت نیازمندی و ماتریس ردیابی"
+  code="FRM-PF-07"
+  formTypeLabel="کنسول / داشبورد"
+  owner="داشبورد"
+  contextLabel="پوشش ردیابی"
+  contextIcon="pi pi-link"
+  [bannerText]="bannerSuccess"
+  bannerTone="success"
+  [auditFeatureRange]="auditRange"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-tag" label="ثبت و کدگذاری نیازمندی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-table" label="تولید ماتریس ردیابی" class="p-button-sm p-button-success"></button>
+    <button pButton type="button" icon="pi pi-download" label="خروجی برای جلسه‌ی مشتری" class="p-button-outlined p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs">
+    <p-tabPanel header="نیازمندی">
+      <div class="gng-note gng-note--info">{{ reqCodeNote }}</div>
+      <p-table [value]="recentRequirements" styleClass="p-datatable-sm gng-table gng-mt-sm" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th>کد</th><th>شرح</th><th>اولویت</th><th>وضعیت</th></tr></ng-template>
+        <ng-template pTemplate="body" let-r>
+          <tr>
+            <td style="direction:ltr; text-align:left">{{ r.code }}</td>
+            <td>{{ r.description }}</td>
+            <td><p-tag [value]="r.priority" severity="secondary"></p-tag></td>
+            <td><p-tag [value]="r.status" [severity]="reqStatusSeverity(r.status)"></p-tag></td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <p-tabPanel header="فیچر">
+      <div class="gng-note gng-note--info">{{ featureRefNote }}</div>
+      <div class="gng-field-grid gng-mt">
+        <div class="gng-field"><span class="gng-field__label">{{ statFeatures.label }}</span><span class="gng-field__value">{{ statFeatures.value }}</span></div>
+      </div>
+      <div class="gng-hint gng-mt-sm">{{ statFeatures.meta }}</div>
+    </p-tabPanel>
+
+    <p-tabPanel header="فرم" [selected]="true">
+      <h3>زنجیره‌ی ردیابی <span class="gng-hint" style="display:inline; margin:0">— نیازمندی ← فیچر ← فرم ← تسک؛ کد پس از تخصیص هرگز بازاستفاده نمی‌شود</span></h3>
+      <div class="gng-trace-row gng-mt-sm">
+        <ng-container *ngFor="let c of traceChain; let last = last">
+          <div [class]="'gng-trace-card gng-trace-card--' + c.tone">
+            <span class="gng-trace-card__label">{{ c.label }}</span>
+            <span class="gng-trace-card__value">{{ c.value }}</span>
+            <span class="gng-trace-card__meta">{{ c.meta }}</span>
+          </div>
+          <div class="gng-trace-arrow" *ngIf="!last"><i class="pi pi-arrow-left"></i></div>
+        </ng-container>
+      </div>
+
+      <div class="gng-columns gng-mt">
+        <div style="display:flex; flex-direction:column; gap:0.9rem">
+          <div class="gng-field-grid">
+            <div class="gng-field"><span class="gng-field__label">{{ statFeatures.label }}</span><span class="gng-field__value">{{ statFeatures.value }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">{{ statRequirements.label }}</span><span class="gng-field__value">{{ statRequirements.value }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">{{ statEstimate.label }}</span><span class="gng-field__value">{{ statEstimate.value }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">{{ statForms.label }}</span><span class="gng-field__value">{{ statForms.value }}</span></div>
+          </div>
+
+          <div class="gng-panel">
+            <h3>موارد باز تصمیم‌گیری</h3>
+            <ul class="gng-hint gng-mt-sm" style="margin:0; padding-inline-start: 1.2rem">
+              <li *ngFor="let d of openDecisions">{{ d }}</li>
+            </ul>
+          </div>
+
+          <div class="gng-note gng-note--warning">{{ warningNote }}</div>
+        </div>
+
+        <div>
+          <h3>پوشش ردیابی به تفکیک زیرسیستم <span class="gng-hint" style="display:inline; margin:0">— فیچر بدون ارجاع به نیازمندی پذیرفته نمی‌شود</span></h3>
+          <p-table [value]="coverageRows" styleClass="p-datatable-sm gng-table gng-mt-sm" responsiveLayout="scroll">
+            <ng-template pTemplate="header"><tr><th>زیرسیستم</th><th>تعداد فیچر</th><th>تعداد فرم</th><th>پوشش</th><th>درصد</th><th>بدون ارجاع</th></tr></ng-template>
+            <ng-template pTemplate="body" let-c>
+              <tr>
+                <td>{{ c.subsystem }}</td>
+                <td>{{ c.featureCount }}</td>
+                <td>{{ c.formCount }}</td>
+                <td style="min-width:120px"><div class="gng-kpi__bar"><div [class]="barClass(c.coveragePct)" [style.width.%]="c.coveragePct"></div></div></td>
+                <td style="color:var(--gng-success); font-weight:700">{{ c.pct }}</td>
+                <td>{{ c.noRef }}</td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="footer">
+              <tr>
+                <td><b>جمع</b></td>
+                <td><b>{{ coverageTotal.featureCount }}</b></td>
+                <td><b>{{ coverageTotal.formCount }}</b></td>
+                <td></td>
+                <td style="color:var(--gng-success); font-weight:700">{{ coverageTotal.pct }}</td>
+                <td></td>
+              </tr>
+            </ng-template>
+          </p-table>
+
+          <h3 class="gng-mt">نیازمندی‌های اخیر</h3>
+          <p-table [value]="recentRequirements" styleClass="p-datatable-sm gng-table gng-mt-sm" responsiveLayout="scroll">
+            <ng-template pTemplate="header"><tr><th>کد</th><th>شرح</th><th>فیچر</th><th>فرم</th><th>اولویت</th><th>وضعیت</th></tr></ng-template>
+            <ng-template pTemplate="body" let-r>
+              <tr>
+                <td style="direction:ltr; text-align:left">{{ r.code }}</td>
+                <td>{{ r.description }}</td>
+                <td>{{ r.feature }}</td>
+                <td>{{ r.form }}</td>
+                <td><p-tag [value]="r.priority" severity="secondary"></p-tag></td>
+                <td><p-tag [value]="r.status" [severity]="reqStatusSeverity(r.status)"></p-tag></td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="تسک">
+      <div class="gng-note gng-note--info">{{ autoMatrixNote }}</div>
+      <div class="gng-trace-row gng-mt">
+        <ng-container *ngFor="let c of traceChain; let last = last">
+          <div [class]="'gng-trace-card gng-trace-card--' + c.tone">
+            <span class="gng-trace-card__label">{{ c.label }}</span>
+            <span class="gng-trace-card__value">{{ c.value }}</span>
+            <span class="gng-trace-card__meta">{{ c.meta }}</span>
+          </div>
+          <div class="gng-trace-arrow" *ngIf="!last"><i class="pi pi-arrow-left"></i></div>
+        </ng-container>
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+</gng-opform-layout>

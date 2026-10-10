@@ -1,0 +1,26 @@
+<ng-container *ngIf="!collapsed; else railView">
+  <p-tree [value]="nodes" selectionMode="single" (onNodeSelect)="onNodeSelect($event.node)" styleClass="gng-menu-tree">
+    <ng-template let-node pTemplate="default">
+      <span class="gng-menu-node">
+        <i class="gng-menu-node__icon" [ngClass]="node.displayIcon" [style.color]="node.displayIconColor"></i>
+        <span class="gng-menu-node__label">{{ node.label }}</span>
+      </span>
+    </ng-template>
+  </p-tree>
+</ng-container>
+
+<ng-template #railView>
+  <div class="gng-menu-rail">
+    <button
+      type="button"
+      class="gng-menu-rail__item"
+      *ngFor="let n of nodes"
+      [style.color]="n.displayIconColor"
+      [pTooltip]="n.label"
+      tooltipPosition="left"
+      (click)="onRailClick(n)"
+    >
+      <i [ngClass]="n.displayIcon"></i>
+    </button>
+  </div>
+</ng-template>

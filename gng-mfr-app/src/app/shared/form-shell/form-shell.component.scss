@@ -1,0 +1,174 @@
+.gng-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.gng-form__breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--gng-text-muted);
+
+  i {
+    font-size: 0.65rem;
+  }
+}
+
+.gng-form__breadcrumb-current {
+  color: var(--gng-text);
+  font-weight: 500;
+}
+
+.gng-form__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  background: var(--gng-surface);
+  border: 1px solid var(--gng-border);
+  border-radius: var(--gng-radius);
+  box-shadow: var(--gng-shadow);
+  padding: 1.1rem 1.4rem;
+  flex-wrap: wrap;
+}
+
+.gng-form__title-block h1 {
+  margin: 0 0 0.4rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--gng-text);
+}
+
+.gng-form__meta {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.gng-form__code,
+.gng-form__type {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: var(--gng-bg);
+  border: 1px solid var(--gng-border);
+  color: var(--gng-text-muted);
+}
+
+.gng-form__code {
+  font-family: 'Courier New', monospace;
+  color: var(--gng-primary-dark);
+  border-color: var(--gng-primary-light);
+  background: rgba(247, 148, 29, 0.08);
+}
+
+.gng-form__toolbar {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+::ng-deep .gng-btn-primary.p-button {
+  background: var(--gng-primary);
+  border-color: var(--gng-primary);
+
+  &:hover {
+    background: var(--gng-primary-dark);
+    border-color: var(--gng-primary-dark);
+  }
+}
+
+::ng-deep .gng-form__tabs {
+  .p-tabview-nav {
+    background: transparent;
+    border-color: var(--gng-border);
+  }
+  .p-tabview-panels {
+    background: var(--gng-surface);
+    border: 1px solid var(--gng-border);
+    border-top: none;
+    border-radius: 0 0 var(--gng-radius) var(--gng-radius);
+  }
+}
+
+.gng-form__tab-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 2.5rem 1.5rem;
+  color: var(--gng-text-muted);
+  text-align: center;
+
+  i {
+    font-size: 1.6rem;
+    color: var(--gng-primary);
+  }
+
+  p {
+    margin: 0;
+    max-width: 34rem;
+    line-height: 1.9;
+    font-size: 0.86rem;
+  }
+}
+
+.gng-form__features {
+  background: var(--gng-surface);
+  border: 1px solid var(--gng-border);
+  border-radius: var(--gng-radius);
+  box-shadow: var(--gng-shadow);
+  padding: 1.1rem 1.4rem;
+
+  h2 {
+    margin: 0 0 0.8rem;
+    font-size: 0.98rem;
+    font-weight: 600;
+    color: var(--gng-text);
+  }
+}
+
+.gng-form__features-count {
+  color: var(--gng-text-muted);
+  font-weight: 400;
+  font-size: 0.85rem;
+}
+
+.gng-form__req-code {
+  font-family: 'Courier New', monospace;
+  font-size: 0.78rem;
+  color: var(--gng-text-muted);
+}
+
+.gng-form__audit {
+  font-size: 0.75rem;
+  color: var(--gng-text-muted);
+  text-align: left;
+  padding: 0 0.2rem;
+}
+
+/* کد فرم دکمه است: شناسنامه‌ی فرم در ALM را در تب جدا باز می‌کند. */
+button.gng-form__code {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  line-height: inherit;
+  transition: background 0.15s, border-color 0.15s;
+
+  i {
+    font-size: 0.62rem;
+  }
+  &:hover {
+    background: rgba(247, 148, 29, 0.18);
+    border-color: var(--gng-primary);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--gng-primary);
+    outline-offset: 2px;
+  }
+}

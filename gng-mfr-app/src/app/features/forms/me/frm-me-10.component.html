@@ -1,0 +1,90 @@
+<gng-opform-layout
+  domainTitle="مهندسی تولید"
+  title="فعالیت و محرک هزینه‌ی عملیات"
+  code="FRM-ME-10"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="مهندسی تولید / بهای تمام‌شده"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-calculator"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="روش‌های تأییدشده"
+  contextPanelHint="فعالیت‌ها از کتابخانه‌ی عملیات به عملیات روش می‌رسند."
+  auditFeatureRange="F-ME-073 تا F-ME-076 (به درخواست کاربر)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-link" label="تخصیص فعالیت" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-sliders-h" label="محرک هزینه" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <!-- ───────── فعالیت عملیات (F-ME-073) ───────── -->
+    <p-tabPanel header="فعالیت عملیات" [selected]="true">
+      <p class="gng-hint">فعالیت‌های تعریف‌شده در FRM-RM-09 روی عملیات این روش؛ عملیات بی‌فعالیت هم نمایش داده می‌شود.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me10-activities', 'فعالیت‌های عملیات')"></gng-data-source-badge>
+        <p-table [value]="activities" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th style="width: 5rem">ردیف</th><th>عملیات</th><th>فعالیت</th><th style="width: 8rem">سطح ABC</th><th style="width: 8rem">زمان استاندارد</th><th style="width: 6rem">الزامی</th></tr></ng-template>
+          <ng-template pTemplate="body" let-a>
+            <tr [class.gng-text-muted]="a.activityId === null">
+              <td>{{ fa(a.operationSequence) }}</td><td>{{ a.operation }}</td><td>{{ a.activity || 'بدون فعالیت' }}</td><td>{{ a.level }}</td>
+              <td>{{ a.minutes !== null ? fa(a.minutes) + ' دقیقه' : '—' }}</td><td>{{ a.activityId === null ? '—' : a.mandatory ? 'بله' : 'خیر' }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── محرک هزینه (F-ME-074) ───────── -->
+    <p-tabPanel header="محرک هزینه">
+      <p class="gng-hint">محرک هزینه‌ی هر فعالیت روی عملیات و کارکرد استانداردی که مبنای گردآوری آن است (FRM-ME-03).</p>
+      <p-table [value]="withActivity" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th style="width: 5rem">ردیف</th><th>فعالیت</th><th>محرک</th><th>کارکرد مبنا</th><th style="width: 10rem">مجاز به‌عنوان محرک</th></tr></ng-template>
+        <ng-template pTemplate="body" let-a>
+          <tr>
+            <td>{{ fa(a.operationSequence) }}</td><td>{{ a.activity }}</td>
+            <td [style.color]="a.driver ? null : 'var(--gng-danger, #e24c4c)'">{{ a.driver || 'بدون محرک' }}</td><td>{{ a.driverCapacity || '—' }}</td>
+            <td><p-tag *ngIf="a.driver" [value]="a.capacityAllowed ? 'بله' : 'خیر'" [severity]="a.capacityAllowed ? 'success' : 'danger'"></p-tag></td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── سهم هم‌زادها (F-ME-075) ───────── -->
+    <p-tabPanel header="سهم هم‌زادها">
+      <p class="gng-hint">سهم هر خروجی از هزینه‌ی عملیات تولیدکننده؛ جمع هر عملیات ۱۰۰٪. سهم‌بری کل ساختار در FRM-PE-04 است.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me10-shares', 'سهم هزینه‌ی خروجی‌ها')"></gng-data-source-badge>
+        <p-table [value]="shares" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th style="width: 5rem">ردیف</th><th>عملیات</th><th>خروجی</th><th style="width: 8rem">نوع</th><th style="width: 10rem">مقدار</th><th style="width: 8rem">سهم هزینه</th></tr></ng-template>
+          <ng-template pTemplate="body" let-s>
+            <tr><td>{{ fa(s.sequence) }}</td><td>{{ s.operation }}</td><td>{{ s.product }}</td><td>{{ s.type }}</td><td>{{ num(s.quantity) }} {{ s.unit }}</td><td>{{ s.share !== null ? num(s.share) + '٪' : '—' }}</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── ارزش‌افزا و غیرارزش‌افزا (F-ME-076) ───────── -->
+    <p-tabPanel header="ارزش‌افزا و غیرارزش‌افزا">
+      <div class="gng-field-grid">
+        <div class="gng-field"><span class="gng-field__label">زمان ارزش‌افزا</span><span class="gng-field__value">{{ fa(vaMinutes) }} دقیقه</span></div>
+        <div class="gng-field"><span class="gng-field__label">زمان غیرارزش‌افزا</span><span class="gng-field__value">{{ fa(nvaMinutes) }} دقیقه</span></div>
+        <div class="gng-field"><span class="gng-field__label">سهم ارزش‌افزا</span><span class="gng-field__value"><strong>{{ num(vaPercent, 1) }}٪</strong></span></div>
+      </div>
+      <p-table [value]="withActivity" styleClass="p-datatable-sm gng-table gng-mt" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th style="width: 5rem">ردیف</th><th>فعالیت</th><th style="width: 9rem">زمان</th><th style="width: 11rem">طبقه</th></tr></ng-template>
+        <ng-template pTemplate="body" let-a>
+          <tr><td>{{ fa(a.operationSequence) }}</td><td>{{ a.activity }}</td><td>{{ a.minutes !== null ? fa(a.minutes) + ' دقیقه' : '—' }}</td>
+            <td><p-tag [value]="a.valueAdded ? 'ارزش‌افزا' : 'غیرارزش‌افزا'" [severity]="a.valueAdded ? 'success' : 'warning'"></p-tag></td></tr>
+        </ng-template>
+      </p-table>
+      <p class="gng-hint gng-mt">راه‌اندازی، نظافت، بازرسی و جابه‌جایی غیرارزش‌افزا گرفته شده‌اند — پایه‌ی تحلیل ناب.</p>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <p-tree [value]="pickTree" styleClass="gng-tree" selectionMode="single" [(selection)]="selectedPick" (onNodeSelect)="onPick($event)" (onNodeUnselect)="onUnpick($event)"></p-tree>
+  </div>
+</gng-opform-layout>

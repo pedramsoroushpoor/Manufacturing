@@ -1,0 +1,315 @@
+<gng-opform-layout
+  domainTitle="کنترل تولید"
+  title="درخواست تولید"
+  code="FRM-PC-01"
+  formTypeLabel="فرم عملیاتی"
+  owner="برنامه‌ریز تولید"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-send"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="درخواست‌ها"
+  contextPanelHint="جست‌وجو در شماره، کالا، درخواست‌کننده، مشتری، سفارش فروش و اعلام نیاز."
+  auditFeatureRange="F-PC-001 تا F-PC-006"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-plus" label="ثبت درخواست" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check-square" label="تأیید / رد" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-sitemap" label="تجمیع در یک دستور" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-share-alt" label="تفکیک به چند دستور" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <div class="gng-stat-grid" style="margin-bottom: 0.7rem">
+    <div class="gng-stat-card" *ngFor="let k of kpis" [ngClass]="k.cls">
+      <span class="gng-stat-card__label">{{ k.label }}</span>
+      <span class="gng-stat-card__value">{{ k.value }}</span>
+      <span class="gng-stat-card__meta">{{ k.meta }}</span>
+    </div>
+  </div>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <!-- ───────── تابلوی وضعیت ───────── -->
+    <p-tabPanel header="تابلوی درخواست‌ها" [selected]="true">
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc01-requests', 'درخواست‌های تولید')"></gng-data-source-badge>
+        <p class="gng-hint">رنگ لبه = اولویت؛ چیپ‌ها: منشأ، شمارش معکوس تاریخ نیاز و مشکل‌ها. روی کارت بزنید تا جزئیات، امکان‌سنجی و گردش تأیید باز شود.</p>
+        <div class="pc1-kanban">
+          <div class="pc1-col" *ngFor="let c of board">
+            <h4><span>{{ c.title }}</span><p-tag [value]="faInt(c.items.length)" [severity]="statusTone(c.code)"></p-tag></h4>
+            <div *ngFor="let v of c.items" class="pc1-card" (click)="select(v)"
+                 [class.pc1-card--sel]="v === selected" [class.pc1-card--p2]="v.r.priorityCode === 2" [class.pc1-card--p3]="v.r.priorityCode === 3">
+              <div class="pc1-card__top"><span>{{ v.r.number }}</span><i *ngIf="v.issues.length" class="pi pi-exclamation-triangle" style="color: var(--gng-danger)" [pTooltip]="v.issues.join('؛ ')" tooltipPosition="top"></i></div>
+              <div>{{ v.r.productTitle }}</div>
+              <div class="pc1-card__meta">{{ faNum(v.r.quantity) }} {{ v.r.unit }} · {{ v.r.requesterUnit }}</div>
+              <span class="pc1-chip"><i [class]="ORIGIN_ICON[v.r.originCode]"></i>{{ REQUEST_ORIGIN[v.r.originCode] }}</span>
+              <span class="pc1-chip" [ngClass]="'pc1-chip--' + v.needTone"><i class="pi pi-hourglass"></i>{{ v.needLabel }}</span>
+              <span class="pc1-chip pc1-chip--danger" *ngIf="v.r.priorityCode === 3"><i class="pi pi-bolt"></i>فوری</span>
+              <div *ngIf="v.r.statusCode === 4" class="pc1-bar gng-mt-sm" style="height: 7px">
+                <div class="pc1-bar__seg pc1-bar__avail" style="right: 0" [style.width.%]="v.producedPct"></div>
+                <div class="pc1-bar__seg pc1-bar__prog" [style.right.%]="v.producedPct" [style.width.%]="v.inProgressPct"></div>
+              </div>
+              <div class="pc1-issue" *ngFor="let i of v.issues">{{ i }}</div>
+            </div>
+            <div *ngIf="!c.items.length" class="gng-empty gng-small">—</div>
+          </div>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── ثبت درخواست و منشأ (F-PC-001، 002) ───────── -->
+    <p-tabPanel header="ثبت درخواست و منشأ">
+      <div *ngIf="selected as v" style="position: relative">
+        <gng-data-source-badge [source]="ds('pc01-requests', 'درخواست‌های تولید')"></gng-data-source-badge>
+        <div class="gng-field-grid">
+          <div class="gng-field"><span class="gng-field__label">شماره / تاریخ</span><span class="gng-field__value">{{ v.r.number }} · {{ faDay(v.r.requestDate) }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">وضعیت</span><span class="gng-field__value"><p-tag [value]="REQUEST_STATUS[v.r.statusCode]" [severity]="statusTone(v.r.statusCode)"></p-tag></span></div>
+          <div class="gng-field"><span class="gng-field__label">منشأ</span><span class="gng-field__value"><i [class]="ORIGIN_ICON[v.r.originCode]"></i> {{ REQUEST_ORIGIN[v.r.originCode] }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">اولویت</span><span class="gng-field__value"><p-tag [value]="PRIORITY[v.r.priorityCode]" [severity]="priorityTone(v.r.priorityCode)"></p-tag></span></div>
+          <div class="gng-field"><span class="gng-field__label">کالا</span><span class="gng-field__value">{{ v.r.productCode }} — {{ v.r.productTitle }} <span class="gng-text-muted">({{ v.r.productGroup }})</span></span></div>
+          <div class="gng-field"><span class="gng-field__label">مقدار</span><span class="gng-field__value">{{ faNum(v.r.quantity) }} {{ v.r.unit }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">تاریخ نیاز</span><span class="gng-field__value">{{ faDay(v.r.needDate) }} <span class="pc1-chip" [ngClass]="'pc1-chip--' + v.needTone">{{ v.needLabel }}</span></span></div>
+          <div class="gng-field"><span class="gng-field__label">واحد / درخواست‌کننده</span><span class="gng-field__value">{{ v.r.requesterUnit }} — {{ v.r.requester }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">اعلام نیاز عمومی (F-PC-002)</span>
+            <span class="gng-field__value"><ng-container *ngIf="v.r.generalRequisition; else noGr"><i class="pi pi-link"></i> {{ v.r.generalRequisition }}</ng-container>
+              <ng-template #noGr><span class="gng-text-muted">بدون اعلام نیاز عمومی</span></ng-template></span></div>
+          <div class="gng-field"><span class="gng-field__label">سفارش فروش / قرارداد</span><span class="gng-field__value">{{ v.r.salesOrder || '—' }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">مشتری</span><span class="gng-field__value">{{ v.r.customer || '—' }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">شرح</span><span class="gng-field__value">{{ v.r.description || '—' }}</span></div>
+        </div>
+        <div *ngIf="v.issues.length" class="gng-note gng-note--danger gng-mt-sm"><span *ngFor="let i of v.issues; let last = last">{{ i }}{{ last ? '' : '؛ ' }}</span></div>
+      </div>
+
+      <div class="gng-columns gng-mt">
+        <div class="gng-panel">
+          <h3>منشأ درخواست‌ها <span class="gng-hint" style="display: inline">— برای فیلتر بزنید</span></h3>
+          <div class="pc1-dist">
+            <ng-container *ngFor="let d of originDist">
+              <span><i [class]="ORIGIN_ICON[d.code]"></i> {{ d.title }}</span>
+              <div class="pc1-bar" (click)="toggleOrigin(d.code)" [style.outline]="originFilter === d.code ? '2px solid var(--gng-primary)' : null">
+                <div class="pc1-bar__seg pc1-bar__prog" style="right: 0" [style.width.%]="d.pct"></div>
+              </div>
+              <b>{{ faInt(d.count) }}</b>
+            </ng-container>
+          </div>
+        </div>
+        <div class="gng-panel">
+          <h3>اولویت و اثر آن</h3>
+          <div class="pc1-dist">
+            <ng-container *ngFor="let d of priorityDist">
+              <span><p-tag [value]="d.title" [severity]="priorityTone(d.code)"></p-tag></span>
+              <div class="pc1-bar"><div class="pc1-bar__seg" style="right: 0" [style.width.%]="d.pct" [style.background]="d.code === 3 ? 'var(--gng-danger)' : d.code === 2 ? 'var(--gng-warning)' : 'var(--gng-text-muted)'"></div></div>
+              <b>{{ faInt(d.count) }}</b>
+            </ng-container>
+          </div>
+          <p class="gng-hint gng-mt-sm">اولویت درخواست به دستور کار منتقل می‌شود و در توالی‌دهی و تخصیص مواد اثر دارد (نمونه: PR-1405-0310 «فوری» پرس خط ۱ را از دستور کارمزدی گرفت).</p>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── گردش تأیید (F-PC-003) ───────── -->
+    <p-tabPanel [header]="'گردش تأیید (' + faInt(countByStatus(2)) + ')'">
+      <div class="gng-columns">
+        <div class="gng-panel" style="position: relative">
+          <gng-data-source-badge [source]="ds('pc01-approvals', 'مراحل تأیید')"></gng-data-source-badge>
+          <h3>مسیر تأیید {{ selected?.r?.number }}</h3>
+          <div class="gng-chain">
+            <div class="gng-chain-item" *ngFor="let s of route">
+              <i class="pi gng-chain-dot" [ngClass]="s.state === 'done' ? 'pi-check-circle gng-chain-dot--done' : s.state === 'rejected' ? 'pi-times-circle' : s.state === 'pending' ? 'pi-clock gng-chain-dot--pending' : 'pi-circle gng-chain-dot--pending'"></i>
+              <div class="gng-chain-body">
+                <strong>{{ s.rule?.role || s.approval?.role }}</strong>
+                <span *ngIf="s.approval?.approver"> — {{ s.approval?.approver }}</span>
+                <div class="gng-chain-meta">قاعده‌ی {{ s.rule ? faInt(s.rule.sequence) : '؟' }}: {{ s.why }}</div>
+                <div class="gng-chain-meta">
+                  <p-tag *ngIf="s.state === 'done'" value="تأیید" severity="success"></p-tag>
+                  <p-tag *ngIf="s.state === 'rejected'" value="رد" severity="danger"></p-tag>
+                  <p-tag *ngIf="s.state === 'pending'" value="در انتظار" severity="warning"></p-tag>
+                  <p-tag *ngIf="s.state === 'missing'" value="ثبت نشده" severity="secondary"></p-tag>
+                  {{ s.approval?.decisionDate ? faDateTime(s.approval?.decisionDate) : '' }} {{ s.waiting }}
+                </div>
+                <div class="gng-chain-meta" *ngIf="s.approval?.comment">«{{ s.approval?.comment }}»</div>
+              </div>
+            </div>
+          </div>
+          <div class="gng-note gng-mt-sm" [ngClass]="routeHasPending ? 'gng-note--warning' : 'gng-note--info'">{{ routeNote }}</div>
+        </div>
+        <div class="gng-panel">
+          <h3>قاعده‌های گردش تأیید</h3>
+          <p-table [value]="rules" styleClass="p-datatable-sm gng-table">
+            <ng-template pTemplate="header"><tr><th style="width: 3rem">#</th><th>شرط</th><th>تأییدکننده</th><th style="width: 5rem">این درخواست</th></tr></ng-template>
+            <ng-template pTemplate="body" let-x>
+              <tr [class.pc1-rule--on]="firedRules.has(x.sequence)">
+                <td>{{ faInt(x.sequence) }}</td>
+                <td>{{ x.description }}<div class="gng-small gng-text-muted">
+                  {{ x.originCode ? 'منشأ ' + REQUEST_ORIGIN[x.originCode] : '' }} {{ x.minQuantity ? '· ≥ ' + faInt(x.minQuantity) : '' }} {{ x.productGroup ? '· ' + x.productGroup : '' }} {{ x.requesterUnit ? '· واحد ' + x.requesterUnit : '' }}</div></td>
+                <td>{{ x.role }}</td>
+                <td><i [class]="firedRules.has(x.sequence) ? 'pi pi-check gng-sym--ok' : 'pi pi-minus gng-sym--muted'"></i></td>
+              </tr>
+            </ng-template>
+          </p-table>
+          <h3 class="gng-mt">صف تأیید</h3>
+          <div *ngFor="let v of views">
+            <div *ngIf="v.r.statusCode === 2" class="pc1-list-item" (click)="select(v)">
+              <b>{{ v.r.number }}</b> — {{ v.r.productTitle }} · منتظر «{{ v.pendingRole }}»
+              <div class="pc1-issue">{{ v.issues[0] }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── امکان‌سنجی (F-PC-006) ───────── -->
+    <p-tabPanel header="امکان‌سنجی ATP/CTP">
+      <div *ngIf="selected as v">
+        <div class="gng-window" style="align-items: center; gap: 1rem; flex-wrap: wrap">
+          <span><b>{{ v.r.number }}</b> — {{ faNum(v.r.quantity) }} {{ v.r.unit }} {{ v.r.productTitle }}</span>
+          <span style="flex: 1; min-width: 14rem">
+            <span class="gng-small">تاریخ مبنا: <b>{{ faDay(asOfIso) }}</b> ({{ asOfDays ? faInt(asOfDays) + ' روز بعد' : 'امروز' }})</span>
+            <p-slider [(ngModel)]="asOfDays" [min]="0" [max]="30" (onChange)="onAsOf()" styleClass="gng-mt-sm"></p-slider>
+          </span>
+          <button pButton type="button" icon="pi pi-forward" label="پرش به رفع کسری" class="p-button-sm p-button-outlined" [disabled]="!readyIso" (click)="jumpToReady()"></button>
+          <i *ngIf="feasLoading" class="pi pi-spin pi-spinner"></i>
+        </div>
+
+        <div class="gng-note gng-mt-sm" [ngClass]="'gng-note--' + feasTone">{{ feasVerdict }}</div>
+
+        <ng-container *ngIf="feas?.summary?.versionId">
+          <div class="gng-stat-grid gng-mt-sm">
+            <div class="gng-stat-card"><span class="gng-stat-card__label">نسخه‌ی تولید</span><span class="gng-stat-card__value" style="font-size: 1rem">{{ feas?.summary?.versionCode }}</span><span class="gng-stat-card__meta">{{ feas?.summary?.versionTitle }} · {{ feas?.summary?.structureCode }}</span></div>
+            <div class="gng-stat-card"><span class="gng-stat-card__label">تعداد بچ</span><span class="gng-stat-card__value">{{ faInt(feas?.summary?.batchCount) }}</span><span class="gng-stat-card__meta">زمان مبنا {{ faNum(feas?.summary?.leadTimeHours) }} ساعت</span></div>
+            <div class="gng-stat-card" [ngClass]="feasTone === 'danger' ? 'gng-stat-card--danger' : feasTone === 'warning' ? 'gng-stat-card--warning' : 'gng-stat-card--success'">
+              <span class="gng-stat-card__label">تحقق پیشنهادی</span><span class="gng-stat-card__value" style="font-size: 1rem">{{ proposedIso ? faDateTime(proposedIso) : 'نامعلوم' }}</span><span class="gng-stat-card__meta">نیاز {{ faDay(v.r.needDate) }}</span></div>
+          </div>
+
+          <div class="pc1-axis">
+            <div *ngFor="let m of axisMarks" class="pc1-axis__mark" [ngClass]="m.cls" [style.right.%]="m.pos"><i [class]="m.icon"></i>{{ m.label }}</div>
+          </div>
+
+          <div style="position: relative">
+            <gng-data-source-badge [source]="ds('pc01-feasibility', 'امکان‌سنجی')"></gng-data-source-badge>
+            <p-table [value]="matViews" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+              <ng-template pTemplate="header">
+                <tr><th>ماده</th><th style="width: 7rem">نیاز</th><th style="width: 7rem">موجود آزاد</th><th style="width: 7rem">در راه</th><th style="width: 7rem">تا تاریخ مبنا</th><th style="width: 14rem">پوشش</th><th style="width: 8rem">وضعیت</th></tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-x>
+                <tr>
+                  <td>{{ x.m.productCode }} — {{ x.m.productTitle }}</td>
+                  <td>{{ faNum(x.m.required) }} {{ x.m.unit }}</td>
+                  <td [style.color]="x.m.available < 0 ? 'var(--gng-danger)' : null">{{ faNum(x.m.available) }}<i *ngIf="x.m.available < 0" class="pi pi-exclamation-circle" pTooltip="موجودی منفی در انبار — داده‌ی موجودی را بررسی کنید"></i></td>
+                  <td>{{ x.m.inTransit ? faNum(x.m.inTransit) + ' · ' + faDay(x.m.lastArrival) : '—' }}</td>
+                  <td>{{ faNum(x.byDate) }}</td>
+                  <td>
+                    <div class="pc1-bar">
+                      <div class="pc1-bar__seg pc1-bar__avail" style="right: 0" [style.width.%]="x.availPct"></div>
+                      <div class="pc1-bar__seg pc1-bar__transit" [style.right.%]="x.availPct" [style.width.%]="x.transitPct"></div>
+                      <div class="pc1-bar__req" [style.right.%]="x.reqPct" pTooltip="خط قرمز = نیاز"></div>
+                    </div>
+                  </td>
+                  <td><p-tag [value]="matStateLabel(x.state)" [severity]="matStateTone(x.state)"></p-tag><div *ngIf="x.short > 0" class="pc1-issue">کسری {{ faNum(x.short) }}</div></td>
+                </tr>
+              </ng-template>
+            </p-table>
+            <div class="gng-legend gng-mt-sm"><span><span class="gng-legend-dot gng-legend-dot--success"></span>موجود آزاد</span><span><span class="gng-legend-dot gng-legend-dot--info"></span>در راه</span><span><span class="gng-legend-dot gng-legend-dot--danger"></span>خط نیاز</span></div>
+          </div>
+        </ng-container>
+        <p class="gng-hint gng-mt-sm">لغزنده تاریخ شروع فرضی را جابه‌جا می‌کند: محموله‌هایی که تا آن روز می‌رسند به موجودی افزوده می‌شوند و تاریخ تحقق = بیشینه‌ی (تاریخ مبنا، رسیدن آخرین کسری) + زمان مبنای نسخه. ظرفیت خط هنوز فقط با زمان مبنای نسخه سنجیده می‌شود.</p>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── تجمیع و تفکیک (F-PC-004) ───────── -->
+    <p-tabPanel header="تجمیع و تفکیک">
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc01-links', 'پیوند درخواست و دستور')"></gng-data-source-badge>
+        <div class="gng-note gng-note--info" *ngIf="linkSentences.length"><div *ngFor="let s of linkSentences">{{ s }}</div></div>
+        <div class="gng-columns gng-mt-sm" style="grid-template-columns: 1fr">
+          <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 0.82rem"><span>درخواست</span><span>دستور کار</span></div>
+          <div class="pc1-graph" [style.height.px]="graphHeight">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+              <path *ngFor="let l of graphLinks" [attr.d]="l.d" fill="none" vector-effect="non-scaling-stroke"
+                    [attr.stroke]="l.hi ? 'var(--gng-primary)' : 'var(--gng-border)'" [attr.stroke-width]="l.hi ? 3 : 1.5"></path>
+            </svg>
+            <div *ngFor="let g of graphReqs" class="pc1-node pc1-node--req" [style.top.px]="g.y" [class.pc1-node--hi]="g.hi" (click)="select(g.v)">
+              <b>{{ g.v.r.number }}</b><span class="gng-text-muted">{{ faNum(g.v.r.quantity) }} {{ g.v.r.unit }}</span>
+              <p-tag *ngIf="!g.v.orders.length" value="بدون دستور" severity="danger"></p-tag>
+            </div>
+            <div *ngFor="let g of graphOrders" class="pc1-node pc1-node--wo" [style.top.px]="g.y" [class.pc1-node--hi]="g.hi" (click)="selectByOrder(g.o)">
+              <b>{{ g.o.number }}</b><span class="gng-text-muted">{{ faNum(g.o.quantity) }}</span>
+              <p-tag [value]="WO_STATUS[g.o.statusCode]" [severity]="woStatusTone(g.o.statusCode)"></p-tag>
+              <span *ngIf="g.kind" class="pc1-chip pc1-chip--info">{{ g.kind }}</span>
+            </div>
+          </div>
+        </div>
+        <ng-container *ngIf="selected as v">
+          <h3 class="gng-mt">دستورهای {{ v.r.number }}</h3>
+          <p-table [value]="v.orders" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+            <ng-template pTemplate="header"><tr><th>دستور کار</th><th>نوع</th><th style="width: 8rem">مقدار دستور</th><th style="width: 8rem">سهم این درخواست</th><th>خط</th><th style="width: 9rem">تکمیل برنامه‌ای</th><th style="width: 8rem">وضعیت</th></tr></ng-template>
+            <ng-template pTemplate="body" let-x>
+              <tr><td>← {{ x.o.number }}</td><td>{{ WO_TYPE[x.o.typeCode] }}</td><td>{{ faNum(x.o.quantity) }}</td><td>{{ faNum(x.allotted) }}</td><td>{{ x.o.line }}</td><td>{{ faDateTime(x.o.plannedComplete) }}</td>
+                <td><p-tag [value]="WO_STATUS[x.o.statusCode]" [severity]="woStatusTone(x.o.statusCode)"></p-tag></td></tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage"><tr><td colspan="7" class="gng-empty">این درخواست هنوز به هیچ دستور کاری وصل نشده است.</td></tr></ng-template>
+          </p-table>
+        </ng-container>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── پیگیری وضعیت (F-PC-005) ───────── -->
+    <p-tabPanel header="پیگیری وضعیت">
+      <p class="gng-hint">نمای واحد درخواست‌کننده: تولیدشده (مرحله‌ی آخر دستور)، در جریان و باقی‌مانده — بدون نیاز به تماس با تولید.</p>
+      <p-table [value]="filtered" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr><th style="width: 8rem">درخواست</th><th>کالا / واحد</th><th style="width: 15rem">پیشرفت</th><th style="width: 7rem">تولیدشده</th><th style="width: 7rem">در جریان</th><th style="width: 7rem">باقی‌مانده</th><th style="width: 9rem">تاریخ نیاز</th><th style="width: 8rem">وضعیت</th></tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-v>
+          <tr [class.gng-row-active]="v === selected" (click)="select(v)" style="cursor: pointer">
+            <td><b>{{ v.r.number }}</b></td>
+            <td>{{ v.r.productTitle }}<div class="gng-small gng-text-muted">{{ v.r.requesterUnit }} · {{ v.r.requester }}</div></td>
+            <td>
+              <div class="pc1-bar">
+                <div class="pc1-bar__seg pc1-bar__avail" style="right: 0" [style.width.%]="v.producedPct"></div>
+                <div class="pc1-bar__seg pc1-bar__prog" [style.right.%]="v.producedPct" [style.width.%]="v.inProgressPct"></div>
+              </div>
+              <div class="gng-small gng-text-muted">{{ faPct(v.producedPct, 0) }} تولید · {{ faPct(v.inProgressPct, 0) }} در جریان</div>
+              <div *ngFor="let x of v.orders" class="gng-small">
+                {{ x.o.number }} <span class="gng-text-muted">{{ x.o.currentOperation || WO_STATUS[x.o.statusCode] }}</span>
+                <div class="pc1-pipe"><span *ngFor="let op of x.o.ops" [ngClass]="'s' + op.statusCode" [pTooltip]="op.seq + ' ' + op.title + ' — ' + OP_STATUS[op.statusCode] + ' ' + faPct(op.pct, 0)"></span></div>
+              </div>
+            </td>
+            <td>{{ faNum(v.produced) }}</td>
+            <td>{{ faNum(v.inProgress) }}</td>
+            <td [style.color]="v.remaining > 0 && v.r.statusCode >= 3 ? 'var(--gng-danger)' : null">{{ faNum(v.remaining) }}</td>
+            <td>{{ faDay(v.r.needDate) }}<div><span class="pc1-chip" [ngClass]="'pc1-chip--' + v.needTone">{{ v.needLabel }}</span></div></td>
+            <td><p-tag [value]="REQUEST_STATUS[v.r.statusCode]" [severity]="statusTone(v.r.statusCode)"></p-tag></td>
+          </tr>
+        </ng-template>
+      </p-table>
+      <div class="gng-legend gng-mt-sm"><span><span class="gng-legend-dot gng-legend-dot--success"></span>تولیدشده / عملیات تکمیل</span><span><span class="gng-legend-dot gng-legend-dot--info"></span>در جریان</span><span><span class="gng-legend-dot gng-legend-dot--danger"></span>عملیات متوقف</span></div>
+      <div class="gng-note gng-note--info gng-mt"><strong>هنوز پیاده نشده.</strong> ثبت و ویرایش درخواست، ارسال برای تأیید و ثبت تصمیم تأییدکننده، تجمیع چند درخواست در یک دستور و تفکیک یک درخواست به چند دستور، و ثبت امکان‌سنجی روی درخواست — همه با فاز ایجاد/ویرایش می‌آیند. امکان‌سنجی و پیگیری همین حالا زنده و فقط‌خواندنی‌اند.</div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <!-- ───────── پنل زمینه: فهرست درخواست‌ها ───────── -->
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="ds('pc01-requests', 'درخواست‌های تولید')"></gng-data-source-badge>
+    <span class="p-input-icon-right" style="width: 100%">
+      <i class="pi pi-search"></i>
+      <input pInputText type="text" class="p-inputtext-sm" style="width: 100%" placeholder="جست‌وجو…" [(ngModel)]="search" (ngModelChange)="applyFilter()" />
+    </span>
+    <div class="pc1-filter">
+      <span class="pc1-chip" [class.pc1-chip--on]="statusFilter === null" (click)="statusFilter = null; applyFilter()">همه</span>
+      <span *ngFor="let c of [1, 2, 3, 4, 5]" class="pc1-chip" [class.pc1-chip--on]="statusFilter === c" (click)="toggleStatus(c)">{{ REQUEST_STATUS[c] }} {{ faInt(countByStatus(c)) }}</span>
+    </div>
+    <div *ngFor="let v of filtered" class="pc1-list-item" [class.pc1-list-item--sel]="v === selected" (click)="select(v)">
+      <div style="display: flex; justify-content: space-between; align-items: center">
+        <b>{{ v.r.number }}</b>
+        <p-tag [value]="REQUEST_STATUS[v.r.statusCode]" [severity]="statusTone(v.r.statusCode)"></p-tag>
+      </div>
+      <div>{{ v.r.productTitle }}</div>
+      <span class="pc1-chip"><i [class]="ORIGIN_ICON[v.r.originCode]"></i>{{ REQUEST_ORIGIN[v.r.originCode] }}</span>
+      <span class="pc1-chip" [ngClass]="'pc1-chip--' + v.needTone">{{ v.needLabel }}</span>
+      <div *ngIf="v.issues.length" class="pc1-issue"><i class="pi pi-exclamation-triangle"></i> {{ v.issues[0] }}<span *ngIf="v.issues.length > 1"> (+{{ faInt(v.issues.length - 1) }})</span></div>
+    </div>
+    <div *ngIf="!filtered.length" class="gng-empty">موردی پیدا نشد.</div>
+  </div>
+</gng-opform-layout>

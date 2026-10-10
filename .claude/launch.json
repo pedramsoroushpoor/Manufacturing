@@ -1,0 +1,10 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mfr-app",
+      "url": "http://localhost:4400",
+      "port": 4400
+    }
+  ]
+}

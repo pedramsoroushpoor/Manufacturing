@@ -1,0 +1,61 @@
+<button
+  pButton
+  type="button"
+  icon="pi pi-ellipsis-v"
+  class="p-button-text p-button-rounded p-button-sm gng-source-badge__trigger"
+  [attr.aria-label]="'منبع داده زنده — ' + source.label"
+  pTooltip="منبع داده زنده"
+  tooltipPosition="left"
+  (click)="op.toggle($event); load()"
+></button>
+
+<p-overlayPanel #op styleClass="gng-source-panel" [style]="{ width: '30rem' }">
+  <div class="gng-source-panel__header">
+    <i class="pi pi-database"></i>
+    <span>منبع داده زنده — {{ source.label }}</span>
+  </div>
+
+  <div class="gng-source-panel__meta">
+    <div class="gng-source-panel__row">
+      <span class="gng-source-panel__k">Stored Procedure</span>
+      <code class="gng-source-panel__v">{{ procedure || '…' }}</code>
+    </div>
+    <div class="gng-source-panel__row">
+      <span class="gng-source-panel__k">جدول اصلی</span>
+      <code class="gng-source-panel__v">{{ table || '…' }}</code>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="gng-source-panel__hint">
+    <i class="pi pi-spin pi-spinner"></i>
+    در حال خواندن مستقیم از Pilot…
+  </div>
+
+  <div *ngIf="error" class="gng-source-panel__error">{{ error }}</div>
+
+  <p-tabView *ngIf="loaded" styleClass="gng-source-panel__tabs">
+    <p-tabPanel header="کد SP">
+      <pre class="gng-source-panel__sql">{{ definitionSql }}</pre>
+    </p-tabPanel>
+    <p-tabPanel header="نمونه ردیف خام (۲۰ تای اول)">
+      <div class="gng-source-panel__sample-toolbar">
+        <button pButton type="button" icon="pi pi-refresh" label="دوباره بخوان" class="p-button-text p-button-sm" (click)="reload()"></button>
+      </div>
+      <p-table [value]="sampleRows" [scrollable]="true" scrollHeight="220px" styleClass="p-datatable-sm gng-source-panel__table">
+        <ng-template pTemplate="header">
+          <tr>
+            <th *ngFor="let c of sampleColumns">{{ c }}</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-row>
+          <tr>
+            <td *ngFor="let c of sampleColumns">{{ row[c] }}</td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr><td [attr.colspan]="sampleColumns.length || 1">ردیفی پیدا نشد.</td></tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+  </p-tabView>
+</p-overlayPanel>

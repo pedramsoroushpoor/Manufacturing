@@ -1,0 +1,150 @@
+.gng-topbar {
+  height: var(--gng-topbar-height);
+  background: var(--gng-surface);
+  border-bottom: 1px solid var(--gng-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 1px 4px rgba(26, 37, 48, 0.05);
+}
+
+.gng-topbar__right,
+.gng-topbar__left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gng-topbar__title-group {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+  margin-inline-start: 6px;
+}
+
+.gng-topbar__title {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--gng-text);
+}
+
+.gng-topbar__subtitle {
+  font-size: 11px;
+  color: var(--gng-text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  i {
+    font-size: 10px;
+  }
+
+  &--warn {
+    color: var(--gng-warning);
+  }
+}
+
+.gng-topbar__db-switch.p-button-outlined {
+  font-size: 12px;
+  border-color: var(--gng-border);
+  color: var(--gng-text);
+
+  &:enabled:hover {
+    background: var(--gng-bg);
+    border-color: var(--gng-primary);
+    color: var(--gng-primary-dark);
+  }
+}
+
+.gng-topbar__bell {
+  position: relative;
+  display: inline-flex;
+}
+
+.gng-topbar__bell-dot {
+  position: absolute;
+  top: 8px;
+  inset-inline-end: 8px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gng-danger);
+  border: 1.5px solid var(--gng-surface);
+}
+
+.gng-topbar__divider {
+  width: 1px;
+  height: 26px;
+  background: var(--gng-border);
+  margin: 0 6px;
+}
+
+.gng-topbar__user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  background: var(--gng-bg);
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: var(--gng-border);
+  }
+}
+
+.gng-topbar__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--gng-primary), var(--gng-primary-dark));
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.gng-topbar__user-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  white-space: nowrap;
+
+  strong {
+    font-size: 12.5px;
+    color: var(--gng-text);
+  }
+
+  small {
+    font-size: 10.5px;
+    color: var(--gng-text-muted);
+  }
+}
+
+@media (max-width: 640px) {
+  .gng-topbar__title-group,
+  .gng-topbar__user-text,
+  .gng-topbar__subtitle {
+    display: none;
+  }
+
+  .gng-topbar__db-switch ::ng-deep .p-button-label {
+    display: none;
+  }
+}
+
+// «بررسی دیتابیس» حالا لینک است (نه دکمه)؛ زیرخط لینک را برمی‌داریم.
+a.gng-topbar__db-switch {
+  text-decoration: none;
+}
+.gng-topbar__logout {
+  color: var(--gng-text-muted);
+}

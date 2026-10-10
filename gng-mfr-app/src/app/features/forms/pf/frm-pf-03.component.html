@@ -1,0 +1,106 @@
+<gng-opform-layout
+  domainTitle="چارچوب مشترک"
+  title="طراح گردش کار و دسترسی"
+  code="FRM-PF-03"
+  formTypeLabel="استودیوی طراحی"
+  owner="مدیر سیستم / پلتفرم"
+  [contextLabel]="workflowEntity"
+  contextIcon="pi pi-share-alt"
+  [bannerText]="workflowBanner"
+  bannerTone="info"
+  [auditFeatureRange]="auditRange"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-sitemap" label="طراحی گردش کار" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-plus" label="افزودن وضعیت سفارشی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-directions" label="شرط‌گذاری مسیر" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-table" label="تعریف نقش و ماتریس دسترسی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-user-plus" label="تفویض اختیار موقت — مدیر تولید" class="p-button-sm p-button-warning"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs">
+    <p-tabPanel header="گردش کار">
+      <h3>بوم طراحی گردش کار</h3>
+      <div class="gng-diagram gng-mt-sm" style="grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(3, auto)">
+        <div [class]="nodeClass(n.variant)" [style]="nodeStyle(n)" *ngFor="let n of workflowNodes">{{ n.label }}</div>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="وضعیت‌های سفارشی">
+      <div class="gng-mt-sm"><p-tag *ngFor="let s of customStatuses" [value]="s.label" [severity]="s.tone" class="gng-mr-sm"></p-tag></div>
+      <div class="gng-hint gng-mt-sm">{{ statusNote }}</div>
+    </p-tabPanel>
+
+    <p-tabPanel header="شرط مسیر">
+      <div class="gng-note gng-note--info">{{ workflowBanner }}</div>
+      <h3 class="gng-mt">بوم طراحی گردش کار</h3>
+      <div class="gng-diagram gng-mt-sm" style="grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(3, auto)">
+        <div [class]="nodeClass(n.variant)" [style]="nodeStyle(n)" *ngFor="let n of workflowNodes">{{ n.label }}</div>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="نقش و دسترسی" [selected]="true">
+      <h3>بوم طراحی گردش کار <span class="gng-hint" style="display:inline; margin:0">— وضعیت‌های سفارشی و شرط‌گذاری مسیر بر مبنای داده‌ی فرم</span></h3>
+      <div class="gng-diagram gng-mt-sm" style="grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(3, auto)">
+        <div [class]="nodeClass(n.variant)" [style]="nodeStyle(n)" *ngFor="let n of workflowNodes">{{ n.label }}</div>
+      </div>
+
+      <div class="gng-columns gng-mt">
+        <div style="display:flex; flex-direction:column; gap:0.9rem">
+          <div>
+            <h3>وضعیت‌های سفارشی</h3>
+            <div class="gng-mt-sm"><p-tag *ngFor="let s of customStatuses" [value]="s.label" [severity]="s.tone" class="gng-mr-sm"></p-tag></div>
+            <div class="gng-hint gng-mt-sm">{{ statusNote }}</div>
+          </div>
+
+          <div>
+            <h3>تفویض اختیار موقت</h3>
+            <p-table [value]="delegations" styleClass="p-datatable-sm gng-table gng-mt-sm" responsiveLayout="scroll">
+              <ng-template pTemplate="header"><tr><th>دامنه</th><th>از</th><th>به</th><th>بازه</th></tr></ng-template>
+              <ng-template pTemplate="body" let-d><tr><td>{{ d.scope }}</td><td>{{ d.from }}</td><td>{{ d.to }}</td><td>{{ d.range }}</td></tr></ng-template>
+            </p-table>
+            <div class="gng-hint gng-mt-sm">{{ delegationNote }}</div>
+          </div>
+
+          <div class="gng-note gng-note--info">{{ designPrincipleNote }}</div>
+        </div>
+
+        <div>
+          <h3>ماتریس دسترسی سه‌بعدی <span class="gng-hint" style="display:inline; margin:0">— موجودیت × نقش × دامنه‌ی سازمانی</span></h3>
+          <p-table [value]="accessMatrix" styleClass="p-datatable-sm gng-table gng-mt-sm" responsiveLayout="scroll">
+            <ng-template pTemplate="header">
+              <tr><th>موجودیت \ نقش</th><th *ngFor="let r of accessRoles">{{ r }}</th></tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-row>
+              <tr>
+                <td><b>{{ row.entity }}</b></td>
+                <td *ngFor="let lvl of row.roles"><i class="pi" [ngClass]="[accessIcon(lvl), accessClass(lvl)]"></i></td>
+              </tr>
+            </ng-template>
+          </p-table>
+
+          <h3 class="gng-mt">دسترسی در سطح فیلد <span class="gng-hint" style="display:inline; margin:0">— برای فیلدهای حساس مانند نرخ نیروی کار و درصد فرمول</span></h3>
+          <p-table [value]="fieldAccess" styleClass="p-datatable-sm gng-table gng-mt-sm" responsiveLayout="scroll">
+            <ng-template pTemplate="header"><tr><th>فرم</th><th>فیلد</th><th>نقش‌های دارای مشاهده</th><th>نقش‌های دارای ویرایش</th></tr></ng-template>
+            <ng-template pTemplate="body" let-f><tr><td>{{ f.form }}</td><td>{{ f.field }}</td><td class="gng-hint" style="margin:0">{{ f.viewRoles }}</td><td class="gng-hint" style="margin:0">{{ f.editRoles }}</td></tr></ng-template>
+          </p-table>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="دسترسی سطح فیلد">
+      <p-table [value]="fieldAccess" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th>فرم</th><th>فیلد</th><th>نقش‌های دارای مشاهده</th><th>نقش‌های دارای ویرایش</th></tr></ng-template>
+        <ng-template pTemplate="body" let-f><tr><td>{{ f.form }}</td><td>{{ f.field }}</td><td class="gng-hint" style="margin:0">{{ f.viewRoles }}</td><td class="gng-hint" style="margin:0">{{ f.editRoles }}</td></tr></ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <p-tabPanel header="تفویض اختیار">
+      <p-table [value]="delegations" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th>دامنه</th><th>از</th><th>به</th><th>بازه</th></tr></ng-template>
+        <ng-template pTemplate="body" let-d><tr><td>{{ d.scope }}</td><td>{{ d.from }}</td><td>{{ d.to }}</td><td>{{ d.range }}</td></tr></ng-template>
+      </p-table>
+      <div class="gng-hint gng-mt-sm">{{ delegationNote }}</div>
+    </p-tabPanel>
+  </p-tabView>
+</gng-opform-layout>

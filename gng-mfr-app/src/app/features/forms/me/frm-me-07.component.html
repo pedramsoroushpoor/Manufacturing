@@ -1,0 +1,121 @@
+<gng-opform-layout
+  domainTitle="مهندسی تولید"
+  title="برون‌سپاری و کارمزدی"
+  code="FRM-ME-07"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="مهندسی تولید / تدارکات"
+  contextLabel="برون‌سپاری عملیات و کارمزدی دریافتی"
+  contextIcon="pi pi-truck"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  auditFeatureRange="F-ME-050 تا F-ME-058 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-plus" label="تعریف عملیات برون‌سپاری" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-users" label="پیمانکار جایگزین" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-shopping-cart" label="درخواست خرید خدمت" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <!-- ───────── عملیات برون‌سپاری (F-ME-050) ───────── -->
+    <p-tabPanel header="عملیات برون‌سپاری" [selected]="true">
+      <p class="gng-hint">عملیات از نوع برون‌سپاری (Subcontract-Out) در جریان روش ساخت داخلی؛ پیش و پس از آن عملیات داخلی ادامه می‌یابد.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me07-operations', 'عملیات برون‌سپاری')"></gng-data-source-badge>
+        <p-table [value]="data?.operations ?? []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th>روش ساخت</th><th style="width: 5rem">ردیف</th><th>عملیات</th><th>جایگاه در روش</th><th style="width: 9rem">پیمانکاران</th></tr></ng-template>
+          <ng-template pTemplate="body" let-o>
+            <tr><td>{{ o.routing }}</td><td>{{ fa(o.sequence) }}</td><td>{{ o.operation }}</td><td>{{ position(o) }}</td>
+              <td><p-tag [value]="fa(o.contractorCount) + ' پیمانکار'" [severity]="o.contractorCount ? 'info' : 'danger'"></p-tag></td></tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="5" class="gng-empty">عملیات برون‌سپاری در روش‌ها نیست.</td></tr></ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── اقلام ارسالی و دریافتی (F-ME-051، 053) ───────── -->
+    <p-tabPanel header="اقلام ارسالی و دریافتی">
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me07-items', 'اقلام پیمانکار')"></gng-data-source-badge>
+        <p-table [value]="data?.items ?? []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th>عملیات</th><th style="width: 8rem">جهت</th><th>کالا</th><th style="width: 10rem">مقدار به‌ازای بچ</th><th style="width: 10rem">تأمین</th><th>شرح</th></tr></ng-template>
+          <ng-template pTemplate="body" let-i>
+            <tr>
+              <td>{{ opTitle(i.routingOperationId) }}</td>
+              <td><p-tag [value]="i.directionCode === 1 ? 'ارسالی' : 'دریافتی'" [severity]="i.directionCode === 1 ? 'warning' : 'success'"></p-tag></td>
+              <td>{{ i.product }}</td><td>{{ num(i.quantity) }} {{ i.unit }}</td>
+              <td>{{ i.directionCode === 2 ? '—' : (i.supplyCode === 1 ? 'ما (امانی نزد پیمانکار)' : 'پیمانکار') }}</td>
+              <td class="gng-text-muted">{{ i.description || '—' }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── نرخ و شرایط (F-ME-052، 053، 058) ───────── -->
+    <p-tabPanel header="نرخ و شرایط">
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me07-subcontracts', 'پیمانکاران عملیات')"></gng-data-source-badge>
+        <p-table [value]="data?.subcontracts ?? []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th>پیمانکار</th><th style="width: 13rem">کارمزد</th><th style="width: 10rem">نرخ RM-08</th><th style="width: 7rem">تحویل</th><th style="width: 8rem">ضایعات مجاز</th><th style="width: 11rem">تأمین مواد</th><th>قلم خدمت خرید</th></tr></ng-template>
+          <ng-template pTemplate="body" let-s>
+            <tr>
+              <td>{{ s.contractor }}</td><td>{{ num(s.fee) }} {{ s.currency }} {{ s.feeUnit }}</td>
+              <td [style.color]="s.registeredFee === null || s.fee === s.registeredFee ? null : 'var(--gng-warning, #d08a00)'">{{ s.registeredFee !== null ? num(s.registeredFee) : 'ندارد' }}</td>
+              <td>{{ s.leadDays !== null ? fa(s.leadDays) + ' روز' : '—' }}</td><td>{{ num(s.allowedWaste) }}٪</td><td>{{ s.supply }}</td><td>{{ s.serviceItem || '—' }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+      <p class="gng-hint gng-mt">قلم خدمت مبنای درخواست خرید خدمت در سیستم تدارکات است؛ صدور خودکار درخواست با اتصال به تدارکات می‌آید.</p>
+    </p-tabPanel>
+
+    <!-- ───────── پیمانکار جایگزین (F-ME-054) ───────── -->
+    <p-tabPanel header="پیمانکار جایگزین">
+      <p-table [value]="data?.subcontracts ?? []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th style="width: 5rem">اولویت</th><th>پیمانکار</th><th style="width: 12rem">شرط انتخاب</th><th>قابلیت (RM-08)</th><th style="width: 8rem">صلاحیت</th><th style="width: 9rem">پایان قرارداد</th><th>شرح</th></tr></ng-template>
+        <ng-template pTemplate="body" let-s>
+          <tr>
+            <td>{{ fa(s.priority) }}</td>
+            <td>{{ s.contractor }} <p-tag *ngIf="!s.contractorActive" value="غیرفعال" severity="danger" styleClass="gng-mr-sm"></p-tag></td>
+            <td>{{ s.rule }}</td>
+            <td><p-tag [value]="s.hasCapability ? s.capabilityOperation : 'بدون قابلیت تأییدشده'" [severity]="s.hasCapability ? 'success' : 'danger'"></p-tag></td>
+            <td>{{ s.qualification }}</td><td>{{ s.contractTo }}</td><td class="gng-text-muted">{{ s.description || '—' }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── کارمزدی دریافتی (F-ME-055، 056) ───────── -->
+    <p-tabPanel header="کارمزدی دریافتی">
+      <p class="gng-hint">روش کارمزدی دریافتی (Subcontract-In): تولید برای مشتری با مواد امانی او؛ اقلام مالکیت مشتری از اقلام خودمان جدا می‌شوند ({{ fa(customerItems) }} قلم امانی).</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me07-toll', 'مواد کارمزدی')"></gng-data-source-badge>
+        <p-table [value]="data?.toll ?? []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th>روش / مشتری</th><th>قلم ساختار</th><th style="width: 10rem">مقدار</th><th style="width: 11rem">مالکیت</th><th>شرح</th></tr></ng-template>
+          <ng-template pTemplate="body" let-t>
+            <tr>
+              <td>{{ t.routing }}<div class="gng-text-muted gng-small">{{ t.customer }}</div></td><td>{{ t.product }}</td><td>{{ num(t.quantity) }} {{ t.unit }}</td>
+              <td><p-tag [value]="t.ownershipCode === 1 ? 'امانی مشتری' : t.ownershipCode === 2 ? 'خودمان' : 'تعیین نشده'" [severity]="t.ownershipCode === 1 ? 'warning' : t.ownershipCode === 2 ? 'info' : 'danger'"></p-tag></td>
+              <td class="gng-text-muted">{{ t.description || '—' }}</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="5" class="gng-empty">روش کارمزدی دریافتی تعریف نشده است.</td></tr></ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── تسویه‌ی مازاد (F-ME-057) ───────── -->
+    <p-tabPanel header="تسویه‌ی مازاد">
+      <p-table [value]="customerTollRows" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th>قلم امانی</th><th style="width: 12rem">تسویه‌ی مازاد</th><th style="width: 12rem">تسویه‌ی ضایعات</th></tr></ng-template>
+        <ng-template pTemplate="body" let-t>
+          <tr>
+            <td>{{ t.product }}</td><td>{{ t.surplusCode ? settlement[t.surplusCode] : 'تعیین نشده' }}</td><td>{{ t.wasteCode ? settlement[t.wasteCode] : 'تعیین نشده' }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+  </p-tabView>
+</gng-opform-layout>

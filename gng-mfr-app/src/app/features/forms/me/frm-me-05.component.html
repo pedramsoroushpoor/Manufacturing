@@ -1,0 +1,89 @@
+<gng-opform-layout
+  domainTitle="مهندسی تولید"
+  title="عملیات بازیابی مواد"
+  code="FRM-ME-05"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="مهندسی تولید"
+  contextLabel="عملیات بازیابی همه‌ی روش‌های ساخت"
+  contextIcon="pi pi-replay"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  auditFeatureRange="F-ME-036 تا F-ME-038 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-plus" label="تعریف عملیات بازیابی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-database" label="تعیین انبار و الگوی سند رسید" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-map-marker" label="تعیین محل اجرا" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <!-- ───────── عملیات بازیابی (F-ME-036) ───────── -->
+    <p-tabPanel header="عملیات بازیابی" [selected]="true">
+      <p class="gng-hint">عملیات بازیابی بخشی از جریان روش ساخت است، نه واکنش به ضایعات؛ ماده‌ی بازیابی‌شده خروجی همان عملیات است.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me05-recoveries', 'عملیات بازیابی')"></gng-data-source-badge>
+        <p-table [value]="data?.recoveries ?? []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th>روش ساخت</th><th>عملیات</th><th style="width: 8rem">روش بازیابی</th><th>ماده‌ی مبدأ</th><th>ماده‌ی بازیابی‌شده</th><th>شرح</th></tr></ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr>
+              <td>{{ r.routing }}</td><td>{{ fa(r.sequence) }} — {{ r.operation }}</td><td><p-tag [value]="r.method" severity="info"></p-tag></td>
+              <td>{{ r.source }}</td><td>{{ r.recoveredCode }} · {{ r.product }}</td><td class="gng-text-muted">{{ r.description || '—' }}</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="6" class="gng-empty">عملیات بازیابی تعریف نشده است.</td></tr></ng-template>
+        </p-table>
+      </div>
+      <h3 class="gng-mt">مواد بازیابی‌شده‌ی FRM-PE-05 و عملیاتشان</h3>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me05-coverage', 'پوشش مواد بازیابی‌شده')"></gng-data-source-badge>
+        <p-table [value]="data?.coverage ?? []" styleClass="p-datatable-sm gng-table">
+          <ng-template pTemplate="header"><tr><th style="width: 7rem">کد</th><th>کالا</th><th>مبدأ</th><th style="width: 9rem">حالت</th><th style="width: 9rem">نرخ استاندارد</th><th style="width: 10rem">عملیات بازیابی</th></tr></ng-template>
+          <ng-template pTemplate="body" let-c>
+            <tr><td>{{ c.code }}</td><td>{{ c.product }}</td><td>{{ c.source }}</td><td>{{ c.mode }}</td><td>{{ num(c.standardPercent) }}٪</td>
+              <td><p-tag [value]="c.operationCount ? fa(c.operationCount) + ' عملیات' : 'بدون عملیات'" [severity]="c.operationCount ? 'success' : 'warning'"></p-tag></td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── نرخ و تلفات (F-ME-036) ───────── -->
+    <p-tabPanel header="نرخ و تلفات">
+      <p class="gng-hint">نرخ و تلفات همین عملیات در برابر استاندارد ماده؛ خروجی مورد انتظار = ورودی ماده‌ی مبدأ در همان روش × نرخ.</p>
+      <p-table [value]="data?.recoveries ?? []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th>ماده</th><th style="width: 8rem">نرخ عملیات</th><th style="width: 8rem">نرخ استاندارد</th><th style="width: 8rem">تلفات</th><th style="width: 10rem">ورودی مبدأ</th><th style="width: 10rem">خروجی مورد انتظار</th><th style="width: 10rem">خروجی ثبت‌شده</th><th style="width: 9rem">QC / خلوص</th></tr></ng-template>
+        <ng-template pTemplate="body" let-r>
+          <tr>
+            <td>{{ r.recoveredCode }} · {{ r.product }}</td>
+            <td [style.color]="r.standardPercent !== null && (r.percent - r.standardPercent > 2 || r.standardPercent - r.percent > 2) ? 'var(--gng-warning, #d08a00)' : null"><strong>{{ num(r.percent) }}٪</strong></td>
+            <td>{{ num(r.standardPercent) }}٪</td><td>{{ num(r.loss) }}٪ <span class="gng-text-muted gng-small">(استاندارد {{ num(r.standardLoss) }}٪)</span></td>
+            <td>{{ num(r.sourceInput) }} {{ r.unit }}</td><td>{{ num(r.expectedOutput) }} {{ r.unit }}</td><td>{{ num(r.output) }} {{ r.unit }}</td>
+            <td>{{ r.requiresQc ? 'تأیید QC' : '—' }} · ≥ {{ num(r.minPurity) }}٪</td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── انبار و سند رسید (F-ME-037) ───────── -->
+    <p-tabPanel header="انبار و سند رسید">
+      <p-table [value]="data?.recoveries ?? []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th>ماده</th><th>انبار رسید</th><th>الگوی سند رسید</th><th style="width: 13rem">مقصد</th></tr></ng-template>
+        <ng-template pTemplate="body" let-r>
+          <tr><td>{{ r.recoveredCode }} · {{ r.product }}</td><td>{{ r.receiptInventory || '—' }}</td><td>{{ r.documentPattern || '—' }}</td>
+            <td><p-tag [value]="r.returnMode" [severity]="r.returnModeCode === 1 && r.requiresQc ? 'warning' : 'info'"></p-tag></td></tr>
+        </ng-template>
+      </p-table>
+      <p class="gng-hint gng-mt">انبار و الگوی سند فعلاً متن‌اند؛ با وصل شدن سیستم انبار به شناسه تبدیل می‌شوند.</p>
+    </p-tabPanel>
+
+    <!-- ───────── محل اجرا (F-ME-038) ───────── -->
+    <p-tabPanel header="محل اجرا">
+      <p-table [value]="data?.recoveries ?? []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th>ماده</th><th>روش ساخت</th><th style="width: 13rem">محل اجرا</th><th>پیمانکار</th></tr></ng-template>
+        <ng-template pTemplate="body" let-r>
+          <tr><td>{{ r.recoveredCode }} · {{ r.product }}</td><td>{{ r.routing }}</td><td>{{ r.location }}</td><td>{{ r.contractor || '—' }}</td></tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+  </p-tabView>
+</gng-opform-layout>

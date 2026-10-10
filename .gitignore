@@ -1,0 +1,13 @@
+# وابستگی‌ها و خروجی ساخت
+node_modules/
+dist/
+.angular/
+*.log
+
+# اسرار — هرگز در مخزن نیاید
+.env
+**/.env
+**/gng-mfr.connections.json
+
+# تنظیمات محلی Claude Code
+.claude/settings.local.json

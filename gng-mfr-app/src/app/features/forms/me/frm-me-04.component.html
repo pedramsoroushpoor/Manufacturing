@@ -1,0 +1,156 @@
+<gng-opform-layout
+  domainTitle="مهندسی تولید"
+  title="اقلام و خروجی در سطح عملیات"
+  code="FRM-ME-04"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="مهندسی تولید"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-arrows-h"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="روش‌های ساخت"
+  contextPanelHint="ردیف‌های ساختارهای اختصاص‌یافته به عملیات این روش تخصیص می‌یابند."
+  auditFeatureRange="F-ME-029 تا F-ME-035، F-ME-039 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-link" label="تخصیص قلم به عملیات" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-sign-out" label="تخصیص خروجی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <!-- ───────── تخصیص اقلام (F-ME-029) ───────── -->
+    <p-tabPanel header="تخصیص اقلام" [selected]="true">
+      <p class="gng-hint">
+        هیچ ردیف ساختار نباید بدون عملیات بماند و جمع تخصیص هر ردیف ۱۰۰٪ است (ردیف می‌تواند بین شاخه‌های موازی تقسیم شود).
+        <strong *ngIf="unallocatedCount">{{ fa(unallocatedCount) }} ردیف بدون عملیات.</strong>
+      </p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me04-materials', 'تخصیص اقلام')"></gng-data-source-badge>
+        <p-table [value]="items" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th style="width: 9rem">ساختار</th><th style="width: 4rem">ردیف</th><th>قلم</th><th>عملیات و سهم</th><th style="width: 8rem">جمع تخصیص</th></tr></ng-template>
+          <ng-template pTemplate="body" let-it>
+            <tr>
+              <td>{{ it.structure }}</td>
+              <td>{{ fa(it.itemSequence) }}</td>
+              <td>{{ it.product }}</td>
+              <td>
+                <span *ngFor="let a of it.allocations; let last = last">{{ fa(a.operationSequence) }} {{ a.operation }} ({{ num(a.allocation) }}٪){{ last ? '' : ' · ' }}</span>
+                <span *ngIf="!it.allocations.length" style="color: var(--gng-danger, #e24c4c)">بدون عملیات</span>
+              </td>
+              <td><p-tag [value]="num(it.total) + '٪'" [severity]="allocSeverity(it)"></p-tag></td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="5" class="gng-empty">این روش به ساختاری اختصاص ندارد.</td></tr></ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── نقطه‌ی مصرف (F-ME-030) ───────── -->
+    <p-tabPanel header="نقطه‌ی مصرف">
+      <p class="gng-hint">ابتدا، حین یا پایان عملیات — مبنای زمان صدور حواله و Backflush.</p>
+      <p-table [value]="materials" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th style="width: 9rem">ساختار</th><th>قلم</th><th>عملیات</th><th style="width: 10rem">نقطه‌ی مصرف</th><th style="width: 10rem">مقدار تخصیص</th><th style="width: 7rem">Backflush</th><th>شرح</th></tr></ng-template>
+        <ng-template pTemplate="body" let-m>
+          <tr>
+            <td>{{ m.structure }}</td>
+            <td>{{ m.product }} <p-tag *ngIf="m.isActiveIngredient" value="مؤثره" severity="warning" styleClass="gng-mr-sm"></p-tag></td>
+            <td>{{ m.operationSequence !== null ? fa(m.operationSequence) + ' ' + m.operation : '—' }}</td>
+            <td>{{ m.point || '—' }}</td>
+            <td>{{ m.allocatedQuantity !== null ? num(m.allocatedQuantity) + ' ' + m.unit : '—' }}</td>
+            <td>{{ m.routingOperationId ? (m.backflushed ? 'بله' : 'دستی') : '—' }}</td>
+            <td class="gng-text-muted">{{ m.description || '—' }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── خروجی‌های عملیات (F-ME-031، 034) ───────── -->
+    <p-tabPanel header="خروجی‌های عملیات">
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me04-outputs', 'خروجی عملیات')"></gng-data-source-badge>
+        <p-table [value]="outputs" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th style="width: 5rem">ردیف</th><th>کالا</th><th style="width: 8rem">نوع</th><th style="width: 10rem">مقدار</th><th style="width: 9rem">انبارش</th><th>شرح</th></tr></ng-template>
+          <ng-template pTemplate="body" let-x>
+            <tr>
+              <td>{{ fa(x.sequence) }}</td><td>{{ x.product }}</td><td><p-tag [value]="x.type" [severity]="outputSeverity(x.typeCode)"></p-tag></td>
+              <td>{{ num(x.quantity) }} {{ x.unit }}</td><td>{{ x.stored ? 'انبار می‌شود' : 'مجازی' }}</td><td class="gng-text-muted">{{ x.description || '—' }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+      <h3 class="gng-mt">خروجی‌های ساختار و عملیات تولیدکننده</h3>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me04-coverage', 'پوشش خروجی')"></gng-data-source-badge>
+        <p-table [value]="coverage" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th style="width: 9rem">ساختار</th><th>خروجی ساختار</th><th style="width: 8rem">نوع</th><th style="width: 10rem">مقدار</th><th style="width: 10rem">عملیات</th></tr></ng-template>
+          <ng-template pTemplate="body" let-c>
+            <tr><td>{{ c.structure }}</td><td>{{ c.product }}</td><td>{{ c.type }}</td><td>{{ num(c.quantity) }} {{ c.unit }}</td>
+              <td [style.color]="c.operations ? null : 'var(--gng-danger, #e24c4c)'">{{ c.operations || 'بدون عملیات' }}</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── ضایعات و بازده انباشته (F-ME-032، 033) ───────── -->
+    <p-tabPanel header="ضایعات فرایند و عملیات">
+      <div class="gng-field-grid" *ngIf="stages[0] as s">
+        <div class="gng-field"><span class="gng-field__label">ضایعات فرایند (سطح روش)</span><span class="gng-field__value">{{ s.processWaste !== null ? num(s.processWaste) + '٪' : '—' }}</span></div>
+        <div class="gng-field"><span class="gng-field__label">قاعده‌ی ارجحیت</span><span class="gng-field__value">{{ s.wastePriorityCode ? wastePriority[s.wastePriorityCode] : '—' }}</span></div>
+        <div class="gng-field" *ngIf="firstInput as f"><span class="gng-field__label">ورودی لازم به عملیات اول برای {{ num(routing?.batch ?? null) }} {{ routing?.unit }}</span><span class="gng-field__value"><strong>{{ num(f.requiredInput, 0) }}</strong> (بازده انباشته {{ num(f.cumYield, 2) }}٪)</span></div>
+      </div>
+      <p class="gng-hint gng-mt">بازده انباشته = حاصل‌ضرب بازده عملیات تا خروجی اصلی؛ شاخه‌های موازی با سهم‌بری وزن می‌گیرند. ضایعات ردیف ساختار با علامت «ارجح بر عملیات» جداگانه اعمال می‌شود.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me04-stages', 'عملیات و بازده')"></gng-data-source-badge>
+        <p-table [value]="yields" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th style="width: 5rem">ردیف</th><th>عملیات</th><th style="width: 8rem">بازده عملیات</th><th style="width: 8rem">ضایعات عملیات</th><th style="width: 9rem">بازده انباشته</th><th style="width: 12rem">ورودی لازم</th></tr></ng-template>
+          <ng-template pTemplate="body" let-y>
+            <tr [class.gng-text-muted]="!y.onMainPath">
+              <td>{{ fa(y.stage.sequence) }}</td><td>{{ y.stage.operation }}<span *ngIf="!y.onMainPath" class="gng-small"> — خارج از مسیر محصول اصلی</span></td>
+              <td>{{ y.stage.yieldPercent !== null ? num(y.stage.yieldPercent) + '٪' : '۱۰۰٪' }}</td>
+              <td>{{ y.stage.yieldPercent !== null ? num(100 - y.stage.yieldPercent) + '٪' : '—' }}</td>
+              <td>{{ y.onMainPath ? num(y.cumYield, 2) + '٪' : '—' }}</td>
+              <td>{{ y.onMainPath ? num(y.requiredInput, 0) + ' ' + (routing?.unit ?? '') : '—' }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+      <h3 class="gng-mt">ضایعات سطح ردیف ساختار</h3>
+      <p-table [value]="materials" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th style="width: 9rem">ساختار</th><th>قلم</th><th style="width: 9rem">ضایعات ردیف</th><th style="width: 12rem">ارجح بر ضایعات عملیات</th></tr></ng-template>
+        <ng-template pTemplate="body" let-m><tr><td>{{ m.structure }}</td><td>{{ m.product }}</td><td>{{ m.rowWaste !== null ? num(m.rowWaste) + '٪' : '—' }}</td><td>{{ m.rowWasteWins ? 'بله' : 'خیر' }}</td></tr></ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── ذخیره‌سازی بین‌مرحله‌ای (F-ME-035) ───────── -->
+    <p-tabPanel header="ذخیره‌سازی بین‌مرحله‌ای">
+      <p-table [value]="stages" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th style="width: 5rem">ردیف</th><th>عملیات</th><th style="width: 13rem">سیاست ذخیره‌سازی خروجی</th><th>انبار پای کار</th></tr></ng-template>
+        <ng-template pTemplate="body" let-s>
+          <tr><td>{{ fa(s.sequence) }}</td><td>{{ s.operation }}</td><td>{{ s.storage }}</td><td>{{ s.lineSide || '—' }}</td></tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── ویژگی‌های بچ (F-ME-039) ───────── -->
+    <p-tabPanel header="ویژگی‌های بچ">
+      <p class="gng-hint">ویژگی‌های تولیدی (FRM-PE-01) که در هر عملیات تعیین، به‌روز یا تأیید می‌شوند — نقطه‌ی اتصال به کنترل کیفیت.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me04-attributes', 'ویژگی‌های بچ')"></gng-data-source-badge>
+        <p-table [value]="attributes" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th style="width: 5rem">ردیف</th><th>عملیات</th><th>ویژگی</th><th style="width: 9rem">اقدام</th><th style="width: 9rem">دروازه‌ی QC</th><th>شرح</th></tr></ng-template>
+          <ng-template pTemplate="body" let-a>
+            <tr><td>{{ fa(a.sequence) }}</td><td>{{ a.operation }}</td><td>{{ a.attribute }}</td><td>{{ a.action }}</td>
+              <td><p-tag *ngIf="a.qcGate" value="دروازه‌ی QC" severity="warning"></p-tag><span *ngIf="!a.qcGate">—</span></td><td class="gng-text-muted">{{ a.description || '—' }}</td></tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="6" class="gng-empty">ویژگی بچی به عملیات این روش وصل نیست.</td></tr></ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <p-tree [value]="pickTree" styleClass="gng-tree" selectionMode="single" [(selection)]="selectedPick" (onNodeSelect)="onPick($event)" (onNodeUnselect)="onUnpick($event)"></p-tree>
+  </div>
+</gng-opform-layout>

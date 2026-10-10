@@ -1,0 +1,203 @@
+<gng-opform-layout
+  domainTitle="مهندسی تولید"
+  title="کتابخانه‌ی عملیات"
+  code="FRM-ME-01"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="مهندسی تولید"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-cog"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="گروه‌ها و عملیات"
+  contextPanelHint="عملیات یک‌بار تعریف و در چند روش ساخت استفاده می‌شود."
+  auditFeatureRange="F-ME-001 تا F-ME-004، F-ME-006 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-sitemap" label="کاربرد در روش‌های ساخت" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-plus" label="تعریف عملیات کتابخانه‌ای" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-users" label="تخصیص منابع و مهارت" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-file-import" label="بارگذاری دستورالعمل چندرسانه‌ای" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-sliders-h" label="تعیین پارامتر هدف و محدوده" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <!-- ───────── درخت گروه عملیات (F-ME-001) ───────── -->
+    <p-tabPanel header="درخت گروه عملیات">
+      <p class="gng-hint">گروه‌ها درختی‌اند؛ گروه قدیم «عملیات جامدات» ریشه شده و عملیات به زیرگروه‌ها رفته‌اند.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me01-groups', 'گروه‌های عملیات')"></gng-data-source-badge>
+        <p-table [value]="groups" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th style="width: 8rem">کد</th><th>مسیر گروه</th><th style="width: 5rem">سطح</th><th style="width: 8rem">عملیات مستقیم</th><th>شرح</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-g>
+            <tr>
+              <td>{{ g.code }}</td>
+              <td [style.padding-inline-start.rem]="0.5 + (g.level - 1) * 1.2">{{ g.path }}</td>
+              <td>{{ fa(g.level) }}</td>
+              <td>{{ fa(g.operationCount) }}</td>
+              <td class="gng-text-muted">{{ g.description || '—' }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── عملیات استاندارد (F-ME-001، F-ME-002) ───────── -->
+    <p-tabPanel header="عملیات استاندارد" [selected]="true">
+      <p class="gng-hint">ماهیت عملیات: تولیدی، کیفی، تولیدی-کیفی، اطلاعاتی، برون‌سپاری، انتقال/جابه‌جایی. کاربرد در روش ساخت با FRM-ME-02 می‌آید.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me01-operations', 'عملیات')"></gng-data-source-badge>
+        <p-table [value]="operations" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 6rem">کد</th><th>عنوان</th><th>گروه</th><th style="width: 9rem">ماهیت</th><th>منبع اصلی</th>
+              <th style="width: 5rem">مهارت</th><th style="width: 5rem">ابزار</th><th style="width: 5rem">انرژی</th>
+              <th style="width: 7rem">دستورالعمل</th><th style="width: 6rem">پارامتر</th><th style="width: 6rem">فعالیت ABC</th><th style="width: 6rem">وضعیت</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-o>
+            <tr [class.gng-text-muted]="!o.isActive">
+              <td>{{ o.code }}</td>
+              <td>{{ o.title }}<div *ngIf="o.description" class="gng-text-muted gng-small">{{ o.description }}</div></td>
+              <td>{{ o.group }}</td>
+              <td><p-tag [value]="o.nature" [severity]="natureSeverity(o.typeCode)"></p-tag></td>
+              <td>{{ o.primaryResource || '—' }}<span *ngIf="o.resourceCount > 1" class="gng-text-muted gng-small"> (+{{ fa(o.resourceCount - 1) }} جایگزین)</span></td>
+              <td>{{ fa(o.skillCount) }}</td>
+              <td>{{ fa(o.toolCount) }}</td>
+              <td>{{ fa(o.energyCount) }}</td>
+              <td>{{ fa(o.activeInstructionCount) }} تأییدشده</td>
+              <td>{{ fa(o.parameterCount) }}</td>
+              <td>{{ fa(o.activityCount) }}</td>
+              <td><p-tag [value]="o.isActive ? 'فعال' : 'منسوخ'" [severity]="o.isActive ? 'success' : 'secondary'"></p-tag></td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="12" class="gng-empty">در این گروه عملیاتی تعریف نشده است.</td></tr></ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── منابع مورد نیاز (F-ME-003) ───────── -->
+    <p-tabPanel header="منابع مورد نیاز">
+      <p class="gng-hint">ایستگاه یا گروه منبع اصلی و جایگزین (از FRM-RM-01)، مهارت (RM-03)، گروه ابزار (RM-02) و انرژی/کارکرد (RM-06). روش ساخت این‌ها را به ارث می‌برد.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me01-resources', 'منابع')"></gng-data-source-badge>
+        <p-table [value]="resources" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th>عملیات</th><th style="width: 9rem">نوع منبع</th><th>منبع</th><th>خط / شرح</th><th style="width: 9rem">مقدار / سطح</th><th style="width: 9rem">نقش</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr>
+              <td>{{ opTitle(r.operationId) }}</td>
+              <td>{{ r.kind }}</td>
+              <td>
+                {{ r.title }}
+                <p-tag *ngIf="r.isValid === false" [value]="r.kindCode === 4 ? 'غیرفعال / غیرمصرفی' : 'ابزار ثبت نشده'" severity="danger" styleClass="gng-mr-sm"></p-tag>
+              </td>
+              <td>{{ r.scope || '—' }}<div *ngIf="r.description" class="gng-text-muted gng-small">{{ r.description }}</div></td>
+              <td>{{ r.kindCode === 2 ? 'حداقل: ' + r.level : r.quantity !== null ? num(r.quantity) + ' ' + r.unit : '—' }}</td>
+              <td>
+                <p-tag *ngIf="r.kindCode === 1" [value]="r.isPrimary ? 'اصلی' : 'جایگزین ' + fa(r.priority ?? 0)" [severity]="r.isPrimary ? 'success' : 'secondary'"></p-tag>
+                <p-tag *ngIf="r.kindCode !== 1" [value]="r.mandatory ? (r.kindCode === 2 ? 'منع در تخصیص' : 'الزامی') : (r.kindCode === 2 ? 'هشدار' : 'اختیاری')" [severity]="r.mandatory ? 'warning' : 'secondary'"></p-tag>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="6" class="gng-empty">منبعی ثبت نشده است.</td></tr></ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── دستورالعمل کار (F-ME-004) ───────── -->
+    <p-tabPanel header="دستورالعمل کار">
+      <p class="gng-hint">
+        چندرسانه‌ای (متن، تصویر، ویدئو، PDF) با نسخه؛ فقط نسخه‌ی تأییدشده در ترمینال خط نمایش داده می‌شود.
+        <span *ngIf="noInstructionCount">{{ fa(noInstructionCount) }} عملیات تولیدی/کیفی هنوز دستورالعمل ندارد.</span>
+      </p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me01-instructions', 'دستورالعمل‌ها')"></gng-data-source-badge>
+        <p-table [value]="instructions" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th>عملیات</th><th style="width: 9rem">شماره سند</th><th>عنوان و شرح</th><th style="width: 5rem">نسخه</th><th style="width: 7rem">رسانه</th><th style="width: 8rem">وضعیت</th><th style="width: 8rem">تاریخ اثر</th><th style="width: 9rem">تأییدکننده</th><th style="width: 6rem">ترمینال</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-i>
+            <tr [class.gng-text-muted]="i.statusCode === 3">
+              <td>{{ opTitle(i.operationId) }}</td>
+              <td>{{ i.documentNumber }}</td>
+              <td>
+                {{ i.title }}
+                <div *ngIf="i.body" class="gng-small">{{ i.body }}</div>
+                <div *ngIf="i.neededTools || i.neededUniforms" class="gng-text-muted gng-small">
+                  <span *ngIf="i.neededTools">ابزار: {{ i.neededTools }}</span><span *ngIf="i.neededTools && i.neededUniforms"> · </span><span *ngIf="i.neededUniforms">پوشش: {{ i.neededUniforms }}</span>
+                </div>
+              </td>
+              <td>{{ fa(i.revision) }}</td>
+              <td><i [class]="i.mediaIcon"></i> {{ i.media }}<div class="gng-text-muted gng-small" style="direction: ltr; text-align: end">{{ i.fileName }}</div></td>
+              <td><p-tag [value]="i.status" [severity]="statusSeverity(i.statusCode)"></p-tag></td>
+              <td>{{ i.effectiveDate }}</td>
+              <td>{{ i.approver }}</td>
+              <td><i [class]="i.onTerminal ? 'pi pi-desktop' : 'pi pi-minus'" [title]="i.onTerminal ? 'نمایش در ترمینال خط' : 'نمایش داده نمی‌شود'"></i></td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="9" class="gng-empty">دستورالعملی ثبت نشده است.</td></tr></ng-template>
+        </p-table>
+      </div>
+      <p class="gng-hint gng-mt">بارگذاری و نمایش فایل با اتصال به مدیریت مستندات می‌آید (`DmsDocumentId`).</p>
+    </p-tabPanel>
+
+    <!-- ───────── چک‌لیست (F-ME-005، مهم) ───────── -->
+    <p-tabPanel header="چک‌لیست">
+      <div class="gng-note gng-note--info">
+        <strong>هنوز پیاده نشده.</strong> چک‌لیست اجرایی عملیات با اقلام الزامی/اختیاری و ثبت پاسخ در گزارش تولید (F-ME-005) اولویت «مهم» و فاز ۳ دارد.
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── پارامترهای فرایندی (F-ME-006) ───────── -->
+    <p-tabPanel header="پارامترهای فرایندی">
+      <p class="gng-hint">مقدار هدف با حد پایین و بالا — مبنای پایش در کنترل تولید و ترمینال کف کارگاه. تغییر پارامتر کتابخانه بر همه‌ی روش‌های ساخت اثر دارد.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me01-parameters', 'پارامترها')"></gng-data-source-badge>
+        <p-table [value]="parameters" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th>عملیات</th><th>پارامتر</th><th style="width: 6rem">حد پایین</th><th style="width: 6rem">هدف</th><th style="width: 6rem">حد بالا</th><th style="width: 9rem">محدوده</th><th style="width: 6rem">واحد</th><th style="width: 9rem">منبع خوانش</th><th style="width: 9rem">خارج از محدوده</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-p>
+            <tr>
+              <td>{{ opTitle(p.operationId) }}</td>
+              <td>{{ p.name }} <p-tag *ngIf="p.critical" value="بحرانی" severity="warning" styleClass="gng-mr-sm"></p-tag></td>
+              <td>{{ num(p.min) }}</td>
+              <td><strong [style.color]="p.inconsistent ? 'var(--gng-danger, #e24c4c)' : null">{{ num(p.target) }}</strong></td>
+              <td>{{ num(p.max) }}</td>
+              <td>
+                <div *ngIf="p.min !== null && p.max !== null" style="position: relative; height: 0.5rem; border-radius: 0.25rem; background: var(--gng-border, #ccc)">
+                  <span [style.inset-inline-start.%]="targetPos(p)"
+                        [style.background]="p.inconsistent ? 'var(--gng-danger, #e24c4c)' : 'var(--gng-primary, #3b82f6)'"
+                        style="position: absolute; top: -0.2rem; width: 0.4rem; height: 0.9rem; border-radius: 0.2rem; transform: translateX(50%)"></span>
+                </div>
+                <span *ngIf="p.min === null || p.max === null" class="gng-text-muted gng-small">یک‌طرفه</span>
+              </td>
+              <td>{{ p.unit }}</td>
+              <td>{{ p.source }}<span *ngIf="p.sampling" class="gng-text-muted gng-small"> — هر {{ fa(p.sampling) }} دقیقه</span></td>
+              <td><p-tag [value]="p.stopsLine ? 'توقف خط' : 'هشدار'" [severity]="p.stopsLine ? 'danger' : 'warning'"></p-tag></td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="9" class="gng-empty">پارامتری تعریف نشده است.</td></tr></ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── الزامات HSE (F-ME-007، مطلوب) ───────── -->
+    <p-tabPanel header="الزامات HSE">
+      <div class="gng-note gng-note--info">
+        <strong>هنوز پیاده نشده.</strong> الزامات ایمنی/HSE و تجهیزات حفاظت فردی (F-ME-007) اولویت «مطلوب» و فاز ۴ دارد.
+        فعلاً پوشش لازم هر دستورالعمل در ستون «پوشش» تب دستورالعمل کار آمده است.
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="ds('me01-groups', 'گروه‌های عملیات')"></gng-data-source-badge>
+    <p-tree [value]="pickTree" styleClass="gng-tree" selectionMode="single" [(selection)]="selectedPick" (onNodeSelect)="onPick($event)" (onNodeUnselect)="onUnpick($event)"></p-tree>
+  </div>
+</gng-opform-layout>

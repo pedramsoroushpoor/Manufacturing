@@ -1,0 +1,33 @@
+<div class="gng-shell" [class.gng-shell--collapsed]="sidebarCollapsed">
+  <aside class="gng-shell__sidebar">
+    <div class="gng-shell__brand">
+      <span class="gng-shell__brand-mark"><i class="pi pi-cog"></i></span>
+      <div class="gng-shell__system-picker" *ngIf="!sidebarCollapsed">
+        <small class="gng-shell__brand-org">گلرنگ</small>
+        <p-dropdown
+          [options]="systems"
+          optionLabel="title"
+          [ngModel]="selectedSystem"
+          (ngModelChange)="onSystemChange($event)"
+          [autoDisplayFirst]="false"
+          placeholder="در حال بارگذاری…"
+          styleClass="gng-system-dropdown"
+          panelStyleClass="gng-system-dropdown-panel"
+          appendTo="body"
+        ></p-dropdown>
+      </div>
+    </div>
+    <gng-sidebar-menu
+      [collapsed]="sidebarCollapsed"
+      [subSystemCode]="selectedSystem?.subSystemCode ?? null"
+      (expand)="onToggleSidebar()"
+    ></gng-sidebar-menu>
+  </aside>
+
+  <div class="gng-shell__main">
+    <gng-topbar (toggleSidebar)="onToggleSidebar()"></gng-topbar>
+    <main class="gng-shell__content">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>

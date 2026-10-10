@@ -1,0 +1,205 @@
+<gng-opform-layout
+  domainTitle="مدیریت منابع"
+  title="ساختار کارخانه و خطوط تولید"
+  code="FRM-RM-01"
+  formTypeLabel="فرم اطلاعات پایه"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-directions"
+  bannerText="ایستگاه‌های پرس A و B عضو یک گروه منبع‌اند؛ روش ساخت فقط به گروه ارجاع می‌دهد و انتخاب دستگاه مشخص در زمان‌بندی تولید انجام می‌شود."
+  bannerTone="info"
+  [hasContextPanel]="true"
+  contextPanelTitle="سلسله‌مراتب سازمانی و مکانی"
+  contextPanelHint="با انتخاب هر گره، تب‌های سلسله‌مراتب، توپولوژی و ایستگاه کاری به همان گره و زیرمجموعه‌اش محدود می‌شوند."
+  auditFeatureRange="F-RM-001 تا F-RM-010"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-sitemap" label="تعریف و ویرایش گره" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-user-edit" label="تعیین مسئول و جانشین" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-copy" label="کپی ساختار خط" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-ban" label="غیرفعال‌سازی با تاریخ اثر" class="p-button-outlined p-button-sm p-button-danger"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs">
+    <p-tabPanel header="سلسله‌مراتب سازمانی">
+      <p class="gng-hint">مسیر از بالاترین سطح تا گره‌ی انتخاب‌شده در درخت، با مسئول و جانشین هر سطح؛ تغییر با تاریخ اثر ثبت و سابقه‌ی قبلی حفظ می‌شود.</p>
+      <div style="position: relative">
+      <gng-data-source-badge [source]="orgLevelsSource()"></gng-data-source-badge>
+      <p-table [value]="orgLevels" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th style="width: 9rem">سطح</th>
+            <th>عنوان</th>
+            <th>مسئول</th>
+            <th>جانشین</th>
+            <th style="width: 7rem">وضعیت</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-row>
+          <tr>
+            <td>{{ row.level }}</td>
+            <td>{{ row.title }}</td>
+            <td>{{ row.owner }}</td>
+            <td>{{ row.backup }}</td>
+            <td><p-tag [value]="row.status" [severity]="levelSeverity(row.status)"></p-tag></td>
+          </tr>
+        </ng-template>
+      </p-table>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="خط تولید و توپولوژی" [selected]="true">
+      <div class="gng-flow-header">
+        <span>{{ topologyTitle }} <small>— {{ fa(lineTopologies.length) }} خط · نمای گراف، تنها نمای همین فرم، فرم مستقل ندارد</small></span>
+        <button pButton type="button" icon="pi pi-pencil" label="ویرایشگر گرافیکی چیدمان" class="p-button-text p-button-sm"></button>
+      </div>
+
+      <div style="position: relative" [class.gng-loading]="scopeLoading">
+      <gng-data-source-badge [source]="topologySource()"></gng-data-source-badge>
+
+      <p class="gng-hint" *ngIf="!lineTopologies.length">زیر «{{ contextLabel }}» هنوز هیچ خط تولیدی تعریف نشده است.</p>
+
+      <section class="gng-line-block" *ngFor="let line of lineTopologies; trackBy: trackLine">
+        <header class="gng-line-block__head">
+          <span class="gng-line-block__title"><i class="pi pi-directions"></i>{{ line.title }}</span>
+          <span class="gng-line-block__code">{{ line.code }}</span>
+          <span class="gng-line-block__meta">{{ line.unitTitle }} · {{ fa(stationCount(line)) }} ایستگاه</span>
+          <p-tag *ngIf="!line.active" value="غیرفعال" severity="danger"></p-tag>
+        </header>
+        <gng-topology-graph
+          [nodes]="line.nodes"
+          [edges]="line.edges"
+          [selectedId]="selectedStationId"
+          (nodeClick)="onGraphNodeClick($event)"
+        ></gng-topology-graph>
+      </section>
+      </div>
+
+      <div class="gng-legend">
+        <span><i class="pi pi-circle-fill gng-legend-dot gng-legend-dot--info"></i>ایستگاه ترتیبی</span>
+        <span><i class="pi pi-circle-fill gng-legend-dot gng-legend-dot--success"></i>ایستگاه موازی</span>
+        <span><i class="pi pi-circle-fill gng-legend-dot gng-legend-dot--warning"></i>بافر بین‌ایستگاهی</span>
+        <span><i class="gng-legend-line gng-legend-line--rework"></i>مسیر دوباره‌کاری</span>
+        <span><i class="gng-legend-line gng-legend-line--off"></i>ایستگاه یا مسیر غیرفعال</span>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="ایستگاه کاری">
+      <div style="position: relative">
+      <gng-data-source-badge [source]="stationsSource()"></gng-data-source-badge>
+      <p-table [value]="stations" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th *ngIf="showLineColumn">خط</th>
+            <th style="width: 4rem">کد</th>
+            <th>عنوان ایستگاه</th>
+            <th style="width: 6rem">نوع</th>
+            <th>مرکز هزینه</th>
+            <th>گروه منبع</th>
+            <th style="width: 7rem">ضریب تسهیم</th>
+            <th>انبار پای کار</th>
+            <th style="width: 10rem">وضعیت</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-s>
+          <tr [class.gng-row-active]="s.id !== undefined && s.id === selectedStationId">
+            <td *ngIf="showLineColumn">{{ s.lineTitle }}</td>
+            <td>{{ s.code }}</td>
+            <td>{{ s.title }}</td>
+            <td>{{ s.type }}</td>
+            <td>{{ s.costCenter }}</td>
+            <td>{{ s.resourceGroup }}</td>
+            <td>{{ s.sharePercent }}</td>
+            <td>{{ s.lineSideWarehouse }}</td>
+            <td><p-tag [value]="s.status" [severity]="stationStatusSeverity(s.status)"></p-tag></td>
+          </tr>
+        </ng-template>
+      </p-table>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="گروه منبع">
+      <div style="position: relative">
+      <gng-data-source-badge [source]="resourceGroupsSource()"></gng-data-source-badge>
+      <p-table [value]="resourceGroups" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th style="width: 8rem">کد</th>
+            <th>عنوان گروه</th>
+            <th>اعضا</th>
+            <th style="width: 12rem">قاعده‌ی ارجاع</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-g>
+          <tr>
+            <td>{{ g.code }}</td>
+            <td>{{ g.title }}</td>
+            <td>{{ g.members }}</td>
+            <td>{{ g.dispatchRule }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="منبع سیار">
+      <div style="position: relative">
+      <gng-data-source-badge [source]="mobileResourcesSource()"></gng-data-source-badge>
+      <p-table [value]="mobileResources" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th style="width: 8rem">کد</th>
+            <th>عنوان</th>
+            <th>موقعیت فعلی</th>
+            <th>قابلیت</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-m>
+          <tr>
+            <td>{{ m.code }}</td>
+            <td>{{ m.title }}</td>
+            <td>{{ m.currentSite }}</td>
+            <td>{{ m.capability }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="انبار پای کار">
+      <div style="position: relative">
+      <gng-data-source-badge [source]="lineSideWarehousesSource()"></gng-data-source-badge>
+      <p-table [value]="lineSideWarehouses" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th style="width: 9rem">کد</th>
+            <th>عنوان</th>
+            <th>ایستگاه مرتبط</th>
+            <th>انبار مرجع در سیستم انبار</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-w>
+          <tr>
+            <td>{{ w.code }}</td>
+            <td>{{ w.title }}</td>
+            <td>{{ w.linkedStation }}</td>
+            <td>{{ w.referenceWarehouse }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+  <gng-data-source-badge [source]="orgTreeSource()"></gng-data-source-badge>
+  <p-tree
+    [value]="orgTree"
+    styleClass="gng-tree"
+    selectionMode="single"
+    [(selection)]="selectedTreeNode"
+    (onNodeSelect)="onTreeSelect($event)"
+    (onNodeUnselect)="onTreeUnselect($event)"
+  ></p-tree>
+  </div>
+</gng-opform-layout>

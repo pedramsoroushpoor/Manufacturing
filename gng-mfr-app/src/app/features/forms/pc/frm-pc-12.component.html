@@ -1,0 +1,383 @@
+<gng-opform-layout
+  domainTitle="کنترل تولید"
+  title="کنسول پایش و بستن دستور"
+  code="FRM-PC-12"
+  formTypeLabel="فرم عملیاتی"
+  owner="سرپرست تولید / برنامه‌ریز"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-desktop"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="خطوط"
+  contextPanelHint="فیلتر همه‌ی زبانه‌ها بر اساس خط."
+  auditFeatureRange="F-PC-091 تا F-PC-100"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-check-square" label="تأیید هشدار" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-sitemap" label="ثبت علت انحراف" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-lock" label="بستن دستور" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-lock-open" label="درخواست بازگشایی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-window-maximize" label="آندون تمام‌صفحه" class="p-button-sm p-button-help" (click)="andonFull = true"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading" [(activeIndex)]="activeTab">
+    <!-- ───────── داشبورد لحظه‌ای (F-PC-091) ───────── -->
+    <p-tabPanel header="داشبورد لحظه‌ای">
+      <div class="pc12-lines" style="position: relative">
+        <gng-data-source-badge [source]="ds('pc12-dashboard', 'داشبورد خطوط')"></gng-data-source-badge>
+        <div class="gng-panel" *ngFor="let l of lines">
+          <div class="pc12-lc">
+            <svg viewBox="0 0 100 100" class="pc12-donut" style="width: 120px; height: 120px">
+              <circle cx="50" cy="50" r="40" fill="none" stroke="var(--gng-border)" stroke-width="10"></circle>
+              <circle cx="50" cy="50" r="40" fill="none" [attr.stroke]="oeeColor(l.oee)" stroke-width="10" [attr.stroke-dasharray]="oeeDash(l.oee)" transform="rotate(-90 50 50)" stroke-linecap="round"></circle>
+              <text x="50" y="52" text-anchor="middle" font-size="20" fill="currentColor">{{ faPct(l.oee * 100, 0) }}</text>
+              <text x="50" y="68" text-anchor="middle" font-size="9" fill="currentColor" opacity="0.6">OEE</text>
+            </svg>
+            <div>
+              <strong>{{ l.title }}</strong> <span class="gng-text-muted gng-small">{{ l.code }} · از {{ faTime(l.shiftStart) }}</span>
+              <div class="pc12-apq gng-mt-sm"><span>دسترس‌پذیری</span><div class="gng-kpi__bar"><div class="gng-kpi__bar-fill" [style.width.%]="l.a * 100" [style.background]="oeeColor(l.a)"></div></div><span>{{ faPct(l.a * 100, 0) }}</span></div>
+              <div class="pc12-apq"><span>عملکرد</span><div class="gng-kpi__bar"><div class="gng-kpi__bar-fill" [style.width.%]="l.p * 100" [style.background]="oeeColor(l.p)"></div></div><span>{{ faPct(l.p * 100, 0) }}</span></div>
+              <div class="pc12-apq"><span>کیفیت</span><div class="gng-kpi__bar"><div class="gng-kpi__bar-fill" [style.width.%]="l.q * 100" [style.background]="oeeColor(l.q)"></div></div><span>{{ faPct(l.q * 100, 1) }}</span></div>
+              <div class="pc12-counts">
+                <p-tag [value]="faInt(l.running) + ' در حال کار'" severity="success"></p-tag>
+                <p-tag [value]="faInt(l.paused) + ' متوقف'" [severity]="l.paused ? 'warning' : 'secondary'"></p-tag>
+                <p-tag [value]="faInt(l.openStops) + ' توقف باز'" [severity]="l.openStops ? 'danger' : 'secondary'"></p-tag>
+              </div>
+              <div class="gng-hint" style="margin: 0.3rem 0 0">توقف {{ faDuration(l.stopMin) }} از {{ faDuration(l.planMin) }} برنامه · ضعیف‌ترین عامل: {{ weakest(l) }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="gng-mt">توقف‌های باز <span class="gng-hint" style="display: inline">— شمارنده‌ی زنده</span></h3>
+      <div class="gng-andon-row">
+        <div class="gng-andon-card gng-andon-card--stop" *ngFor="let s of stops" style="flex: 1 0 20rem">
+          <div class="gng-andon-card__line">{{ s.line }} · {{ s.wo }}/{{ faInt(s.opSeq) }} {{ s.opTitle }}</div>
+          <div class="gng-andon-card__status" style="font-family: monospace; font-size: 1.6rem">{{ faClock(stopLive(s.start, s.openMin)) }}</div>
+          <div class="gng-andon-card__meta">{{ s.description }} · از {{ faTime(s.start) }} · {{ s.by }}</div>
+        </div>
+        <div *ngIf="!stops.length" class="gng-empty">توقف بازی نیست.</div>
+      </div>
+
+      <h3 class="gng-mt">دستورهای فعال</h3>
+      <p-table [value]="orders" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th style="width: 8rem">دستور</th><th>محصول</th><th style="width: 9rem">خط</th><th style="width: 13rem">پیشرفت</th><th style="width: 6rem">عملیات</th><th style="width: 9rem">برنامه / موعد</th><th style="width: 9rem">پیش‌بینی پایان</th><th style="width: 8rem">تأخیر</th></tr></ng-template>
+        <ng-template pTemplate="body" let-o>
+          <tr [class.pc12-row-esc]="o.delayMin > 60">
+            <td><strong>{{ o.wo }}</strong><div><p-tag [value]="woStatus[o.statusCode]" [severity]="woStatusTone(o.statusCode)"></p-tag></div></td>
+            <td>{{ o.product }}<div class="gng-text-muted gng-small">{{ woType[o.typeCode] }}{{ o.customer ? ' · ' + o.customer : '' }}</div></td>
+            <td>{{ o.line }}</td>
+            <td>
+              <div class="gng-kpi__bar"><div class="gng-kpi__bar-fill gng-kpi__bar-fill--info" [style.width.%]="o.progress || 0"></div></div>
+              <span class="gng-small">{{ o.progress !== null ? faPct(o.progress) + ' · عملیات ' + faInt(o.lastSeq) + ': ' + faNum(o.lastCompleted) + ' از ' + faNum(o.lastToComplete) + ' ' + o.unit : 'شروع نشده' }}</span>
+            </td>
+            <td>{{ faInt(o.opsDone) }}/{{ faInt(o.opsTotal) }}</td>
+            <td class="gng-small">{{ faDateTime(o.planned) }}<br /><span class="gng-text-muted">موعد {{ faDay(o.due) }}</span></td>
+            <td class="gng-small">{{ faDateTime(o.forecastEnd) }}</td>
+            <td><p-tag *ngIf="o.delayMin > 0" [value]="faDuration(o.delayMin)" [severity]="o.delayMin > 60 ? 'danger' : 'warning'"></p-tag><span *ngIf="!o.delayMin" class="gng-sym--ok">به‌موقع</span></td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── استثناها و هشدارها (F-PC-092، 093) ───────── -->
+    <p-tabPanel [header]="'استثناها و هشدارها (' + faInt(openCount) + ')'">
+      <div class="gng-stat-grid">
+        <div class="gng-stat-card gng-stat-card--danger"><span class="gng-stat-card__label">تشدیدشده</span><span class="gng-stat-card__value">{{ faInt(escalatedCount) }}</span><span class="gng-stat-card__meta">بی‌پاسخ بیش از زمان مجاز</span></div>
+        <div class="gng-stat-card gng-stat-card--warning"><span class="gng-stat-card__label">باز (دیده‌نشده)</span><span class="gng-stat-card__value">{{ faInt(openCount) }}</span><span class="gng-stat-card__meta">از {{ faInt(data?.alerts?.length || 0) }} هشدار</span></div>
+        <div class="gng-stat-card"><span class="gng-stat-card__label">قاعده‌های فعال</span><span class="gng-stat-card__value">{{ faInt(data?.rules?.length || 0) }}</span><span class="gng-stat-card__meta">موتور استثنا</span></div>
+      </div>
+      <div class="gng-window gng-mt">
+        <div class="pc12-chips">
+          <span class="pc12-chip" [class.pc12-chip--on]="!ruleFilter" (click)="ruleFilter = 0">همه</span>
+          <span *ngFor="let c of ruleChips" class="pc12-chip" [class.pc12-chip--on]="ruleFilter === c.type" (click)="ruleFilter = c.type"><i class="pi" [ngClass]="ruleIcon[c.type]"></i> {{ c.label }}<b>{{ faInt(c.count) }}</b></span>
+        </div>
+      </div>
+      <div class="gng-window gng-mt-sm">
+        <p-selectButton [options]="sevOptions" [(ngModel)]="sevFilter" optionLabel="label" optionValue="value" styleClass="p-button-sm"></p-selectButton>
+        <p-checkbox [(ngModel)]="onlyEscalated" [binary]="true" inputId="esc" label="فقط تشدیدشده"></p-checkbox>
+        <p-checkbox [(ngModel)]="onlyOpen" [binary]="true" inputId="open" label="فقط دیده‌نشده"></p-checkbox>
+        <span class="p-input-icon-right"><i class="pi pi-search"></i><input pInputText type="text" class="p-inputtext-sm" placeholder="جست‌وجو" [(ngModel)]="alertSearch" /></span>
+      </div>
+      <div style="position: relative" class="gng-mt-sm">
+        <gng-data-source-badge [source]="ds('pc12-alerts', 'هشدارها')"></gng-data-source-badge>
+        <p-table [value]="shownAlerts" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th style="width: 6rem">شدت</th><th style="width: 11rem">قاعده</th><th>موضوع</th><th style="width: 11rem">اندازه / حد</th><th style="width: 10rem">مسئول · کانال</th><th style="width: 7rem">سن</th><th style="width: 12rem">تشدید</th><th style="width: 12rem">پاسخ</th></tr></ng-template>
+          <ng-template pTemplate="body" let-a>
+            <tr [class.pc12-row-esc]="isEscalated(a) || isFuture(a)">
+              <td><p-tag [value]="severity[a.severity]" [severity]="alertTone(a.severity)"></p-tag></td>
+              <td><i class="pi" [ngClass]="ruleIcon[a.ruleType]"></i> {{ a.ruleCode }}<div class="gng-small">{{ a.ruleTitle }}</div></td>
+              <td>{{ a.subject }}<div class="gng-text-muted gng-small">{{ a.detail }}{{ a.wo ? ' · ← ' + a.wo + (a.opSeq ? '/' + faInt(a.opSeq) : '') : '' }} · {{ a.line || '—' }}</div></td>
+              <td>
+                <span class="gng-small">{{ faNum(a.measured) }} / {{ faNum(a.limit) }} {{ a.unit }}</span>
+                <div class="pc12-gauge" *ngIf="gauge(a) as g"><div class="pc12-gauge__fill" [style.width.%]="g.fill" [style.background]="g.over ? 'var(--gng-danger)' : 'var(--gng-warning)'"></div><div class="pc12-gauge__lim" [style.right.%]="g.lim"></div></div>
+              </td>
+              <td class="gng-small">{{ a.owner }}<div class="gng-text-muted"><i class="pi" [ngClass]="channelIcon[a.channel]"></i> {{ channel[a.channel] }}</div></td>
+              <td class="gng-small">{{ isFuture(a) ? '—' : faDuration(liveAge(a)) }}<div class="gng-text-muted">{{ faTime(a.raisedAt) }}</div></td>
+              <td><p-tag *ngIf="isEscalated(a) || isFuture(a)" [value]="escalationText(a)" severity="danger"></p-tag><span *ngIf="!isEscalated(a) && !isFuture(a)" class="gng-small">{{ escalationText(a) }}</span></td>
+              <td class="gng-small">
+                <p-tag [value]="alertStatus[a.status]" [severity]="a.status === 1 ? 'danger' : a.status === 4 ? 'success' : 'info'"></p-tag>
+                <div *ngIf="a.ackBy" class="gng-text-muted">{{ a.ackBy }} {{ faTime(a.ackAt) }}{{ a.assignedTo ? ' ← ' + a.assignedTo : '' }}</div>
+                <div *ngIf="a.note" class="gng-text-muted">«{{ a.note }}»</div>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="8" class="gng-empty">هشداری با این فیلتر نیست.</td></tr></ng-template>
+        </p-table>
+      </div>
+
+      <h3 class="gng-mt">کاتالوگ قاعده‌ها</h3>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc12-exceptions', 'قاعده‌های استثنا')"></gng-data-source-badge>
+        <p-table [value]="data?.rules || []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th style="width: 6rem">کد</th><th>قاعده</th><th style="width: 9rem">آستانه</th><th style="width: 6rem">شدت</th><th style="width: 9rem">کانال</th><th style="width: 10rem">مسئول</th><th style="width: 13rem">تشدید</th><th style="width: 6rem">هشدار باز</th></tr></ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr>
+              <td>{{ r.number }}</td>
+              <td><i class="pi" [ngClass]="ruleIcon[r.type]"></i> {{ r.name }}<div class="gng-text-muted gng-small">{{ r.description }}</div></td>
+              <td>{{ r.threshold !== null ? faNum(r.threshold) + ' ' + r.unit : 'از خود اندازه' }}</td>
+              <td><p-tag [value]="severity[r.severity]" [severity]="alertTone(r.severity)"></p-tag></td>
+              <td><i class="pi" [ngClass]="channelIcon[r.channel]"></i> {{ channel[r.channel] }}</td>
+              <td>{{ r.owner }}</td>
+              <td class="gng-small">پس از {{ faDuration(r.escMin) }} ← {{ r.escOwner }}</td>
+              <td>{{ faInt(alertCount(r.id)) }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── علت انحراف (F-PC-094) ───────── -->
+    <p-tabPanel [header]="'علت انحراف (' + faInt(data?.deviations?.length || 0) + ')'">
+      <div class="gng-columns" style="grid-template-columns: 280px 1fr">
+        <div class="gng-panel pc12-tree">
+          <h3 style="margin-top: 0">درخت علل</h3>
+          <div class="pc12-tree__node" [class.pc12-tree__node--on]="causeFilter === null" (click)="causeFilter = null"><span>همه</span><span>{{ faInt(data?.deviations?.length || 0) }}</span></div>
+          <ng-container *ngFor="let n of causeTree">
+            <div class="pc12-tree__node" [class.pc12-tree__node--on]="causeFilter === n.cause.id" (click)="causeFilter = n.cause.id">
+              <span><i class="pi pi-folder"></i> {{ n.cause.number }} {{ n.cause.name }}</span><span class="gng-text-muted">{{ faInt(nodeUsage(n)) }}</span>
+            </div>
+            <div class="pc12-tree__kids">
+              <div *ngFor="let c of n.children" class="pc12-tree__node" [class.pc12-tree__node--on]="causeFilter === c.id" (click)="causeFilter = c.id">
+                <span>{{ c.number }} {{ c.name }}</span><span [class.gng-text-muted]="!c.usage">{{ faInt(c.usage) }}</span>
+              </div>
+            </div>
+          </ng-container>
+          <p class="gng-hint">درخت قدیم ProductionPlanDeviation (والد/فرزند).</p>
+        </div>
+        <div style="position: relative">
+          <gng-data-source-badge [source]="ds('pc12-deviations', 'انحراف‌ها')"></gng-data-source-badge>
+          <div *ngFor="let d of deviations" class="pc12-dev" [class.pc12-dev--overdue]="isOverdue(d)">
+            <div style="display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap">
+              <strong>{{ d.wo }}{{ d.opSeq ? ' / ' + faInt(d.opSeq) : '' }} <span class="gng-text-muted gng-small">· انحراف {{ devType[d.typeCode] }}</span></strong>
+              <span class="gng-small gng-text-muted">{{ d.recordedBy }} · {{ faDateTime(d.recordedAt) }}</span>
+            </div>
+            <div class="gng-small gng-mt-sm"><i class="pi pi-sitemap"></i> {{ d.causeParent ? d.causeParent + ' › ' : '' }}<strong>{{ d.causeCode }} {{ d.cause }}</strong>
+              <p-tag *ngIf="isRootCause(d)" value="علت سطح بالا — برگ انتخاب نشده" severity="warning"></p-tag></div>
+            <div class="pc12-pva"><span>برنامه: {{ d.planned }}</span><i class="pi pi-arrow-left"></i><span style="color: var(--gng-danger)">واقعی: {{ d.actual }}</span></div>
+            <div *ngIf="d.description" class="gng-hint" style="margin: 0">{{ d.description }}</div>
+            <div class="gng-note gng-mt-sm" [ngClass]="isOverdue(d) ? 'gng-note--danger' : d.caStatus === 3 ? 'gng-note--success' : 'gng-note--info'" *ngIf="d.caTitle">
+              <strong>اقدام اصلاحی{{ d.caRef ? ' ' + d.caRef : '' }}:</strong> {{ d.caTitle }} · {{ d.caOwner }} · موعد {{ faDay(d.caDue) }}
+              <p-tag [value]="caStatus[d.caStatus || 1]" [severity]="d.caStatus === 3 ? 'success' : isOverdue(d) ? 'danger' : 'info'"></p-tag>
+              <strong *ngIf="isOverdue(d)"> — {{ faInt(overdueDays(d)) }} روز از موعد گذشته</strong>
+            </div>
+          </div>
+          <div *ngIf="!deviations.length" class="gng-empty">انحرافی برای این علت ثبت نشده.</div>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── کار در جریان (F-PC-098) ───────── -->
+    <p-tabPanel header="کار در جریان">
+      <div class="gng-window">
+        <span class="gng-small">گروه‌بندی</span>
+        <p-selectButton [options]="wipOptions" [(ngModel)]="wipGroupBy" optionLabel="label" optionValue="value" styleClass="p-button-sm"></p-selectButton>
+        <span class="gng-small" *ngFor="let x of wipTotals">· {{ faNum(x.qty, 1) }} {{ x.unit }} در جریان (معادل تکمیل {{ faNum(x.eq, 0) }})</span>
+      </div>
+      <div *ngIf="outsourcedWip.length" class="gng-note gng-note--info gng-mt-sm">
+        <i class="pi pi-truck"></i> WIP نزد پیمانکار:
+        <span *ngFor="let w of outsourcedWip">{{ w.wo }}/{{ faInt(w.seq) }} {{ w.opTitle }} — {{ faInt(w.inProcess) }} {{ w.unit }} </span>
+      </div>
+      <div style="position: relative" class="gng-mt">
+        <gng-data-source-badge [source]="ds('pc12-wip', 'کار در جریان')"></gng-data-source-badge>
+        <div *ngFor="let g of wipGroups" class="pc12-wipgrp">
+          <div class="pc12-wipgrp__head"><strong>{{ g.title }}</strong><span class="gng-small"><span *ngFor="let x of g.totals; let last = last">{{ faNum(x.qty, 1) }} {{ x.unit }}{{ last ? '' : ' · ' }}</span></span></div>
+          <div class="pc12-wiprow gng-text-muted" style="font-size: 0.7rem"><span>دستور / عملیات</span><span>سهم در جریان از مقدار عملیات</span><span>در جریان</span><span>دریافتی → تکمیل · ضایعات</span><span>وضعیت</span></div>
+          <div class="pc12-wiprow" *ngFor="let w of g.rows">
+            <span><strong>{{ w.wo }}</strong> / {{ faInt(w.seq) }}<div class="gng-text-muted">{{ w.opTitle }}</div></span>
+            <div class="pc12-heat" [pTooltip]="'مرحله‌ی مسیر: ' + faPct(w.stageFraction * 100, 0)"><div class="pc12-heat__fill" [style.width.%]="w.inProcessPct" [style.background]="heatColor(w.inProcessPct)"></div></div>
+            <span><strong>{{ faNum(w.inProcess, 1) }}</strong> {{ w.unit }}<div class="gng-text-muted">{{ faPct(w.inProcessPct) }}</div></span>
+            <span class="gng-text-muted">{{ faNum(w.received, 1) }} → {{ faNum(w.completed, 1) }} · {{ faNum(w.wasted, 1) }}{{ w.rework ? ' · دوباره‌کاری ' + faNum(w.rework) : '' }}</span>
+            <span><p-tag [value]="opStatus[w.statusCode]" [severity]="opStatusTone(w.statusCode)"></p-tag><p-tag *ngIf="w.outsourced" value="برون‌سپاری" severity="contrast"></p-tag></span>
+          </div>
+        </div>
+        <div *ngIf="!wipGroups.length" class="gng-empty">کاری در جریان نیست.</div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── بستن دستور + بهای تمام‌شده (F-PC-096، 097، 099، 100) ───────── -->
+    <p-tabPanel header="بستن دستور">
+      <div class="pc12-close" style="position: relative">
+        <gng-data-source-badge [source]="ds('pc12-close', 'آمادگی بستن')"></gng-data-source-badge>
+        <div *ngFor="let r of data?.readiness || []" class="pc12-cc" [ngClass]="closeClass(r)" [class.pc12-cc--on]="costWo === r.woId" (click)="pickClose(r)">
+          <div style="display: flex; justify-content: space-between; gap: 0.5rem">
+            <strong>{{ r.wo }}</strong>
+            <p-tag [value]="r.statusCode === 5 ? 'بسته‌شده ' + faDay(r.closedAt) : r.canClose ? 'آماده‌ی بستن' : 'مسدود'" [severity]="r.statusCode === 5 ? 'secondary' : r.canClose ? 'success' : 'danger'"></p-tag>
+          </div>
+          <div class="gng-small gng-text-muted">{{ r.product }} · {{ r.batch }} · تکمیل {{ faDateTime(r.completedAt) }}</div>
+          <div class="gng-mt-sm">
+            <div *ngFor="let c of checks" class="pc12-check" [pTooltip]="c.hint">
+              <i class="pi" [ngClass]="checkVal(r, c) ? 'pi-times-circle gng-sym--no' : 'pi-check-circle gng-sym--ok'"></i>
+              <span [class.gng-text-muted]="!checkVal(r, c)">{{ c.label }}</span>
+              <strong *ngIf="checkVal(r, c)" style="color: var(--gng-danger)">{{ faInt(checkVal(r, c)) }}</strong>
+            </div>
+          </div>
+          <div class="gng-hint" style="margin: 0.4rem 0 0">
+            بستن خودکار پس از {{ faInt(r.autoCloseDays) }} روز تعلیق{{ r.suspendedDays !== null ? ' · معلق ' + faInt(r.suspendedDays) + ' روز' : '' }}
+            <p-tag *ngIf="r.autoCloseCandidate" value="نامزد بستن خودکار" severity="warning"></p-tag>
+          </div>
+          <div *ngFor="let e of eventsOf(r.woId)" class="gng-small gng-mt-sm">
+            <i class="pi" [ngClass]="e.typeCode === 3 ? 'pi-lock-open' : 'pi-lock'"></i> {{ eventType[e.typeCode] }} · {{ faDateTime(e.at) }} · {{ e.by }}
+            <p-tag *ngIf="e.approvalCode" [value]="approval[e.approvalCode] + ' — ' + e.approver" [severity]="e.approvalCode === 1 ? 'warning' : 'success'"></p-tag>
+            <div *ngIf="e.reason" class="gng-text-muted">«{{ e.reason }}»</div>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="gng-mt">رویدادهای بستن و بازگشایی</h3>
+      <p-table [value]="data?.events || []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th style="width: 9rem">زمان</th><th style="width: 8rem">دستور</th><th style="width: 10rem">رویداد</th><th>دلیل / شرح</th><th style="width: 12rem">تأیید</th><th style="width: 13rem">رویداد بهای تمام‌شده</th></tr></ng-template>
+        <ng-template pTemplate="body" let-e>
+          <tr [class.pc12-row-esc]="e.approvalCode === 1">
+            <td>{{ faDateTime(e.at) }}</td><td>{{ e.wo }}</td><td>{{ eventType[e.typeCode] }}<div class="gng-text-muted gng-small">{{ e.by }}</div></td>
+            <td>{{ e.reason || '—' }}<div class="gng-text-muted gng-small">{{ e.description }}</div></td>
+            <td>{{ e.approvalCode ? approval[e.approvalCode] + ' · ' + e.approver : '—' }}</td>
+            <td>{{ e.costingNumber || '—' }} <p-tag *ngIf="e.costingStatus" [value]="costingStatus[e.costingStatus]" [severity]="e.costingStatus === 3 ? 'success' : 'info'"></p-tag></td>
+          </tr>
+        </ng-template>
+      </p-table>
+
+      <h3 class="gng-mt">پیش‌نمایش رویداد بهای تمام‌شده (PF-71)</h3>
+      <div class="gng-window">
+        <p-dropdown [options]="costOptions" [(ngModel)]="costWo" (onChange)="loadCosting()" [style]="{ minWidth: '16rem' }"></p-dropdown>
+        <span class="gng-small">شماره‌ی رویداد: {{ costingEventNumber }}</span>
+      </div>
+      <div style="position: relative" class="gng-mt-sm" [class.gng-loading]="costingLoading">
+        <gng-data-source-badge [source]="ds('pc12-costing', 'رویداد بهای تمام‌شده')"></gng-data-source-badge>
+        <ng-container *ngIf="costing?.header as h">
+          <div class="gng-field-grid">
+            <div class="gng-field"><span class="gng-field__label">دستور</span><span class="gng-field__value">{{ h.wo }} · {{ woType[h.typeCode] }} <p-tag [value]="woStatus[h.statusCode]" [severity]="woStatusTone(h.statusCode)"></p-tag></span></div>
+            <div class="gng-field"><span class="gng-field__label">محصول / بچ</span><span class="gng-field__value">{{ h.productCode }} {{ h.product }} · {{ h.batch }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">مقدار برنامه</span><span class="gng-field__value">{{ faInt(h.plannedQty) }} {{ h.unit }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">نسخه‌ی تولید / خط</span><span class="gng-field__value">{{ h.version }} · {{ h.lineCode }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">آزادسازی ← تکمیل ← بستن</span><span class="gng-field__value">{{ faDateTime(h.releasedAt) }} ← {{ faDateTime(h.completedAt) }} ← {{ faDateTime(h.closedAt) }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">مشتری / دستور مرجع</span><span class="gng-field__value">{{ h.customer || '—' }}{{ h.refWoId ? ' · مرجع #' + faInt(h.refWoId) : '' }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">ضایعات کل</span><span class="gng-field__value">{{ faNum(h.wastedTotal) }} {{ h.unit }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">هزینه‌ی عدم انطباق</span><span class="gng-field__value" style="color: var(--gng-danger)">{{ faInt(h.ncCost) }} ریال</span></div>
+          </div>
+          <div class="pc12-cost gng-mt">
+            <div>
+              <h4>مواد (استاندارد / واقعی / برگشتی)</h4>
+              <p-table [value]="costing?.materials || []" styleClass="p-datatable-sm gng-table">
+                <ng-template pTemplate="header"><tr><th>ماده</th><th style="width: 6rem">استاندارد</th><th style="width: 6rem">واقعی</th><th style="width: 5rem">برگشتی</th><th style="width: 5rem">انحراف</th></tr></ng-template>
+                <ng-template pTemplate="body" let-m>
+                  <tr>
+                    <td>{{ m.code }} {{ m.title }} <p-tag *ngIf="m.customer" value="مال مشتری" severity="warning"></p-tag></td>
+                    <td>{{ faNum(m.standard, 3) }}</td><td>{{ faNum(m.actual, 3) }} {{ m.unit }}</td><td>{{ faNum(m.returned, 3) }}</td>
+                    <td [style.color]="variancePct(m) !== null && variancePct(m)! < -5 ? 'var(--gng-warning)' : ''">{{ variancePct(m) !== null ? faPct(variancePct(m)) : '—' }}</td>
+                  </tr>
+                </ng-template>
+              </p-table>
+            </div>
+            <div>
+              <h4>منابع</h4>
+              <p-table [value]="costing?.resources || []" styleClass="p-datatable-sm gng-table">
+                <ng-template pTemplate="header"><tr><th>منبع</th><th style="width: 9rem">مقدار</th></tr></ng-template>
+                <ng-template pTemplate="body" let-r><tr><td>{{ r.code }} — {{ r.title }}</td><td>{{ faNum(r.quantity) }} {{ r.unit }}</td></tr></ng-template>
+              </p-table>
+              <h4 class="gng-mt">خروجی‌ها</h4>
+              <p-table [value]="costing?.outputs || []" styleClass="p-datatable-sm gng-table">
+                <ng-template pTemplate="header"><tr><th style="width: 5rem">نوع</th><th>کالا / بچ</th><th style="width: 7rem">رسید</th><th style="width: 6rem">رد</th><th style="width: 7rem">نرخ ارزش‌گذاری</th></tr></ng-template>
+                <ng-template pTemplate="body" let-o>
+                  <tr><td>{{ outputType[o.typeCode] }}</td><td>{{ o.code }} {{ o.title }}<div class="gng-text-muted gng-small">{{ o.batch }}</div></td><td>{{ faNum(o.received) }} {{ o.unit }}</td><td>{{ faNum(o.rejected) }}</td><td>{{ o.rate !== null ? faInt(o.rate) : o.share !== null ? faPct(o.share) : '—' }}</td></tr>
+                </ng-template>
+              </p-table>
+            </div>
+          </div>
+          <button pButton type="button" class="p-button-text p-button-sm gng-mt-sm" [icon]="showJson ? 'pi pi-chevron-up' : 'pi pi-code'" [label]="showJson ? 'بستن JSON' : 'نمایش JSON رویداد'" (click)="showJson = !showJson"></button>
+          <pre *ngIf="showJson" class="gng-code-block pc12-json">{{ costingJson }}</pre>
+        </ng-container>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── آندون (F-PC-095) ───────── -->
+    <p-tabPanel header="آندون">
+      <div class="gng-window">
+        <button pButton type="button" icon="pi pi-window-maximize" label="نمایش تمام‌صفحه برای مانیتور کارگاه" class="p-button-sm p-button-help" (click)="andonFull = true"></button>
+        <div class="gng-legend">
+          <span><i class="gng-legend-dot gng-legend-dot--success"></i> در حال کار</span><span><i class="gng-legend-dot gng-legend-dot--danger"></i> توقف باز</span>
+          <span><i class="gng-legend-dot gng-legend-dot--warning"></i> متوقف برنامه‌ای</span><span><i class="gng-legend-dot" style="background: #e056fd"></i> هم‌پوشانی</span><span><i class="gng-legend-dot"></i> بیکار</span>
+        </div>
+      </div>
+      <div style="background: var(--gng-dark-900, #0b0e14); border-radius: var(--gng-radius); padding: 1rem; color: #eef1f6; position: relative" class="gng-mt-sm">
+        <gng-data-source-badge [source]="ds('pc12-dashboard', 'وضعیت ایستگاه‌ها')"></gng-data-source-badge>
+        <ng-container *ngTemplateOutlet="board"></ng-container>
+      </div>
+      <div class="gng-note gng-note--info gng-mt">
+        <strong>هنوز پیاده نشده.</strong> تأیید، ارجاع و رفع هشدار؛ تعریف و ویرایش قاعده‌های استثنا و کانال اعلان؛ ثبت علت انحراف و اقدام اصلاحی؛ بستن دستور،
+        اجرای زمان‌بندی‌شده‌ی بستن خودکار، درخواست و تأیید بازگشایی با دلیل، و ارسال واقعی رویداد بستن به بهای تمام‌شده با فاز ایجاد/ویرایش می‌آید.
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <!-- ───────── تابلوی آندون (درون‌فرم و تمام‌صفحه) ───────── -->
+  <ng-template #board>
+    <ng-container *ngFor="let l of lines">
+      <div class="pc12-full__line">{{ l.title }} <span style="font-size: 0.85rem; opacity: 0.75">OEE {{ faPct(l.oee * 100, 0) }}</span></div>
+      <div class="pc12-andon-grid">
+        <div *ngFor="let s of stationsOf(l.id, false)" class="gng-andon-card pc12-andon-tile" [ngClass]="andonClass(s)">
+          <div class="gng-andon-card__line">{{ s.code }} · {{ s.title }}</div>
+          <div class="gng-andon-card__status">{{ andon[s.andon] }}</div>
+          <ng-container *ngIf="s.wo">
+            <div class="gng-andon-card__meta">{{ s.wo }}/{{ faInt(s.opSeq) }} {{ s.opTitle }}</div>
+            <div class="pc12-andon-bar"><div [style.width.%]="stationPct(s)"></div></div>
+            <div class="gng-andon-card__meta">{{ faInt(s.completed) }} از {{ faInt(s.toComplete) }} · ضایعات {{ faInt(s.wasted) }}{{ s.oee !== null ? ' · OEE ' + faPct(s.oee * 100, 0) : '' }}</div>
+          </ng-container>
+          <div *ngIf="s.andon === 4" class="gng-andon-card__meta"><strong style="font-family: monospace; font-size: 1.1em">{{ faClock(stopLive(s.stopSince)) }}</strong> · {{ s.stopTitle }}</div>
+          <div *ngIf="s.andon === 5" class="gng-andon-card__meta"><strong>{{ faInt(s.runningCount) }} عملیات هم‌زمان:</strong> {{ s.runningOrders.join(' + ') }}</div>
+        </div>
+      </div>
+      <div *ngIf="stationsOf(l.id, true).length" class="pc12-andon-grid" style="margin-top: 0.5rem">
+        <div *ngFor="let s of stationsOf(l.id, true)" class="gng-andon-card pc12-andon-tile" [ngClass]="andonClass(s)" style="min-height: 0">
+          <div class="gng-andon-card__line"><i class="pi pi-th-large"></i> گروه منابع · {{ s.title }}</div>
+          <div class="gng-andon-card__meta">{{ s.wo }}/{{ faInt(s.opSeq) }} {{ s.opTitle }} · {{ faPct(stationPct(s), 0) }}</div>
+        </div>
+      </div>
+    </ng-container>
+  </ng-template>
+
+  <div class="pc12-full" *ngIf="andonFull">
+    <div class="pc12-full__head">
+      <div><div style="font-size: 1.4rem; font-weight: 800">آندون کارگاه قرص‌سازی</div><div style="opacity: 0.7">برای خروج Esc</div></div>
+      <div class="pc12-full__clock">{{ faTime(clock.toISOString()) }}<span style="font-size: 1.2rem; opacity: 0.6">:{{ faClock(clock.getUTCSeconds() / 60).slice(-2) }}</span></div>
+      <button pButton type="button" icon="pi pi-times" label="بستن" class="p-button-sm p-button-secondary" (click)="andonFull = false"></button>
+    </div>
+    <ng-container *ngTemplateOutlet="board"></ng-container>
+    <div class="pc12-ticker" *ngIf="criticalTicker"><i class="pi pi-exclamation-triangle"></i> {{ criticalTicker }}</div>
+  </div>
+
+  <!-- ───────── خطوط ───────── -->
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="ds('pc12-dashboard', 'خطوط')"></gng-data-source-badge>
+    <div class="pc12-line" [class.pc12-line--on]="!lineFilter" (click)="lineFilter = 0">
+      <strong>همه‌ی خطوط</strong>
+      <div class="gng-small gng-text-muted">ساعت کارگاه {{ faTime(clock.toISOString()) }}</div>
+    </div>
+    <div *ngFor="let l of data?.lines || []" class="pc12-line" [class.pc12-line--on]="lineFilter === l.id" (click)="lineFilter = l.id">
+      <div style="display: flex; justify-content: space-between"><strong>{{ l.title }}</strong><span [style.color]="oeeColor(l.oee)" style="font-weight: 800">{{ faPct(l.oee * 100, 0) }}</span></div>
+      <div class="gng-kpi__bar gng-mt-sm"><div class="gng-kpi__bar-fill" [style.width.%]="l.oee * 100" [style.background]="oeeColor(l.oee)"></div></div>
+      <div class="gng-small gng-text-muted gng-mt-sm">{{ faInt(l.running) }} در حال کار · {{ faInt(l.paused) }} متوقف · {{ faInt(l.openStops) }} توقف باز</div>
+    </div>
+  </div>
+</gng-opform-layout>

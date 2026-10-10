@@ -1,0 +1,247 @@
+.gng-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gng-bg);
+  padding: 24px;
+}
+
+.gng-login__card {
+  width: min(580px, 100%);
+  background: var(--gng-surface);
+  border-radius: var(--gng-radius);
+  box-shadow: var(--gng-shadow);
+  border-top: 4px solid var(--gng-primary);
+  overflow: hidden;
+}
+
+.gng-login__header {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 20px 24px 16px;
+  background: var(--gng-dark-900);
+  color: #fff;
+
+  h1 {
+    margin: 0;
+    font-size: 20px;
+    letter-spacing: 0.3px;
+  }
+
+  p {
+    margin: 2px 0 0;
+    font-size: 12.5px;
+    color: #93a3b3;
+  }
+}
+
+.gng-login__mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(247, 148, 29, 0.16);
+  color: var(--gng-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+/* ---- اتصال‌های قبلی ---- */
+.gng-login__recents {
+  padding: 14px 24px 0;
+}
+
+.gng-login__recents-label {
+  font-size: 11.5px;
+  color: var(--gng-text-muted);
+}
+
+.gng-login__recents-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 7px;
+}
+
+.gng-login__recent {
+  font-family: inherit;
+  cursor: pointer;
+  text-align: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--gng-bg);
+  border: 1px solid var(--gng-border);
+  border-radius: 14px;
+  padding: 4px 6px 4px 12px;
+  transition: border-color 0.15s ease;
+
+  &:hover {
+    border-color: var(--gng-primary);
+  }
+
+  &--active {
+    border-color: var(--gng-primary);
+    background: rgba(247, 148, 29, 0.08);
+  }
+}
+
+.gng-login__recent-db {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gng-text);
+}
+
+.gng-login__recent-server {
+  font-size: 11px;
+  color: var(--gng-text-muted);
+}
+
+.gng-login__recent-drop {
+  font-size: 10px;
+  color: var(--gng-text-muted);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: rgba(235, 87, 87, 0.12);
+    color: var(--gng-danger);
+  }
+}
+
+/* ---- فرم ---- */
+.gng-login__body {
+  padding: 16px 24px 6px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 13px;
+}
+
+.gng-login__field {
+  display: grid;
+  gap: 5px;
+
+  &--span2 {
+    grid-column: 1 / -1;
+  }
+
+  input,
+  ::ng-deep .p-password,
+  ::ng-deep .gng-login__password-input {
+    width: 100%;
+  }
+}
+
+.gng-login__lbl {
+  font-size: 12.5px;
+  color: var(--gng-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  em {
+    font-style: normal;
+    font-size: 10.5px;
+    color: var(--gng-primary-dark);
+    background: rgba(247, 148, 29, 0.14);
+    border-radius: 3px;
+    padding: 1px 5px;
+  }
+}
+
+.gng-login__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--gng-text-muted);
+}
+
+/* ---- احراز هویت: دو کارت، هرگز یک dropdown خالی ---- */
+.gng-login__modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+
+.gng-login__mode {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  border: 1px solid var(--gng-border);
+  border-radius: var(--gng-radius-sm);
+  padding: 9px 11px;
+  background: var(--gng-surface);
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  &:hover {
+    border-color: var(--gng-primary);
+  }
+
+  &--picked {
+    border-color: var(--gng-primary);
+    background: rgba(247, 148, 29, 0.08);
+  }
+}
+
+.gng-login__mode-text {
+  display: grid;
+  gap: 2px;
+}
+
+.gng-login__mode-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--gng-text);
+}
+
+.gng-login__mode-desc {
+  font-size: 11px;
+  color: var(--gng-text-muted);
+  line-height: 1.8;
+}
+
+::ng-deep .gng-login__note,
+::ng-deep .gng-login__error {
+  margin: 10px 24px 0;
+  display: block;
+
+  .p-message {
+    margin: 0;
+    font-size: 12px;
+  }
+}
+
+.gng-login__footer {
+  padding: 16px 24px 20px;
+  margin-top: 12px;
+  border-top: 1px solid var(--gng-border);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  /* نشانه‌ی موقتِ عیب‌یابی: اگر بعد از رفرش دکمه هنوز نارنجی است، یعنی
+     مرورگر/سرور توسعه نسخه‌ی تازه را سرو نمی‌کند (بیلد یا پردازه‌ی قدیمی
+     هنوز روی همان پورت مانده) — نه این‌که کد یا اتصال دیتابیس مشکل دارد.
+     بعد از رفع این ابهام باید حذف شود. */
+  ::ng-deep .p-button {
+    background: #1565c0 !important;
+    border-color: #1565c0 !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .gng-login__body,
+  .gng-login__modes {
+    grid-template-columns: 1fr;
+  }
+}

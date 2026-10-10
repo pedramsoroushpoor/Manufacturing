@@ -1,0 +1,131 @@
+<gng-opform-layout
+  domainTitle="چارچوب مشترک"
+  title="کنسول پیکربندی پلتفرم"
+  code="FRM-PF-01"
+  formTypeLabel="کنسول تنظیمات"
+  owner="مدیر سیستم / پلتفرم"
+  contextLabel="پروفایل فعال"
+  contextIcon="pi pi-sliders-h"
+  [bannerText]="bannerDanger"
+  bannerTone="danger"
+  [auditFeatureRange]="auditRange"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-download" label="صادرات بسته‌ی پیکربندی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-plus" label="تعریف پروفایل سفارشی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-sync" label="تغییر پروفایل با تحلیل اثر" class="p-button-sm p-button-warning"></button>
+    <button pButton type="button" icon="pi pi-map" label="نگاشت رفتار فرم به پروفایل" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-pencil" label="انتخاب و ویرایش پروفایل" class="p-button-outlined p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs">
+    <p-tabPanel header="پروفایل صنعت">
+      <h3>انتخاب پروفایل صنعت <span class="gng-hint" style="display:inline; margin:0">— یک مدل داده‌ی واحد که رفتار پیکربندی می‌شود، نه زیرسیستم‌های موازی</span></h3>
+      <div class="gng-profile-grid gng-mt-sm">
+        <div [class]="profileCardClass(p.active)" *ngFor="let p of profiles">
+          <span class="gng-profile-card__badge" *ngIf="p.badge">{{ p.badge }}</span>
+          <span class="gng-profile-card__title">{{ p.title }}</span>
+          <span class="gng-profile-card__meta">{{ p.meta }}</span>
+        </div>
+      </div>
+      <div class="gng-flag-list gng-mt">
+        <div class="gng-flag-row" *ngFor="let r of profileRules">
+          <span class="gng-flag-row__label"><i [ngClass]="ruleIcon(r.status)"></i>{{ r.label }}</span>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="ابعاد و بازنویسی پروفایل" [selected]="true">
+      <div class="gng-columns">
+        <div style="display:flex; flex-direction:column; gap:0.9rem">
+          <div>
+            <h3>انتخاب پروفایل صنعت <span class="gng-hint" style="display:inline; margin:0">— یک مدل داده‌ی واحد که رفتار پیکربندی می‌شود — نه زیرسیستم‌های موازی</span></h3>
+            <div class="gng-profile-grid gng-mt-sm">
+              <div [class]="profileCardClass(p.active)" *ngFor="let p of profiles">
+                <span class="gng-profile-card__badge" *ngIf="p.badge">{{ p.badge }}</span>
+                <span class="gng-profile-card__title">{{ p.title }}</span>
+                <span class="gng-profile-card__meta">{{ p.meta }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="gng-panel">
+            <h3>بازبینی بُعد «سیاست مصرف» برای {{ overrideTarget }}</h3>
+            <div class="gng-chain gng-mt-sm">
+              <div class="gng-chain-item" *ngFor="let h of overrideHierarchy">
+                <span class="gng-chain-dot" [ngClass]="h.highlighted ? 'gng-chain-dot--done' : 'gng-chain-dot--pending'"><i class="pi pi-circle-fill"></i></span>
+                <span class="gng-chain-body"><strong>{{ h.level }}</strong><span class="gng-chain-meta">{{ h.value }}</span></span>
+              </div>
+            </div>
+            <div class="gng-note gng-note--info gng-mt-sm">{{ overrideNote }}</div>
+          </div>
+
+          <div class="gng-note gng-note--danger">
+            {{ riskNote }}
+            <div class="gng-mt-sm"><button pButton type="button" label="اجرای تحلیل اثر" icon="pi pi-play" class="p-button-sm p-button-warning"></button></div>
+          </div>
+        </div>
+
+        <div>
+          <h3>مقدار مؤثر و منشأ آن <span class="gng-hint" style="display:inline; margin:0">— مقدار مؤثر همیشه از نزدیک‌ترین سطح تعریف‌شده گرفته می‌شود</span></h3>
+          <p-table [value]="effectiveValues" styleClass="p-datatable-sm gng-table gng-mt-sm" responsiveLayout="scroll">
+            <ng-template pTemplate="header">
+              <tr><th>بُعد</th><th>مقدار مؤثر</th><th>مقادیر ممکن</th><th>منشأ</th></tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-r>
+              <tr>
+                <td>{{ r.dimension }}</td>
+                <td><b>{{ r.value }}</b></td>
+                <td class="gng-hint" style="margin:0">{{ r.possible }}</td>
+                <td><p-tag [value]="r.origin" [severity]="r.overridden ? 'warning' : 'secondary'"></p-tag></td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="سطوح سازمانی و ارث‌بری">
+      <p-table [value]="orgLevels" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th>سطح</th><th>نمونه</th><th>می‌تواند بازنویسی کند</th></tr></ng-template>
+        <ng-template pTemplate="body" let-o><tr><td><b>{{ o.level }}</b></td><td>{{ o.sample }}</td><td>{{ o.canOverride }}</td></tr></ng-template>
+      </p-table>
+      <div class="gng-note gng-note--info gng-mt-sm">{{ precedenceNote }}</div>
+      <div class="gng-note gng-note--info gng-mt-sm">{{ entityNote }}</div>
+      <div class="gng-note gng-note--warning gng-mt-sm">{{ externalNote }}</div>
+    </p-tabPanel>
+
+    <p-tabPanel header="واحد سنجش و تبدیل">
+      <p class="gng-hint">واحد اصلی، واحد فرعی و ضرایب تبدیل ثابت و متغیر — تبدیل وابسته به بچ برای اقلامی مانند چگالی یا عرض رول.</p>
+      <p-table [value]="unitRows" styleClass="p-datatable-sm gng-table gng-mt-sm" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th>واحد اصلی</th><th>واحد فرعی</th><th>ضریب ثابت</th><th>ضریب متغیر</th></tr></ng-template>
+        <ng-template pTemplate="body" let-u><tr><td>{{ u.primary }}</td><td>{{ u.secondary }}</td><td>{{ u.fixedFactor }}</td><td>{{ u.variableFactor }}</td></tr></ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <p-tabPanel header="عیار و گِردکردن">
+      <div class="gng-note gng-note--info">{{ potencyNote }}</div>
+      <h3 class="gng-mt">سیاست گِردکردن به تفکیک قلم و عملیات</h3>
+      <p-table [value]="roundingRows" styleClass="p-datatable-sm gng-table gng-mt-sm" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th>دامنه</th><th>سیاست</th><th>دقت</th></tr></ng-template>
+        <ng-template pTemplate="body" let-r><tr><td>{{ r.scope }}</td><td>{{ r.policy }}</td><td>{{ r.precision }}</td></tr></ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <p-tabPanel header="موازنه‌ی جرم و انرژی">
+      <div class="gng-note gng-note--info">{{ massBalanceNote }}</div>
+      <div class="gng-field-grid gng-mt">
+        <div class="gng-field"><span class="gng-field__label">{{ massBalanceStat.label }}</span><span class="gng-field__value">{{ massBalanceStat.value }}</span></div>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="تقویم و زبان">
+      <div class="gng-note gng-note--info">{{ calendarNote }}</div>
+      <h3 class="gng-mt">چندزبانه بودن رابط کاربری و داده‌های پایه</h3>
+      <p-table [value]="languageRows" styleClass="p-datatable-sm gng-table gng-mt-sm" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th>فیلد</th><th>زبان‌های فعال</th></tr></ng-template>
+        <ng-template pTemplate="body" let-l><tr><td>{{ l.field }}</td><td>{{ l.languages }}</td></tr></ng-template>
+      </p-table>
+    </p-tabPanel>
+  </p-tabView>
+</gng-opform-layout>

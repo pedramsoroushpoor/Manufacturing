@@ -1,0 +1,259 @@
+<gng-opform-layout
+  domainTitle="کنترل تولید"
+  title="آزادسازی، شارژ و تغذیه‌ی پای کار"
+  code="FRM-PC-03"
+  formTypeLabel="فرم عملیاتی"
+  owner="برنامه‌ریز / انباردار پای کار"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-box"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="دستورهای قابل آزادسازی و جاری"
+  contextPanelHint="شش نقطه = مواد، ظرفیت، ابزار، مهارت، کیفی، تجهیز."
+  auditFeatureRange="F-PC-020 تا F-PC-030"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-unlock" label="آزادسازی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-send" label="صدور دستور شارژ" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-filter" label="تخصیص FEFO/عیار" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-plus-circle" label="درخواست مازاد" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-undo" label="برگشت به انبار" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-qrcode" label="تحویل با اسکن" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <div class="gng-stat-grid" style="margin-bottom: 0.7rem">
+    <div class="gng-stat-card gng-stat-card--success"><span class="gng-stat-card__label">آماده‌ی آزادسازی</span><span class="gng-stat-card__value">{{ faInt(counts.ready) }}</span><span class="gng-stat-card__meta">همه‌ی پیش‌شرط‌ها برقرار</span></div>
+    <div class="gng-stat-card gng-stat-card--warning"><span class="gng-stat-card__label">با هشدار</span><span class="gng-stat-card__value">{{ faInt(counts.warn) }}</span><span class="gng-stat-card__meta">قابل آزادسازی با تصمیم برنامه‌ریز</span></div>
+    <div class="gng-stat-card gng-stat-card--danger"><span class="gng-stat-card__label">مسدود</span><span class="gng-stat-card__value">{{ faInt(counts.block) }}</span><span class="gng-stat-card__meta">دست‌کم یک مانع</span></div>
+    <div class="gng-stat-card"><span class="gng-stat-card__label">انتقال‌های امروز</span><span class="gng-stat-card__value">{{ faInt(data.kits.length) }}</span><span class="gng-stat-card__meta">ردیف شارژ ثبت‌شده</span></div>
+  </div>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <!-- ───────── آزادسازی و پیش‌شرط‌ها (F-PC-020) ───────── -->
+    <p-tabPanel header="آزادسازی و پیش‌شرط‌ها" [selected]="true">
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc03-checks', 'پیش‌شرط‌های آزادسازی')"></gng-data-source-badge>
+        <p-table [value]="filtered" styleClass="p-datatable-sm gng-table pc3-matrix" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th style="text-align: right">دستور</th><th style="width: 7rem">وضعیت</th>
+              <th *ngFor="let c of CHECK_CODES" style="width: 5rem"><i [class]="CHECK_ICON[c]"></i><div class="gng-small">{{ CHECK_TITLE[c] }}</div></th>
+              <th style="width: 12rem">حکم</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr [class.gng-row-active]="r === selected">
+              <td style="text-align: right; cursor: pointer" (click)="select(r)"><b>{{ r.o.number }}</b><div class="gng-small gng-text-muted">{{ r.o.name }}</div></td>
+              <td><p-tag [value]="WO_STATUS[r.o.statusCode]" [severity]="woStatusTone(r.o.statusCode)"></p-tag></td>
+              <td *ngFor="let c of r.cells">
+                <span class="pc3-cell" [ngClass]="'pc3-cell--' + (c.check?.statusCode || 0)" [class.pc3-cell--sel]="r === selected && selectedCheck === c.code"
+                      [pTooltip]="cellTip(c)" tooltipPosition="top" (click)="select(r, c.code)">
+                  <i [class]="c.check ? (c.check.statusCode === 1 ? 'pi pi-check' : c.check.statusCode === 2 ? 'pi pi-exclamation-triangle' : 'pi pi-times') : 'pi pi-minus'"></i></span>
+              </td>
+              <td><p-tag [value]="r.verdict" [severity]="verdictTone(r.worst)"></p-tag></td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+
+      <div class="gng-columns gng-mt">
+        <div class="gng-panel" *ngIf="selected as r">
+          <h3>پیش‌شرط‌های {{ r.o.number }}</h3>
+          <div class="gng-flag-list">
+            <div class="gng-flag-row" *ngFor="let c of selectedChecks" [class.gng-row-active]="c.code === selectedCheck">
+              <span class="gng-flag-row__label"><i [class]="CHECK_ICON[c.code]"></i> {{ c.title }}
+                <span class="pc3-chip" [ngClass]="'pc3-chip--' + verdictTone(c.statusCode)">{{ CHECK_STATUS[c.statusCode] }}</span></span>
+              <span class="gng-small">{{ c.detail }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="gng-panel">
+          <h3>چه چیزی جلوی آزادسازی را گرفته؟</h3>
+          <div class="gng-flag-row" *ngFor="let s of blockSummary">
+            <span class="gng-flag-row__label"><i [class]="CHECK_ICON[s.code]"></i> {{ CHECK_TITLE[s.code] }}</span>
+            <span>
+              <span *ngFor="let b of s.blocks" class="pc3-chip pc3-chip--danger">{{ b }}</span>
+              <span *ngFor="let w of s.warns" class="pc3-chip pc3-chip--warning">{{ w }}</span>
+              <span *ngIf="!s.blocks.length && !s.warns.length" class="gng-sym--ok"><i class="pi pi-check"></i></span>
+            </span>
+          </div>
+          <p class="gng-hint gng-mt-sm">مانع = آزادسازی ممکن نیست؛ هشدار = با تصمیم برنامه‌ریز. خانه‌ی خاکستری یعنی کنترل برای آن دستور برنگشته (مثلاً دستور بدون قلم مواد).</p>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── دستور شارژ (F-PC-021، 022) ───────── -->
+    <p-tabPanel header="دستور شارژ">
+      <div *ngIf="selected as r" style="position: relative">
+        <gng-data-source-badge [source]="ds('pc03-kits', 'شارژ و انتقال')"></gng-data-source-badge>
+        <p class="gng-hint">برنامه در برابر انتقال‌ها: هر انتقال به اندازه‌ی بچ عملیات یا بسته است، نه کل نیاز دستور یک‌جا.</p>
+        <p-table [value]="chargeRows" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th style="width: 3.5rem">عملیات</th><th>قلم</th><th style="width: 10rem">سیاست تغذیه</th><th style="width: 7rem">برنامه</th><th style="width: 7rem">تحویل</th><th style="width: 7rem">در صف</th><th style="width: 7rem">مصرف</th><th style="width: 13rem">پیشرفت</th><th>انتقال‌ها</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-c>
+            <tr>
+              <td>{{ faInt(c.m.operationSeq) }}</td>
+              <td>{{ c.m.productCode }} — {{ c.m.productTitle }}<span *ngIf="c.m.customer" class="pc3-chip pc3-chip--info">امانی</span></td>
+              <td class="gng-small">{{ c.policy }}</td>
+              <td>{{ faNum(c.planned) }} {{ c.m.unit }}</td>
+              <td>{{ faNum(c.delivered) }}</td>
+              <td>{{ c.scheduled ? faNum(c.scheduled) : '—' }}</td>
+              <td>{{ faNum(c.consumed) }}</td>
+              <td><div class="pc3-bar">
+                <div class="pc3-seg pc3-seg--cons" style="right: 0" [style.width.%]="c.consumedPct"></div>
+                <div class="pc3-seg pc3-seg--del" [style.right.%]="c.consumedPct" [style.width.%]="c.deliveredPct"></div>
+                <div class="pc3-seg pc3-seg--sch" [style.right.%]="c.consumedPct + c.deliveredPct" [style.width.%]="c.scheduledPct"></div></div></td>
+              <td><span *ngFor="let k of c.kits" class="pc3-chip" [ngClass]="k.statusCode === 1 ? 'pc3-chip--info' : k.statusCode === 2 ? 'pc3-chip--success' : ''" [pTooltip]="KIT_STATUS[k.statusCode] + ' — ' + faDateTime(k.effectiveDate)">#{{ faInt(k.transferNo) }} {{ faNum(k.kitQuantity) }}</span>
+                <span *ngIf="!c.kits.length" class="gng-small gng-text-muted">بدون انتقال</span></td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="9" class="gng-empty">برای {{ r.o.number }} قلم مواد قابل شارژ ثبت نشده است.</td></tr></ng-template>
+        </p-table>
+        <div class="gng-legend gng-mt-sm"><span><span class="gng-legend-dot" style="background: var(--gng-text-muted)"></span>مصرف‌شده</span><span><span class="gng-legend-dot gng-legend-dot--success"></span>تحویل‌شده پای کار</span><span><span class="gng-legend-dot gng-legend-dot--info"></span>برنامه‌ی انتقال</span></div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── انتقال پای کار با بارکد (F-PC-022، 030) ───────── -->
+    <p-tabPanel [header]="'انتقال پای کار (' + faInt(orderKitViews.length) + ')'">
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc03-kits', 'شارژ و انتقال')"></gng-data-source-badge>
+        <div class="pc3-kits">
+          <div class="pc3-kit" *ngFor="let v of orderKitViews" [class.pc3-kit--sub]="v.substitution">
+            <div style="display: flex; justify-content: space-between"><b>{{ v.k.productTitle }}</b><span class="pc3-chip" [ngClass]="v.k.statusCode === 1 ? 'pc3-chip--info' : v.k.statusCode === 2 ? 'pc3-chip--success' : ''">{{ KIT_STATUS[v.k.statusCode] }}</span></div>
+            <div class="gng-small gng-text-muted">عملیات {{ faInt(v.k.operationSeq) }} {{ v.k.operationTitle }} · انتقال {{ faInt(v.k.transferNo) }} · {{ faDateTime(v.k.effectiveDate) }}</div>
+            <div class="gng-mt-sm">{{ faNum(v.k.kitQuantity) }} {{ v.k.unit }} از بچ <b>{{ v.k.batch }}</b></div>
+            <div class="gng-small gng-text-muted">{{ v.k.source || 'مبدأ نامشخص' }}</div>
+            <div class="pc3-barcode">
+              <svg [attr.viewBox]="'0 0 ' + v.barTotal + ' 24'" width="100%" height="38" preserveAspectRatio="none">
+                <rect *ngFor="let b of v.bars" [attr.x]="b.x" y="0" [attr.width]="b.w" height="24" fill="#000"></rect>
+              </svg>
+              <div style="font-family: monospace; font-size: 0.66rem; color: #000; direction: ltr">{{ v.barText }}</div>
+            </div>
+            <div class="gng-small gng-text-muted" style="direction: ltr; text-align: left">QR: {{ v.k.scanCode }}</div>
+            <div *ngIf="v.k.description" class="gng-small gng-mt-sm" [style.color]="v.substitution ? 'var(--gng-warning)' : null">{{ v.k.description }}</div>
+          </div>
+        </div>
+        <div *ngIf="!orderKitViews.length" class="gng-empty">برای این دستور هنوز انتقالی ثبت نشده است.</div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── تخصیص و رزرو موجودی (F-PC-024، 025، 029) ───────── -->
+    <p-tabPanel header="تخصیص و رزرو موجودی">
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc03-kits', 'تخصیص بچ')"></gng-data-source-badge>
+        <div *ngIf="fefoIssues.length" class="gng-note gng-note--warning"><div *ngFor="let k of fefoIssues"><i class="pi pi-sort-amount-down"></i> {{ orderNumber(k.k.workOrderId) }} — {{ k.k.productTitle }} بچ {{ k.k.batch }}: {{ k.fefo }}</div></div>
+        <div *ngFor="let s of substitutions" class="gng-note gng-note--info gng-mt-sm">
+          <i class="pi pi-sync"></i> <b>جایگزینی در {{ orderNumber(s.k.k.workOrderId) }}:</b> {{ s.k.k.productTitle }} ← {{ s.m?.substitutedTitle || 'جایگزین' }} (بچ {{ s.k.k.batch }}) · برنامه {{ faNum(s.m?.plannedKit) }} ← تحویل {{ faNum(s.k.k.kitQuantity) }} {{ s.k.k.unit }} · {{ s.m?.description || s.k.k.description }}
+        </div>
+        <p-table [value]="kitViews" styleClass="p-datatable-sm gng-table gng-mt-sm" responsiveLayout="scroll" sortField="k.productCode">
+          <ng-template pTemplate="header">
+            <tr><th style="width: 8rem">دستور</th><th>قلم</th><th style="width: 8rem">بچ</th><th>مبدأ</th><th style="width: 9rem">انقضا</th><th style="width: 6rem">عیار</th><th style="width: 7rem">مقدار مؤثر</th><th style="width: 7rem">مقدار فیزیکی</th><th style="width: 7rem">تصحیح عیار</th><th style="width: 6rem">FEFO</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-v>
+            <tr [class.gng-row-active]="v.k.workOrderId === selected?.o?.id">
+              <td>{{ orderNumber(v.k.workOrderId) }}</td>
+              <td>{{ v.k.productCode }} — {{ v.k.productTitle }}<span *ngIf="v.substitution" class="pc3-chip pc3-chip--warning">جایگزین</span></td>
+              <td>{{ v.k.batch }}</td>
+              <td class="gng-small">{{ v.k.source || '—' }}</td>
+              <td><span *ngIf="v.k.expireDate; else noExp" class="pc3-chip" [ngClass]="'pc3-chip--' + v.expiryTone">{{ faDay(v.k.expireDate) }} · {{ faInt(v.daysToExpiry) }} روز</span><ng-template #noExp><span class="gng-text-muted">—</span></ng-template></td>
+              <td>{{ v.k.potency ? faPct(v.k.potency) : '—' }}</td>
+              <td>{{ faNum(v.k.activeQuantity, 3) }}</td>
+              <td>{{ faNum(v.k.kitQuantity, 3) }}</td>
+              <td [style.color]="v.potencyDelta > 0.001 ? 'var(--gng-info)' : null">{{ v.k.potency ? '+' + faNum(v.potencyDelta, 3) : '—' }}</td>
+              <td><i [class]="v.fefo ? 'pi pi-exclamation-triangle gng-sym--warn' : 'pi pi-check gng-sym--ok'" [pTooltip]="v.fefo || 'مطابق FEFO'"></i></td>
+            </tr>
+          </ng-template>
+        </p-table>
+        <p class="gng-hint gng-mt-sm">مقدار مؤثر = نیاز فرمول؛ مقدار فیزیکی = مؤثر ÷ عیار بچ (PF-81). FEFO: اگر بچی از همان قلم با انقضای زودتر ظرف ۲۴ ساعت بعد در دستور دیگری شارژ شده، یعنی موجود بوده و باید زودتر مصرف می‌شد.</p>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── مازاد و برگشتی (F-PC-026، 027) ───────── -->
+    <p-tabPanel [header]="'مازاد و برگشتی (' + faInt(data.excess.length + data.returns.length) + ')'">
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc03-excess', 'درخواست مازاد')"></gng-data-source-badge>
+        <h3>درخواست کالای مازاد</h3>
+        <p-table [value]="excessViews" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th style="width: 8rem">دستور</th><th>قلم</th><th style="width: 7rem">مازاد</th><th>علت</th><th style="width: 13rem">مصرف کل / سقف</th><th style="width: 9rem">زمان</th><th style="width: 10rem">تأیید</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-x>
+            <tr>
+              <td>{{ x.order }}</td>
+              <td>{{ x.e.product }}</td>
+              <td>{{ faNum(x.e.quantity) }} {{ x.e.unit }}</td>
+              <td>{{ x.e.reason }}<div class="gng-small gng-text-muted">{{ x.e.description }}</div></td>
+              <td><div class="gng-kpi__bar"><div class="gng-kpi__bar-fill" [ngClass]="x.over ? 'gng-kpi__bar-fill--danger' : 'gng-kpi__bar-fill--info'" [style.width.%]="x.pct > 110 ? 100 : (x.pct - 90) * 5"></div></div>
+                <span class="gng-small" [style.color]="x.over ? 'var(--gng-danger)' : null">{{ faPct(x.pct) }} {{ x.e.maxPercent !== null ? '/ سقف ' + faPct(x.e.maxPercent) : '/ بدون سقف' }}</span></td>
+              <td>{{ faDateTime(x.e.requestDate) }}</td>
+              <td><p-tag [value]="EXCESS_STATUS[x.e.statusCode]" [severity]="excessTone(x.e.statusCode)"></p-tag><div class="gng-small gng-text-muted">{{ x.e.approver }}</div></td>
+            </tr>
+          </ng-template>
+        </p-table>
+
+        <h3 class="gng-mt">برگشت به انبار</h3>
+        <p-table [value]="data.returns" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th style="width: 8rem">دستور</th><th>قلم</th><th style="width: 7rem">مقدار</th><th>دلیل</th><th style="width: 8rem">بچ</th><th style="width: 9rem">سند</th><th style="width: 9rem">زمان</th><th style="width: 7rem">در حد مجاز</th></tr></ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr><td>{{ orderNumber(r.workOrderId) }}</td><td>{{ r.product }}</td><td>{{ faNum(r.quantity) }} {{ r.unit }}</td><td>{{ r.reason }}</td><td>{{ r.batch }}</td><td>{{ r.document }}</td><td>{{ faDateTime(r.date) }}</td>
+              <td><i [class]="r.withinTolerance ? 'pi pi-check gng-sym--ok' : 'pi pi-times gng-sym--no'"></i></td></tr>
+          </ng-template>
+        </p-table>
+
+        <h3 class="gng-mt">مانده‌ی برگشت‌نخورده در دستورهای پایان‌یافته</h3>
+        <div class="gng-flag-row" *ngFor="let u of unreturned">
+          <span class="gng-flag-row__label"><i class="pi pi-exclamation-circle gng-sym--warn"></i> {{ u.order }} — {{ u.m.productTitle }}</span>
+          <span>شارژ {{ faNum(u.m.actualKit) }} · مصرف {{ faNum(u.m.consumed) }} · برگشت ثبت‌شده {{ faNum(u.m.returned || 0) }} ← <b style="color: var(--gng-warning)">{{ faNum(u.left) }} {{ u.m.unit }}</b></span>
+        </div>
+        <div *ngIf="!unreturned.length" class="gng-empty">مانده‌ای نیست.</div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── موجودی لحظه‌ای (F-PC-023، 028) ───────── -->
+    <p-tabPanel header="موجودی لحظه‌ای پای کار">
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc03-line-side', 'موجودی پای کار')"></gng-data-source-badge>
+        <div class="pc3-block" style="align-items: center; margin-bottom: 0.5rem">
+          <span class="pc3-chip" [class.pc3-chip--on]="gaugeScope === 'all'" style="cursor: pointer" (click)="setGaugeScope('all')">همه‌ی دستورهای در جریان</span>
+          <span class="pc3-chip" [class.pc3-chip--on]="gaugeScope === 'order'" style="cursor: pointer" (click)="setGaugeScope('order')">فقط {{ selected?.o?.number }}</span>
+        </div>
+        <div class="pc3-gauges">
+          <div class="pc3-gauge" *ngFor="let g of gauges">
+            <div style="display: flex; justify-content: space-between; gap: 0.4rem"><b>{{ g.l.productTitle }}</b><span class="gng-small gng-text-muted">{{ g.l.workOrderNumber }}</span></div>
+            <div class="gng-small gng-text-muted">{{ g.l.feedingPolicyCode ? FEEDING_POLICY[g.l.feedingPolicyCode] : 'بدون سیاست' }} · {{ g.l.group }}</div>
+            <div class="pc3-gauge__track">
+              <div class="pc3-gauge__fill" [style.width.%]="g.onPct" [style.background]="g.signalTone === 'danger' ? 'var(--gng-danger)' : g.signalTone === 'warning' ? 'var(--gng-warning)' : 'var(--gng-success)'"></div>
+              <div class="pc3-gauge__mark" *ngIf="g.needPct" [style.right.%]="g.needPct" style="background: var(--gng-text)"><span>نیاز</span></div>
+              <div class="pc3-gauge__mark" *ngIf="g.minPct !== null" [style.right.%]="g.minPct" style="background: var(--gng-warning)"><span>min</span></div>
+              <div class="pc3-gauge__mark" *ngIf="g.ropPct !== null" [style.right.%]="g.ropPct" style="background: var(--gng-danger)"><span>ROP</span></div>
+              <div class="pc3-gauge__mark" *ngIf="g.maxPct !== null" [style.right.%]="g.maxPct" style="background: var(--gng-info)"><span>max</span></div>
+            </div>
+            <div class="gng-small">پای کار <b>{{ faNum(g.l.onLine) }} {{ g.l.unit }}</b> · تحویل {{ faNum(g.l.delivered) }} · مصرف {{ faNum(g.l.consumed) }} · نیاز باقی {{ faNum(g.l.remainingNeed) }}</div>
+            <div class="gng-small" *ngIf="g.runOutH !== null">اتمام تخمینی با نرخ جاری: <b>{{ faDuration(g.runOutH * 60) }}</b> دیگر</div>
+            <span class="pc3-chip" [ngClass]="'pc3-chip--' + g.signalTone">{{ g.signal }}</span>
+            <div *ngIf="g.policyIssue" class="gng-small" style="color: var(--gng-danger)"><i class="pi pi-exclamation-triangle"></i> {{ g.policyIssue }}</div>
+          </div>
+        </div>
+        <div *ngIf="!gauges.length" class="gng-empty">برای این دستور موجودی پای کار ثبت نشده است.</div>
+        <p class="gng-hint gng-mt-sm">موجودی پای کار = تحویل − مصرف − برگشت به تفکیک دستور و قلم. زمان اتمام از نرخ مصرف از نخستین تحویل تا اکنون تخمین زده می‌شود. فراخوان کششی وقتی پیشنهاد می‌شود که موجودی به نقطه‌ی سفارش سیاست ME-06 برسد.</p>
+      </div>
+      <div class="gng-note gng-note--info gng-mt"><strong>هنوز پیاده نشده.</strong> آزادسازی دستور، صدور دستور شارژ بر مبنای سیاست تغذیه، تخصیص و رزرو بچ (FEFO/عیار)، ثبت جایگزینی، درخواست و تأیید مازاد، برگشت به انبار با سند خودکار، فراخوان کششی خودکار و تحویل/مصرف با اسکن بارکد/QR/RFID — با فاز ایجاد/ویرایش می‌آیند.</div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <!-- ───────── پنل زمینه ───────── -->
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="ds('pc03-checks', 'پیش‌شرط‌های آزادسازی')"></gng-data-source-badge>
+    <span class="p-input-icon-right" style="width: 100%">
+      <i class="pi pi-search"></i>
+      <input pInputText type="text" class="p-inputtext-sm" style="width: 100%" placeholder="جست‌وجو…" [(ngModel)]="search" (ngModelChange)="applyFilter()" />
+    </span>
+    <div *ngFor="let r of filtered" class="pc3-item" [class.pc3-item--sel]="r === selected" (click)="select(r)">
+      <div style="display: flex; justify-content: space-between; align-items: center"><b>{{ r.o.number }}</b><p-tag [value]="WO_STATUS[r.o.statusCode]" [severity]="woStatusTone(r.o.statusCode)"></p-tag></div>
+      <div>{{ r.o.name }}</div>
+      <div class="pc3-dots"><span *ngFor="let c of r.cells" [ngClass]="'pc3-d' + (c.check?.statusCode || 0)" [pTooltip]="cellTip(c)"></span></div>
+    </div>
+    <div *ngIf="!filtered.length" class="gng-empty">موردی پیدا نشد.</div>
+  </div>
+</gng-opform-layout>

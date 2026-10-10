@@ -1,0 +1,289 @@
+<gng-opform-layout
+  domainTitle="مدیریت منابع"
+  title="نیروی کار و ماتریس مهارت"
+  code="FRM-RM-03"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="منابع انسانی تولید"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-users"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="سلسله‌مراتب سازمانی و مکانی"
+  contextPanelHint="با انتخاب هر گره، خط یا ایستگاه، همه‌ی تب‌ها به نیروی همان دامنه محدود می‌شوند."
+  auditFeatureRange="F-RM-020 تا F-RM-023، F-RM-029 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-user-plus" label="فراخوانی پرسنل از HR" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-verified" label="ثبت سطح مهارت و اعتبار" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-shield" label="تعیین الزام مهارت عملیات" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-users" label="تعریف گروه کاری" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="scopeLoading">
+    <!-- ───────── پرسنل تولید ───────── -->
+    <p-tabPanel header="پرسنل تولید" [selected]="true">
+      <p class="gng-hint">
+        مشخصات فردی از سیستم منابع انسانی فراخوانی می‌شود؛ این فرم فقط ارتباط نفر با گروه، ایستگاه و مهارت را نگه می‌دارد —
+        {{ fa(personnel.length) }} نفر.
+      </p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="personnelSource()"></gng-data-source-badge>
+        <p-table [value]="personnel" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 6rem">کد پرسنلی</th>
+              <th>نام</th>
+              <th>سمت</th>
+              <th>گروه پرسنلی</th>
+              <th>گروه کاری</th>
+              <th>ایستگاه</th>
+              <th style="width: 8rem">مهارت معتبر</th>
+              <th style="width: 7rem">وضعیت</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-p>
+            <tr>
+              <td>{{ p.code }}</td>
+              <td>{{ p.name }}</td>
+              <td>{{ p.post }}</td>
+              <td>{{ p.personnelGroup }}</td>
+              <td>{{ p.workingGroup }}</td>
+              <td>{{ p.stations }}</td>
+              <td>
+                {{ fa(p.validSkillCount) }}
+                <p-tag *ngIf="p.multiSkilled" value="چندمهارته" severity="info" styleClass="gng-mr-sm"></p-tag>
+              </td>
+              <td><p-tag [value]="p.active ? 'فعال' : 'غیرفعال'" [severity]="p.active ? 'success' : 'danger'"></p-tag></td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="8" class="gng-empty">در «{{ contextLabel }}» نیرویی تعریف یا تخصیص داده نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── مهارت‌ها ───────── -->
+    <p-tabPanel header="مهارت‌ها">
+      <p class="gng-hint">کاتالوگ مهارت مشترک است؛ ستون‌های «دارنده» فقط نیروی دامنه‌ی انتخاب‌شده را می‌شمارند.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="skillsSource()"></gng-data-source-badge>
+        <p-table [value]="skills" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 7rem">کد مهارت</th>
+              <th>عنوان</th>
+              <th style="width: 7rem">دسته</th>
+              <th style="width: 9rem">دوره‌ی بازآموزی</th>
+              <th style="width: 8rem">دارنده‌ی معتبر</th>
+              <th style="width: 9rem">سطح مستقل به بالا</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-s>
+            <tr>
+              <td>{{ s.code }}</td>
+              <td>{{ s.title }}</td>
+              <td>{{ s.category }}</td>
+              <td>{{ s.retraining }}</td>
+              <td>{{ fa(s.holderCount) }}</td>
+              <td>{{ fa(s.independentCount) }}</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="6" class="gng-empty">مهارتی تعریف نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+
+      <h3 class="gng-section-title">الزام مهارت برای عملیات</h3>
+      <p class="gng-hint">هنگام تخصیص نفر به عملیات، نبودِ مهارت با سطح کافی بسته به «رفتار» یا هشدار می‌دهد یا مانع می‌شود.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="requirementsSource()"></gng-data-source-badge>
+        <p-table [value]="requirements" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>عملیات</th>
+              <th>مهارت لازم</th>
+              <th style="width: 10rem">حداقل سطح</th>
+              <th style="width: 6rem">رفتار</th>
+              <th style="width: 11rem">واجد شرایط در این دامنه</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr>
+              <td>{{ r.operation }}</td>
+              <td>{{ r.skill }}</td>
+              <td>{{ fa(r.minLevel) }} — {{ r.minLevelLabel }}</td>
+              <td><p-tag [value]="r.mode === 'block' ? 'منع' : 'هشدار'" [severity]="r.mode === 'block' ? 'danger' : 'warning'"></p-tag></td>
+              <td>
+                <ng-container *ngIf="r.qualifiedCount > 0; else none">{{ fa(r.qualifiedCount) }} نفر</ng-container>
+                <ng-template #none><span class="gng-text-muted">هیچ‌کس</span></ng-template>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="5" class="gng-empty">الزامی تعریف نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── ماتریس مهارت ───────── -->
+    <p-tabPanel header="ماتریس مهارت">
+      <p class="gng-empty" *ngIf="!matrix.rows.length">در «{{ contextLabel }}» نیرویی برای نمایش در ماتریس نیست.</p>
+
+      <ng-container *ngIf="matrix.rows.length">
+        <ul class="gng-skill-legend">
+          <li *ngFor="let l of levels"><span class="gng-skill-level" [ngClass]="'gng-skill-level--' + l">{{ fa(l) }}</span>{{ levelLabel(l) }}</li>
+          <li><i class="pi pi-clock"></i>نزدیک موعد</li>
+          <li><i class="pi pi-refresh"></i>موعد بازآموزی گذشته</li>
+          <li><i class="pi pi-times-circle"></i>منقضی</li>
+        </ul>
+        <div style="position: relative; overflow-x: auto">
+          <gng-data-source-badge [source]="matrixSource()"></gng-data-source-badge>
+          <table class="gng-matrix">
+            <thead>
+              <tr>
+                <th>پرسنل \ مهارت</th>
+                <th *ngFor="let s of matrix.skills" [title]="s.code">{{ s.title }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of matrix.rows; trackBy: trackPerson">
+                <th>{{ row.person.name }}</th>
+                <td *ngFor="let cell of row.cells">
+                  <ng-container *ngIf="cell; else blank">
+                    <span
+                      class="gng-skill-level"
+                      [ngClass]="['gng-skill-level--' + cell.level, cell.status === 'expired' ? 'gng-skill-level--expired' : '']"
+                      [title]="cell.hint"
+                      [attr.aria-label]="cell.hint"
+                      >{{ fa(cell.level) }}</span
+                    ><i *ngIf="cell.status !== 'valid'" class="gng-skill-flag" [ngClass]="validityIcon(cell.status)" [title]="cell.hint"></i>
+                  </ng-container>
+                  <ng-template #blank><span class="gng-text-muted">—</span></ng-template>
+                </td>
+              </tr>
+              <tr>
+                <th>پوشش (مستقل به بالا)</th>
+                <td *ngFor="let c of matrix.coverage"><strong>{{ fa(c) }}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="gng-hint gng-mt-sm">سلول خالی یعنی نفر آن مهارت را ندارد. مهارت منقضی در «پوشش» شمرده نمی‌شود.</p>
+
+        <h3 class="gng-section-title">اعتبار و بازآموزی</h3>
+        <p class="gng-note gng-note--success" *ngIf="!validityIssues.length">همه‌ی مهارت‌های این دامنه معتبرند و موعد بازآموزی نزدیکی ندارند.</p>
+        <p-table *ngIf="validityIssues.length" [value]="validityIssues" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th>پرسنل</th><th>مهارت</th><th style="width: 9rem">سطح</th><th style="width: 12rem">وضعیت</th><th style="width: 8rem">تاریخ</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-v>
+            <tr>
+              <td>{{ v.person }}</td>
+              <td>{{ v.skill }}</td>
+              <td>{{ v.level }}</td>
+              <td><p-tag [value]="validityLabel(v.status)" [severity]="validitySeverity(v.status)"></p-tag></td>
+              <td>{{ v.date }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </ng-container>
+    </p-tabPanel>
+
+    <!-- ───────── گروه کاری ───────── -->
+    <p-tabPanel header="گروه کاری">
+      <div style="position: relative">
+        <gng-data-source-badge [source]="workingGroupsSource()"></gng-data-source-badge>
+        <p-table [value]="workingGroups" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 7rem">کد</th>
+              <th>عنوان</th>
+              <th>تخصیص به</th>
+              <th>سرگروه</th>
+              <th>اعضا</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-g>
+            <tr>
+              <td>{{ g.code }}</td>
+              <td>{{ g.title }}</td>
+              <td>{{ g.assignedTo }}</td>
+              <td>{{ g.head }}</td>
+              <td>{{ g.members }} <span class="gng-text-muted">({{ fa(g.memberCount) }} نفر)</span></td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="5" class="gng-empty">در «{{ contextLabel }}» گروه کاری تخصیص داده نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+
+      <h3 class="gng-section-title">نفر چندایستگاهه و محدودیت هم‌زمانی</h3>
+      <p class="gng-hint">
+        هر نفر در یک لحظه فقط در یک ایستگاه است، مگر سقف هم‌زمانی‌اش بیشتر تعریف شده باشد. همه‌ی تخصیص‌های جاری نفر شمرده
+        می‌شود، حتی ایستگاه‌های بیرون از دامنه‌ی انتخاب.
+      </p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="stationLaborSource()"></gng-data-source-badge>
+        <p-table [value]="concurrency" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>پرسنل</th>
+              <th>ایستگاه‌های جاری (درصد اشتغال)</th>
+              <th style="width: 8rem">ایستگاه / سقف</th>
+              <th style="width: 8rem">مجموع اشتغال</th>
+              <th style="width: 16rem">وضعیت</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-c>
+            <tr>
+              <td>{{ c.person }}</td>
+              <td>
+                <div *ngFor="let s of c.stations">
+                  {{ s.label }} <span class="gng-text-muted">({{ fa(s.percent) }}٪<ng-container *ngIf="s.head"> · سرگروه</ng-container>)</span>
+                </div>
+              </td>
+              <td>{{ fa(c.stationCount) }} / {{ fa(c.maxStations) }}</td>
+              <td>{{ fa(c.engagement) }}٪</td>
+              <td>
+                <p-tag *ngIf="!c.violation" value="در سقف مجاز" severity="success"></p-tag>
+                <ng-container *ngIf="c.violation">
+                  <p-tag value="نقض" severity="danger" styleClass="gng-mr-sm"></p-tag>{{ c.reason }}
+                </ng-container>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="5" class="gng-empty">در «{{ contextLabel }}» نفری به ایستگاه تخصیص داده نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── نرخ و محرک هزینه (فاز ۳) ───────── -->
+    <p-tabPanel header="نرخ و محرک هزینه">
+      <div class="gng-note gng-note--info">
+        <strong>هنوز پیاده نشده.</strong> نرخ ساعتی و محرک هزینه‌ی نیروی کار (F-RM-028) اولویت «مهم» و فاز ۳ دارد و در فاز
+        اول — که فقط فیچرهای الزامی را می‌پوشاند — نیامده است. طبق طراحی، این داده حساس است و فقط برای نقش «کارشناس بهای
+        تمام‌شده» نمایش داده خواهد شد.
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="orgTreeSource()"></gng-data-source-badge>
+    <p-tree
+      [value]="orgTree"
+      styleClass="gng-tree"
+      selectionMode="single"
+      [(selection)]="selectedTreeNode"
+      (onNodeSelect)="onTreeSelect($event)"
+      (onNodeUnselect)="onTreeUnselect($event)"
+    ></p-tree>
+  </div>
+</gng-opform-layout>

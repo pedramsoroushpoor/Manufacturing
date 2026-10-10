@@ -1,0 +1,249 @@
+<gng-opform-layout
+  domainTitle="کنترل تولید"
+  title="مصرف مواد"
+  code="FRM-PC-06"
+  formTypeLabel="فرم عملیاتی"
+  owner="سرپرست تولید / انبار پای کار"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-box"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="دستورهای کار"
+  contextPanelHint="به ترتیب تعداد مورد بررسی."
+  auditFeatureRange="F-PC-044 تا F-PC-055 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-plus" label="ثبت مصرف دستی" class="p-button-sm p-button-success"></button>
+    <button pButton type="button" icon="pi pi-bolt" label="اجرای Backflush" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-replay" label="سند معکوس" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-inbox" label="رفع صف کسری" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-send" label="صدور سند انبار" class="p-button-sm"></button>
+  </ng-container>
+
+  <div *ngIf="woFlags.length" class="gng-note gng-note--warning" style="margin-bottom: .6rem">
+    <div *ngFor="let f of woFlags"><i class="pi" [ngClass]="f.tone === 'danger' ? 'pi-times-circle gng-sym--no' : 'pi-exclamation-circle gng-sym--warn'"></i> {{ f.text }}</div>
+  </div>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <!-- ───────── دفتر مصرف (F-PC-044، 045، 046، 047، 048، 049، 052) ───────── -->
+    <p-tabPanel [header]="'دفتر مصرف (' + faInt(modeCount(0)) + ')'" [selected]="true">
+      <div class="chips">
+        <span *ngFor="let m of modeChips" class="chip" [class.on]="modeFilter === m.code" (click)="modeFilter = m.code">{{ m.label }} ({{ faInt(modeCount(m.code)) }})</span>
+        <input pInputText type="text" class="p-inputtext-sm" placeholder="جستجوی کالا، بچ، سند…" [(ngModel)]="search" style="width: 15rem; margin-inline-start: auto" />
+      </div>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc06-consumption', 'ثبت‌های مصرف')"></gng-data-source-badge>
+        <p-table [value]="ledger" styleClass="p-datatable-sm gng-table" [scrollable]="true" scrollHeight="420px">
+          <ng-template pTemplate="header">
+            <tr><th>#</th><th>عملیات</th><th>کالا</th><th>بچ</th><th>مصرف</th><th>نظری</th><th>حالت</th><th>سند</th><th>یادداشت</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-c>
+            <tr [class.row-bad]="c.shortageCode > 1 || (c.group === 'مواد مؤثره' && c.modeCode !== 1)">
+              <td class="gng-small">{{ faInt(c.id) }}</td>
+              <td>{{ faInt(c.seq) }} {{ c.opTitle }}</td>
+              <td>{{ c.productCode }} {{ c.product }}
+                <p-tag *ngIf="c.recovered" value="بازیابی" severity="success"></p-tag>
+                <p-tag *ngIf="c.customer" value="امانی" severity="contrast"></p-tag>
+                <p-tag *ngIf="c.substitute" value="جایگزین" severity="warning" [pTooltip]="c.substitute"></p-tag>
+              </td>
+              <td class="gng-small">{{ c.batch || '—' }}</td>
+              <td [style.color]="c.isReversal ? 'var(--gng-danger)' : ''"><b>{{ c.isReversal ? '−' : '' }}{{ faNum(c.consumed, 4) }}</b> {{ c.unit }}</td>
+              <td>{{ faNum(c.theoretical, 4) }}{{ c.potency ? ' · عیار ' + faPct(c.potency) : '' }}</td>
+              <td><p-tag [value]="CONSUMPTION_MODE[c.modeCode]" [severity]="MODE_TONE[c.modeCode]"></p-tag></td>
+              <td class="gng-small">{{ c.doc }}<br /><span class="gng-text-muted">{{ c.report || c.docPattern }}</span></td>
+              <td class="gng-small">
+                <span *ngIf="c.isReversal" style="color: var(--gng-danger)">← معکوسِ #{{ faInt(c.reversedId) }}. </span>
+                <span *ngIf="reversedBy(c) as r" style="color: var(--gng-danger)">معکوس‌شده با #{{ faInt(r.id) }}. </span>
+                <span *ngIf="c.shortageCode > 1" style="color: var(--gng-danger)">کسری {{ faInt(c.shortage) }} — {{ SHORTAGE[c.shortageCode] }}. </span>
+                {{ c.description }}
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="9" class="gng-empty">ثبتی با این فیلتر نیست.</td></tr></ng-template>
+        </p-table>
+      </div>
+
+      <div class="gng-columns gng-mt" style="grid-template-columns: 1fr 1fr">
+        <div class="gng-panel">
+          <h3>مصرف ترکیبی — حالت هر قلم در برابر سیاست</h3>
+          <div class="gng-flag-row" *ngFor="let m of mixedModes" style="align-items: flex-start; margin-bottom: .45rem">
+            <span class="gng-flag-row__label" style="flex-direction: column; align-items: flex-start">
+              <span>{{ m.product }}</span>
+              <span class="gng-small" [style.color]="m.mismatch ? 'var(--gng-danger)' : 'var(--gng-text-muted)'">{{ m.mismatch || ('سیاست: ' + (m.policy ? POLICY[m.policy] : 'تعریف نشده') + (m.control ? ' · کنترل: ' + CONTROL[m.control] : '')) }}</span>
+            </span>
+            <span><p-tag *ngFor="let md of m.modes" [value]="CONSUMPTION_MODE[md]" [severity]="MODE_TONE[md]" styleClass="gng-mt-sm"></p-tag></span>
+          </div>
+        </div>
+        <div class="gng-panel">
+          <h3>سند معکوس و صف کسری</h3>
+          <div *ngFor="let ch of chains" class="rev-chain gng-mt-sm">
+            <span class="box">#{{ faInt(ch.original.id) }} {{ ch.original.doc }}<br />{{ faNum(ch.original.consumed, 4) }} {{ ch.original.unit }}</span><i class="pi pi-arrow-left"></i>
+            <span class="box neg">#{{ faInt(ch.reversal.id) }} {{ ch.reversal.doc }}<br />−{{ faNum(ch.reversal.consumed, 4) }}</span><i class="pi pi-arrow-left"></i>
+            <span class="box" *ngIf="ch.repost as r">#{{ faInt(r.id) }} {{ r.doc }}<br />{{ faNum(r.consumed, 4) }}</span>
+            <div class="gng-small gng-text-muted" style="flex-basis: 100%">{{ ch.reversal.description }}</div>
+          </div>
+          <div *ngIf="!chains.length" class="gng-text-muted gng-small">برای این دستور سند معکوسی نیست.</div>
+          <h4 class="gng-mt">صف اصلاح کسری (همه‌ی دستورها)</h4>
+          <div class="gng-flag-row" *ngFor="let s of shortages"><span class="gng-flag-row__label"><i class="pi pi-inbox gng-sym--no"></i>{{ woNo(s.woId) }} · {{ s.product }} · {{ s.report }}</span><b>{{ faInt(s.shortage) }} {{ s.unit }}</b></div>
+          <h4 class="gng-mt">اسناد مصرف صادرشده به انبار</h4>
+          <div class="gng-flag-row" *ngFor="let d of docs"><span class="gng-flag-row__label"><i class="pi pi-file"></i>{{ d.doc }}</span><span class="gng-small">{{ d.pattern }} · {{ faInt(d.rows) }} قلم</span></div>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── انحراف مصرف (F-PC-050) ───────── -->
+    <p-tabPanel header="انحراف مصرف">
+      <p class="gng-hint">مصرف واقعی ÷ استاندارد برای مقدار تولیدشده. نوار سبز = باند حداقل/حداکثر ردیف ساختار، خط سیاه = ۱۰۰٪، دایره = واقعی.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc06-variance', 'انحراف مصرف')"></gng-data-source-badge>
+        <p-table [value]="bullets" styleClass="p-datatable-sm gng-table">
+          <ng-template pTemplate="header"><tr><th>عملیات / ماده</th><th>تولیدشده</th><th>استاندارد</th><th>واقعی</th><th>نسبت</th><th style="width: 14rem"></th><th>توضیح</th></tr></ng-template>
+          <ng-template pTemplate="body" let-b>
+            <tr>
+              <td>{{ faInt(b.v.seq) }} · {{ b.v.product }} <p-tag *ngIf="b.v.active" value="مؤثره" severity="danger"></p-tag> <p-tag *ngIf="b.v.customer" value="امانی" severity="contrast"></p-tag></td>
+              <td>{{ faNum(b.v.produced) }}</td><td>{{ faNum(b.v.standard, 3) }} {{ b.v.unit }}</td><td>{{ faNum(b.v.actual, 3) }}</td>
+              <td [style.color]="b.tone"><b>{{ faPct(b.pct) }}</b></td>
+              <td><div class="bullet">
+                <div class="band" [style.right.%]="b.bandRight" [style.width.%]="b.bandWidth"></div>
+                <div class="std" [style.right.%]="((100 - b.lo) / (b.hi - b.lo)) * 100"></div>
+                <div class="mk" [style.right.%]="b.marker" [style.background]="b.tone"></div>
+              </div></td>
+              <td class="gng-small" [style.color]="b.tone">{{ b.note }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+      <h3 class="gng-mt">انحراف هر ثبت از مقدار نظری</h3>
+      <p-table [value]="reportDeviations" styleClass="p-datatable-sm gng-table">
+        <ng-template pTemplate="header"><tr><th>ماده</th><th>ثبت / گزارش</th><th>مصرف</th><th>انتظار (با عیار)</th><th>نسبت</th><th>باند</th></tr></ng-template>
+        <ng-template pTemplate="body" let-r>
+          <tr [class.row-bad]="r.out">
+            <td>{{ r.product }}</td><td>{{ r.report }}</td><td>{{ faNum(r.consumed, 4) }} {{ r.unit }}</td><td>{{ faNum(r.expected, 4) }}</td>
+            <td [style.color]="r.out ? 'var(--gng-danger)' : ''"><b>{{ faPct(r.pct, 2) }}</b></td>
+            <td>{{ r.lo === null ? '—' : faNum(r.lo) + '–' + faNum(r.hi) + '٪' }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── تصحیح عیار (F-PC-051) ───────── -->
+    <p-tabPanel header="تصحیح عیار">
+      <div class="gng-columns" style="grid-template-columns: 1fr 1fr">
+        <div class="gng-panel">
+          <h3>ماشین‌حساب عیار</h3>
+          <p-dropdown [options]="aiOptions" [ngModel]="aiId" (ngModelChange)="pickAi($event)" [style]="{ width: '100%' }"></p-dropdown>
+          <div *ngIf="ai as c" class="gng-mt">
+            <label class="gng-small">عیار بچ {{ c.batch }}: <b>{{ faPct(potency, 1) }}</b></label>
+            <p-slider [(ngModel)]="potency" [min]="90" [max]="100.5" [step]="0.1" styleClass="gng-mt-sm"></p-slider>
+            <div class="formula gng-mt">{{ faNum(c.theoretical, 2) }} × ۱۰۰ ÷ {{ faNum(potency, 1) }} = {{ faNum(corrected, 2) }} {{ c.unit }}</div>
+            <div class="gng-field-grid gng-mt-sm">
+              <div class="gng-field"><span class="gng-field__label">ثبت‌شده</span><span class="gng-field__value">{{ faNum(c.consumed, 2) }} {{ c.unit }} ({{ CONSUMPTION_MODE[c.modeCode] }})</span></div>
+              <div class="gng-field"><span class="gng-field__label">اختلاف با محاسبه</span><span class="gng-field__value" [style.color]="corrected - c.consumed > 0.01 || c.consumed - corrected > 0.01 ? 'var(--gng-danger)' : 'var(--gng-success)'">{{ faNum(c.consumed - corrected, 2) }} {{ c.unit }}</span></div>
+            </div>
+          </div>
+        </div>
+        <div style="position: relative">
+          <gng-data-source-badge [source]="ds('pc06-consumption', 'ماده‌ی مؤثره')"></gng-data-source-badge>
+          <h3>بررسی همه‌ی ثبت‌های ماده‌ی مؤثره</h3>
+          <p-table [value]="aiChecks" styleClass="p-datatable-sm gng-table">
+            <ng-template pTemplate="header"><tr><th>دستور / سند</th><th>نظری</th><th>عیار</th><th>انتظار</th><th>ثبت</th><th>نتیجه</th></tr></ng-template>
+            <ng-template pTemplate="body" let-a>
+              <tr class="clickable" [class.gng-row-active]="a.c.id === aiId" (click)="pickAi(a.c.id)">
+                <td>{{ woNo(a.c.woId) }}<br /><span class="gng-small gng-text-muted">{{ a.c.doc }}</span></td>
+                <td>{{ faNum(a.c.theoretical, 2) }}</td>
+                <td>{{ faPct(a.potency) }}<br /><span class="gng-small gng-text-muted">{{ a.potencySource }}</span></td>
+                <td>{{ faNum(a.expected, 2) }}</td><td>{{ faNum(a.c.consumed, 2) }}</td>
+                <td><p-tag [value]="a.status" [severity]="a.tone"></p-tag></td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── ماده‌ی بازیابی‌شده و ترکیب (F-PC-053، 054) ───────── -->
+    <p-tabPanel header="ماده‌ی بازیابی‌شده">
+      <div *ngIf="mix as m" class="gng-panel">
+        <h3>ترکیب نو + بازیابی‌شده — {{ woNo(m.woId) }} · عملیات {{ faInt(m.seq) }} · {{ m.product }}</h3>
+        <div class="gng-small gng-text-muted">ثبت واقعی: نو {{ faNum(m.virgin) }} + بازیابی {{ faNum(m.recovered) }} ({{ m.batches }}) از نیاز {{ faNum(m.theoretical) }} {{ m.unit }} · سقف مجاز {{ m.cap === null ? '—' : faPct(m.cap, 0) }}</div>
+        <label class="gng-small gng-mt-sm" style="display: block">چه می‌شد اگر <b>{{ faNum(mixRecovered) }} {{ m.unit }}</b> بازیابی مصرف می‌شد؟ سهم بازیابی <b [style.color]="m.cap !== null && mixPct > m.cap ? 'var(--gng-danger)' : 'var(--gng-success)'">{{ faPct(mixPct) }}</b></label>
+        <p-slider [(ngModel)]="mixRecovered" [min]="0" [max]="mixTotal" [step]="0.5" styleClass="gng-mt-sm"></p-slider>
+        <div class="gauge gng-mt">
+          <div style="background: var(--gng-info)" [style.width.%]="100 - mixPct"></div>
+          <div [style.background]="m.cap !== null && mixPct > m.cap ? 'var(--gng-danger)' : 'var(--gng-success)'" [style.width.%]="mixPct"></div>
+          <div *ngIf="m.cap !== null" class="cap" [style.left.%]="m.cap"></div>
+        </div>
+        <div class="gng-legend"><span><i class="pi pi-circle-fill gng-legend-dot--info"></i> نو</span><span><i class="pi pi-circle-fill gng-legend-dot--success"></i> بازیابی‌شده</span><span><i class="pi pi-minus gng-legend-dot--danger"></i> سقف درصد (PE-RCV-003)</span></div>
+        <div *ngIf="m.cap !== null && mixPct > m.cap" class="gng-note gng-note--danger gng-mt-sm">بیش از سقف — ثبت منع می‌شود.</div>
+        <div *ngIf="m.cap !== null && mixPct <= m.cap && m.cap - mixPct < 0.5" class="gng-note gng-note--warning gng-mt-sm">دقیقاً در حد سقف.</div>
+      </div>
+      <div *ngIf="!mix" class="gng-empty">ترکیب ماده‌ی نو و بازیابی‌شده ثبت نشده.</div>
+
+      <h3 class="gng-mt">صلاحیت بچ‌های بازیابی‌شده</h3>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc06-recovered', 'بچ‌های بازیابی‌شده')"></gng-data-source-badge>
+        <p-table [value]="eligibility" styleClass="p-datatable-sm gng-table">
+          <ng-template pTemplate="header"><tr><th>بچ</th><th>کالا / منبع</th><th>موجودی</th><th>کنترل‌ها</th><th>نتیجه</th></tr></ng-template>
+          <ng-template pTemplate="body" let-e>
+            <tr [class.row-bad]="!e.eligible">
+              <td>{{ e.r.batch }}<br /><span class="gng-small gng-text-muted">{{ e.r.code }}</span></td>
+              <td>{{ e.r.product }}<br /><span class="gng-small gng-text-muted">از {{ e.r.source }}</span></td>
+              <td>{{ faNum(e.r.onHand) }}</td>
+              <td class="gng-small">
+                <div *ngFor="let k of e.checks"><i class="pi" [ngClass]="k.ok === null ? 'pi-question-circle gng-sym--muted' : k.ok ? 'pi-check gng-sym--ok' : 'pi-times gng-sym--no'"></i> {{ k.label }}</div>
+                <div *ngIf="e.dataIssue" style="color: var(--gng-warning)">{{ e.dataIssue }}</div>
+              </td>
+              <td><p-tag [value]="e.eligible ? 'قابل تخصیص' : (e.r.blockReason || 'غیرقابل تخصیص')" [severity]="e.eligible ? 'success' : 'danger'"></p-tag></td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── مواد امانی مشتری (F-PC-055) ───────── -->
+    <p-tabPanel header="مواد امانی مشتری">
+      <div *ngIf="!customerRows.length && !customerVar.length" class="gng-empty">این دستور ماده‌ی امانی مشتری ندارد — دستور کارمزدی را از فهرست انتخاب کنید.</div>
+      <div *ngIf="customerRows.length || customerVar.length">
+        <div class="gng-stat-grid">
+          <div class="gng-stat-card"><div class="gng-stat-card__label">ثبت‌های مواد مشتری</div><div class="gng-stat-card__value">{{ faInt(customerRows.length) }}</div><div class="gng-stat-card__meta">سند جدا: حواله‌ی مصرف امانی</div></div>
+          <div class="gng-stat-card"><div class="gng-stat-card__label">ثبت‌های مواد خودمان</div><div class="gng-stat-card__value">{{ faInt(ownRows.length) }}</div></div>
+        </div>
+        <h3 class="gng-mt">مانده‌ی مواد مشتری پای کار</h3>
+        <p-table [value]="customerVar" styleClass="p-datatable-sm gng-table">
+          <ng-template pTemplate="header"><tr><th>ماده</th><th>تحویل پای کار</th><th>مصرف</th><th>مانده نزد ما</th></tr></ng-template>
+          <ng-template pTemplate="body" let-v>
+            <tr><td>{{ v.product }}</td><td>{{ faNum(v.actualKit, 3) }}</td><td>{{ faNum(v.actual, 3) }}</td><td><b>{{ v.actualKit === null ? '—' : faNum(v.actualKit - v.actual, 3) }}</b> {{ v.unit }}</td></tr>
+          </ng-template>
+        </p-table>
+        <div class="gng-columns gng-mt" style="grid-template-columns: 1fr 1fr">
+          <div style="position: relative">
+            <gng-data-source-badge [source]="ds('pc06-consumption', 'مصرف امانی')"></gng-data-source-badge>
+            <h4>مواد مشتری</h4>
+            <p-table [value]="customerRows" styleClass="p-datatable-sm gng-table">
+              <ng-template pTemplate="body" let-c><tr><td>{{ c.product }} · {{ c.batch }}</td><td>{{ faNum(c.consumed, 4) }} {{ c.unit }}</td><td class="gng-small">{{ c.doc }}</td></tr></ng-template>
+            </p-table>
+          </div>
+          <div>
+            <h4>مواد خودمان در همین دستور</h4>
+            <p-table [value]="ownRows" styleClass="p-datatable-sm gng-table">
+              <ng-template pTemplate="body" let-c><tr><td>{{ c.product }}</td><td>{{ faNum(c.consumed, 4) }} {{ c.unit }}</td><td class="gng-small">{{ c.doc }}</td></tr></ng-template>
+            </p-table>
+          </div>
+        </div>
+      </div>
+      <div class="gng-note gng-note--info gng-mt"><strong>هنوز پیاده نشده.</strong> ثبت مصرف دستی با انتخاب بچ، اجرای Backflush پایان عملیات/رسید، ثبت با موجودی منفی یا جزئی و رفع صف اصلاح، سند معکوس خودکار، تخصیص بچ بازیابی‌شده، و صدور رویداد مصرف به انبار — با فاز ایجاد/ویرایش می‌آیند.</div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="ds('pc06-consumption', 'دستورها')"></gng-data-source-badge>
+    <div class="gng-flag-list">
+      <div *ngFor="let o of orders" class="gng-panel clickable" style="padding: .5rem .7rem" [class.gng-row-active]="o.id === woId" (click)="selectWo(o.id)">
+        <div class="gng-flag-row"><b>{{ o.number }}</b><p-tag *ngIf="o.flags" [value]="faInt(o.flags) + ' مورد'" severity="danger"></p-tag></div>
+        <div class="gng-small">{{ o.name }}</div>
+        <div class="gng-small gng-text-muted" *ngIf="o.typeCode !== null">{{ WO_TYPE[o.typeCode] }} · {{ o.statusCode !== null ? WO_STATUS[o.statusCode] : '' }}</div>
+      </div>
+    </div>
+  </div>
+</gng-opform-layout>

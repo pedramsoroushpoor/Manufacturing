@@ -1,0 +1,116 @@
+/*
+ * عمداً absolute و در گوشه‌ی بالا-راست هر گرید — کانتینر والد (هر جا این
+ * کامپوننت استفاده می‌شود) باید position: relative داشته باشد تا این دکمه
+ * درست سر جایش بنشیند، نه وسط صفحه.
+ */
+:host {
+  position: absolute;
+  top: 0.15rem;
+  right: 0.15rem;
+  z-index: 5;
+}
+
+.gng-source-badge__trigger {
+  width: 1.6rem;
+  height: 1.6rem;
+  opacity: 0.32;
+  color: var(--gng-text-muted, #8a8a8a);
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.gng-source-badge__trigger:hover,
+.gng-source-badge__trigger:focus {
+  opacity: 1;
+}
+
+::ng-deep .gng-source-panel {
+  direction: rtl;
+  font-size: 0.82rem;
+}
+
+.gng-source-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+
+  i {
+    color: var(--gng-primary, #f7941d);
+  }
+}
+
+.gng-source-panel__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.6rem;
+}
+
+.gng-source-panel__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.gng-source-panel__k {
+  flex: 0 0 auto;
+  min-width: 6.5rem;
+  color: var(--gng-text-muted, #8a8a8a);
+  font-size: 0.75rem;
+}
+
+.gng-source-panel__v {
+  direction: ltr;
+  text-align: left;
+  font-family: 'Courier New', monospace;
+  font-size: 0.78rem;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 4px;
+  padding: 0.1rem 0.45rem;
+  user-select: all;
+}
+
+.gng-source-panel__hint {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--gng-text-muted, #8a8a8a);
+  font-size: 0.78rem;
+  padding: 0.4rem 0;
+}
+
+.gng-source-panel__error {
+  color: var(--gng-danger, #d64545);
+  font-size: 0.78rem;
+  padding: 0.3rem 0;
+}
+
+.gng-source-panel__sql {
+  direction: ltr;
+  text-align: left;
+  font-family: 'Courier New', monospace;
+  font-size: 0.74rem;
+  line-height: 1.5;
+  max-height: 260px;
+  overflow: auto;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 6px;
+  padding: 0.6rem 0.7rem;
+  white-space: pre-wrap;
+}
+
+.gng-source-panel__sample-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.3rem;
+}
+
+::ng-deep .gng-source-panel__table {
+  font-size: 0.74rem;
+
+  td,
+  th {
+    white-space: nowrap;
+  }
+}

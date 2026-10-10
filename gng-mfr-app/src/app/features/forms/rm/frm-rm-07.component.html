@@ -1,0 +1,235 @@
+<gng-opform-layout
+  domainTitle="مدیریت منابع"
+  title="طبقه‌بندی علل"
+  code="FRM-RM-07"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="مهندسی تولید"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-sitemap"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="سلسله‌مراتب سازمانی و مکانی"
+  contextPanelHint="درخت علل بین همه‌ی منابع مشترک است. انتخاب در این درخت قواعد محدودسازی را فیلتر می‌کند؛ با انتخاب یک ایستگاه، مجاز بودن هر علت در همه‌ی تب‌ها علامت می‌خورد."
+  auditFeatureRange="F-RM-047 تا F-RM-051، F-RM-053 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-sitemap" label="تعریف درخت علل" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-th-large" label="نگاشت به شش زیان بزرگ" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-ban" label="محدودسازی علل مجاز هر خط" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-link" label="اتصال علت به اقدام اصلاحی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <!-- درخت یک دسته: ستون‌ها بسته به دسته روشن/خاموش می‌شوند -->
+  <ng-template #reasonTree let-c="category" let-typeHeader="typeHeader" let-showOee="showOee">
+    <p class="gng-note gng-note--info gng-mb-sm" *ngIf="selection && !isStationScope">
+      برای دیدن اینکه هر علت در کدام ایستگاه مجاز است، یک ایستگاه را در درخت سمت راست انتخاب کنید یا تب «محدودسازی به‌ازای منبع» را ببینید.
+    </p>
+    <div style="position: relative">
+      <gng-data-source-badge [source]="treeSource(c)"></gng-data-source-badge>
+      <p-treeTable [value]="treeOf(c)" styleClass="p-treetable-sm gng-table gng-reason-tree">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>عنوان</th>
+            <th style="width: 6rem">کد</th>
+            <th *ngIf="typeHeader" style="width: 9rem">{{ typeHeader }}</th>
+            <th *ngIf="showOee" style="width: 11rem">زیان OEE</th>
+            <th style="width: 8rem">محدودسازی</th>
+            <th *ngIf="isStationScope" style="width: 9rem">در این ایستگاه</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-rowNode let-d="rowData">
+          <tr [ttRow]="rowNode" [class.gng-text-muted]="!d.active" [class.gng-reason-tree__group]="d.isGroup">
+            <td>
+              <p-treeTableToggler [rowNode]="rowNode"></p-treeTableToggler>
+              {{ d.title }}
+              <span *ngIf="d.isGroup" class="gng-text-muted gng-small">({{ fa(d.leafCount) }} علت)</span>
+              <p-tag *ngIf="!d.active" value="غیرفعال" severity="secondary" styleClass="gng-mr-sm"></p-tag>
+            </td>
+            <td>{{ d.code }}</td>
+            <td *ngIf="typeHeader">{{ d.typeLabel }}</td>
+            <td *ngIf="showOee">
+              <p-tag *ngIf="d.oeeStatus !== 'none'" [value]="d.oeeLabel" [severity]="oeeSeverity(d.oeeStatus)"></p-tag>
+              <div *ngIf="d.oeeComponent" class="gng-text-muted gng-small">{{ d.oeeComponent }}</div>
+            </td>
+            <td>
+              <span *ngIf="d.ruleCount; else noRule">در {{ fa(d.ruleCount) }} قاعده</span>
+              <ng-template #noRule><span class="gng-text-muted">—</span></ng-template>
+            </td>
+            <td *ngIf="isStationScope" [ngClass]="allowedClass(d)">
+              <i *ngIf="!d.isGroup && d.active" class="pi" [ngClass]="d.allowedCount ? 'pi-check' : 'pi-times'"></i>
+              {{ d.active ? allowedText(d) : '' }}
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr><td colspan="6" class="gng-empty">علتی در این دسته تعریف نشده است.</td></tr>
+        </ng-template>
+      </p-treeTable>
+    </div>
+  </ng-template>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="scopeLoading">
+    <!-- ───────── علل توقف ───────── -->
+    <p-tabPanel header="علل توقف" [selected]="true">
+      <p class="gng-hint">
+        درخت چندسطحی (گروه ← زیرگروه ← علت)، نه فهرست تخت. برای هر علت نوع توقف (برنامه‌ریزی‌شده یا نشده) و جایگاهش در OEE
+        تعیین می‌شود: «خارج از OEE» یعنی از زمان برنامه‌ریزی‌شده‌ی تولید کم می‌شود و زیان به حساب نمی‌آید.
+      </p>
+      <ng-container *ngTemplateOutlet="reasonTree; context: { category: 1, typeHeader: 'نوع توقف', showOee: true }"></ng-container>
+      <p class="gng-hint gng-mt-sm">
+        «برنامه‌ریزی‌شده» لزوماً «خارج از OEE» نیست: تعویض قالب برنامه‌ریزی‌شده است ولی زیان «راه‌اندازی و تعویض» به حساب می‌آید.
+      </p>
+    </p-tabPanel>
+
+    <!-- ───────── نگاشت شش زیان OEE ───────── -->
+    <p-tabPanel header="نگاشت شش زیان OEE">
+      <p class="gng-hint">هر علت توقفِ داخل OEE و هر علت ضایعات محصول به یکی از شش زیان بزرگ نگاشت می‌شود تا گزارش OEE علت‌ها را جمع بزند.</p>
+      <div class="gng-note gng-note--warning gng-mb-sm" *ngIf="unmapped.length">
+        <strong>نگاشت‌نشده:</strong>
+        <span *ngFor="let u of unmapped; let last = last">{{ u.code }} {{ u.title }} ({{ u.category }}){{ last ? '' : '، ' }}</span>
+        — این علت‌ها در محاسبه‌ی OEE به هیچ زیانی نمی‌رسند.
+      </div>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="oeeSource()"></gng-data-source-badge>
+        <p-table [value]="losses" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 8rem">مؤلفه‌ی OEE</th>
+              <th style="width: 13rem">زیان</th>
+              <th>علل نگاشت‌شده</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-l>
+            <tr>
+              <td>{{ l.component }}</td>
+              <td>
+                {{ fa(l.code) }}. {{ l.title }}
+                <div class="gng-text-muted gng-small" dir="ltr" style="text-align: right">{{ l.englishTitle }}</div>
+              </td>
+              <td>
+                <span *ngIf="!l.causes.length" class="gng-text-muted">هنوز علتی نگاشت نشده</span>
+                <span *ngFor="let c of l.causes" class="gng-origin gng-reason-chip" [title]="c.category + ' · ' + c.parent + (c.typeLabel ? ' · ' + c.typeLabel : '')">
+                  {{ c.code }} {{ c.title }}
+                </span>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+
+      <h3 class="gng-section-title">خارج از OEE — از زمان برنامه‌ریزی‌شده کم می‌شوند</h3>
+      <p class="gng-empty" *ngIf="!excluded.length">علتی خارج از OEE تعریف نشده است.</p>
+      <div *ngIf="excluded.length">
+        <span *ngFor="let c of excluded" class="gng-origin gng-reason-chip" [title]="c.parent">{{ c.code }} {{ c.title }}</span>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── علل ضایعات ───────── -->
+    <p-tabPanel header="علل ضایعات">
+      <p class="gng-hint">
+        درخت علل ضایعات به تفکیک ضایعات مواد و ضایعات محصول. ضایعات محصول به زیان‌های کیفیت OEE (راه‌اندازی یا فرایند) نگاشت
+        می‌شود؛ ضایعات مواد زیان OEE نیست.
+      </p>
+      <ng-container *ngTemplateOutlet="reasonTree; context: { category: 2, typeHeader: 'نوع ضایعات', showOee: true }"></ng-container>
+    </p-tabPanel>
+
+    <!-- ───────── علل دوباره‌کاری و انحراف ───────── -->
+    <p-tabPanel header="علل دوباره‌کاری و انحراف">
+      <h3 class="gng-section-title" style="margin-top: 0">علل دوباره‌کاری</h3>
+      <ng-container *ngTemplateOutlet="reasonTree; context: { category: 3, typeHeader: null, showOee: false }"></ng-container>
+      <h3 class="gng-section-title">علل انحراف از برنامه</h3>
+      <ng-container *ngTemplateOutlet="reasonTree; context: { category: 4, typeHeader: 'نوع انحراف', showOee: false }"></ng-container>
+    </p-tabPanel>
+
+    <!-- ───────── محدودسازی به‌ازای منبع ───────── -->
+    <p-tabPanel header="محدودسازی به‌ازای منبع">
+      <p class="gng-hint">
+        برای کاهش خطای ثبت اپراتور، فهرست علل مجاز به‌ازای خط، نوع تجهیز یا ایستگاه محدود می‌شود. مجاز کردن یک گروه یعنی همه‌ی
+        زیرشاخه‌هایش. برای هر ایستگاه و هر دسته، دقیق‌ترین سطحی که قاعده دارد برنده است: ایستگاه ← نوع تجهیزِ نصب‌شده ← خط؛
+        بدون هیچ قاعده‌ای همه‌ی علل مجازند.
+      </p>
+
+      <h3 class="gng-section-title">فهرست مجاز هر ایستگاه در «{{ contextLabel }}»</h3>
+      <div style="position: relative; overflow-x: auto">
+        <gng-data-source-badge [source]="allowedSource()"></gng-data-source-badge>
+        <table class="gng-matrix" *ngIf="stations.length; else noStations">
+          <thead>
+            <tr>
+              <th>ایستگاه</th>
+              <th *ngFor="let c of categories">{{ categoryLabel(c) }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let s of stations">
+              <th>
+                {{ s.station }}
+                <div class="gng-text-muted gng-small">{{ s.line }}</div>
+              </th>
+              <td *ngFor="let cell of s.cells" [title]="cell.source">
+                <div [class.gng-sym--warn]="cell.allowed < cell.total">{{ fa(cell.allowed) }} از {{ fa(cell.total) }}</div>
+                <p-tag [value]="cell.level" [severity]="levelSeverity(cell.levelCode)"></p-tag>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <ng-template #noStations><p class="gng-empty">در «{{ contextLabel }}» ایستگاهی نیست.</p></ng-template>
+      </div>
+
+      <h3 class="gng-section-title">قواعدی که به این دامنه می‌رسند</h3>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="restrictionsSource()"></gng-data-source-badge>
+        <p-table [value]="rules" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 7rem">سطح</th>
+              <th>هدف</th>
+              <th style="width: 8rem">دسته</th>
+              <th>علت یا گروه مجاز</th>
+              <th style="width: 7rem">علل پوشش‌داده</th>
+              <th>شرح</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr>
+              <td><p-tag [value]="r.level" [severity]="levelSeverity(r.levelCode)"></p-tag></td>
+              <td>{{ r.target }}</td>
+              <td>{{ r.category }}</td>
+              <td>
+                {{ r.reason }}
+                <span *ngIf="r.isGroup" class="gng-text-muted gng-small">(گروه و زیرشاخه‌ها)</span>
+              </td>
+              <td>{{ fa(r.leafCount) }}</td>
+              <td>{{ r.description }}</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="6" class="gng-empty">قاعده‌ای به «{{ contextLabel }}» نمی‌رسد؛ همه‌ی علل مجازند.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── اقدام اصلاحی (فاز ۳) ───────── -->
+    <p-tabPanel header="اقدام اصلاحی">
+      <div class="gng-note gng-note--info">
+        <strong>هنوز پیاده نشده.</strong> ارتباط علت با اقدام اصلاحی و مسئول پیگیری (F-RM-052، پل به کنترل کیفیت) اولویت «مهم» و
+        فاز ۳ دارد و در فاز اول نیامده است. جدول‌های معادل در نسخه‌ی قبل آماده‌اند (ProductionRepair و
+        ProductionProblemRepairMapping: علت ← اقدام با اولویت و گروه پرسنلی مسئول) و هنگام پیاده‌سازی همان‌ها به mes می‌آیند.
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="orgTreeSource()"></gng-data-source-badge>
+    <p-tree
+      [value]="orgTree"
+      styleClass="gng-tree"
+      selectionMode="single"
+      [(selection)]="selectedTreeNode"
+      (onNodeSelect)="onTreeSelect($event)"
+      (onNodeUnselect)="onTreeUnselect($event)"
+    ></p-tree>
+  </div>
+</gng-opform-layout>

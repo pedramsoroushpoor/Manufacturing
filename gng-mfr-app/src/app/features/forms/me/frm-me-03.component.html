@@ -1,0 +1,158 @@
+<gng-opform-layout
+  domainTitle="مهندسی تولید"
+  title="کارکرد استاندارد و زمان عملیات"
+  code="FRM-ME-03"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="مهندسی تولید / برنامه‌ریزی"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-stopwatch"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="روش‌های ساخت"
+  contextPanelHint="زمان و کارکرد در سطح عملیات روش ساخت تعریف می‌شود."
+  auditFeatureRange="F-ME-020 تا F-ME-026 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-plus" label="تخصیص کارکرد" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-table" label="ماتریس تعویض" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-chart-line" label="پیشنهاد اصلاح از داده‌ی واقعی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <div class="gng-window" *ngIf="routing">
+    <span>مقدار سفارش</span>
+    <p-inputNumber [(ngModel)]="quantity" (ngModelChange)="recalc()" [min]="0" inputStyleClass="p-inputtext-sm" [style]="{ width: '10rem' }"></p-inputNumber>
+    <span>{{ routing.unit }}</span>
+    <span class="gng-text-muted gng-small">— نیاز کارکردها و زمان عملیات زنده بر مبنای این مقدار حساب می‌شود (بچ مرجع روش: {{ num(routing.batch) }}).</span>
+  </div>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <!-- ───────── کارکردهای عملیات (F-ME-020) ───────── -->
+    <p-tabPanel header="کارکردهای عملیات" [selected]="true">
+      <p class="gng-hint">هر نوع کارکرد تعریف‌شده در FRM-RM-06 قابل تخصیص است — نه فقط نفرساعت، ماشین‌ساعت و انرژی (مثلاً تعداد ضربه، قالب‌ساعت، حجم مخزن).</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me03-capacities', 'کارکردها')"></gng-data-source-badge>
+        <p-table [value]="capacityCalc" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th style="width: 5rem">ردیف</th><th>عملیات</th><th>نوع کارکرد</th><th style="width: 10rem">مبنای محاسبه</th><th style="width: 12rem">نیاز برای این سفارش</th><th style="width: 7rem">محرک هزینه</th><th>شرح</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-c>
+            <tr>
+              <td>{{ fa(c.row.sequence) }}</td>
+              <td>{{ c.row.operation }}</td>
+              <td>{{ c.row.capacity }} <p-tag *ngIf="!c.row.capacityActive" value="غیرفعال" severity="danger" styleClass="gng-mr-sm"></p-tag></td>
+              <td><p-tag [value]="c.row.basis" severity="info"></p-tag></td>
+              <td>
+                <strong *ngIf="c.required !== null">{{ num(c.required, 2) }} {{ c.row.unit }}</strong>
+                <span *ngIf="c.error" style="color: var(--gng-danger, #e24c4c)">{{ c.error }}</span>
+              </td>
+              <td>{{ c.row.isCostDriver ? 'بله' : '—' }}</td>
+              <td class="gng-text-muted">{{ c.row.description || '—' }}</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="7" class="gng-empty">کارکردی به عملیات این روش تخصیص نیافته است.</td></tr></ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── مبنای محاسبه (F-ME-021) ───────── -->
+    <p-tabPanel header="مبنای محاسبه">
+      <p class="gng-hint">ثابت به‌ازای سفارش · متناسب با مقدار (متغیر × مقدار ÷ به‌ازای) · پلکانی (پله‌ی شامل مقدار) · ثابت + متغیر · فرمول (فقط Quantity، عدد و چهار عمل).</p>
+      <p-table [value]="capacities" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr><th style="width: 5rem">ردیف</th><th>کارکرد</th><th style="width: 10rem">مبنا</th><th style="width: 7rem">ثابت</th><th style="width: 9rem">متغیر</th><th style="width: 8rem">به‌ازای</th><th>پله‌ها / فرمول</th></tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-c>
+          <tr>
+            <td>{{ fa(c.sequence) }}</td><td>{{ c.capacity }}</td><td>{{ c.basis }}</td>
+            <td>{{ num(c.fixed) }}</td><td>{{ num(c.variable, 8) }}</td><td>{{ num(c.per) }}</td>
+            <td style="direction: ltr; text-align: end">{{ c.steps || c.formula || '—' }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── زمان‌ها (F-ME-022، 024، 025) ───────── -->
+    <p-tabPanel header="زمان‌ها">
+      <p class="gng-hint">راه‌اندازی، اجرا و پس از اجرا (شست‌وشو) جدا؛ زمان انتظار (خشک‌شدن، خنک‌شدن) منبع را اشغال می‌کند ولی نیرو نمی‌خواهد. اجرا «دقیقه به‌ازای هر ۱۰۰۰ واحد» نمایش داده شده.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me03-timings', 'زمان‌ها')"></gng-data-source-badge>
+        <p-table [value]="timingCalc" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 4.5rem">ردیف</th><th>عملیات</th><th style="width: 6rem">راه‌اندازی</th><th style="width: 8rem">اجرا (ماشین/نفر)</th>
+              <th style="width: 6rem">پس از اجرا</th><th style="width: 9rem">انتظار</th><th style="width: 8rem">جابه‌جایی + صف</th><th style="width: 5rem">اجراها</th><th style="width: 9rem">جمع برای سفارش</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-c>
+            <tr>
+              <td>{{ fa(c.row.sequence) }}</td>
+              <td>{{ c.row.operation }}<div *ngIf="c.row.description" class="gng-text-muted gng-small">{{ c.row.description }}</div></td>
+              <td>{{ num(c.row.setup) }}</td>
+              <td>{{ c.row.outsourced ? 'پیمانکار ' + perThousand(c.row.outsourceRun) : perThousand(c.row.equipmentRun) + ' / ' + perThousand(c.row.laborRun) }}</td>
+              <td>{{ num(c.row.teardown) }}</td>
+              <td>{{ c.row.wait ? num(c.row.wait) + (c.row.waitOccupiesResource ? ' (منبع اشغال)' : ' (منبع آزاد)') : '—' }}</td>
+              <td>{{ num(c.moveQueue) }}</td>
+              <td>{{ fa(c.runs) }}</td>
+              <td><strong>{{ hm(c.total) }}</strong></td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="footer">
+            <tr><td colspan="8">جمع ساده‌ی عملیات (شاخه‌های موازی و هم‌پوشانی کسر نشده)</td><td><strong>{{ hm(totalMinutes) }}</strong></td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+      <div *ngIf="missingTimings.length" class="gng-note gng-note--warning gng-mt">
+        بدون زمان استاندارد: <span *ngFor="let t of missingTimings; let last = last">{{ fa(t.sequence) }} {{ t.operation }}{{ last ? '' : '، ' }}</span>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── ماتریس تعویض (F-ME-023) ───────── -->
+    <p-tabPanel header="ماتریس تعویض">
+      <p class="gng-hint">زمان تعویض وابسته به توالی بین طبقه‌های محصول، به‌ازای هر تجهیز گروه منبع عملیات (داده‌ی FRM-RM-02). ردیف طبقه‌ی محصول همین روش پررنگ است.</p>
+      <div *ngFor="let m of matrices" class="gng-panel gng-mt-sm" style="position: relative">
+        <gng-data-source-badge [source]="ds('me03-changeovers', 'زمان تعویض')"></gng-data-source-badge>
+        <h3>ردیف {{ fa(m.sequence) }} — {{ m.equipment }} <p-tag *ngIf="m.empty" value="تعریف نشده" severity="warning" styleClass="gng-mr-sm"></p-tag></h3>
+        <table *ngIf="!m.empty" class="gng-table" style="width: auto; border-collapse: collapse">
+          <thead><tr><th>از ↓ / به ←</th><th *ngFor="let to of classes" style="padding: 0.3rem 0.7rem">{{ to.title }}</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let from of classes" [style.font-weight]="from.id === productClassId ? '700' : null">
+              <td style="padding: 0.3rem 0.7rem">{{ from.title }}</td>
+              <td *ngFor="let to of classes" style="padding: 0.3rem 0.7rem; text-align: center">{{ cell(m, from.id, to.id) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p *ngIf="!matrices.length" class="gng-empty">عملیات این روش روی گروه منبع دارای تجهیز نیست.</p>
+    </p-tabPanel>
+
+    <!-- ───────── اندازه‌ی بچ (F-ME-026) ───────── -->
+    <p-tabPanel header="اندازه‌ی بچ">
+      <p-table [value]="timingCalc" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr><th style="width: 5rem">ردیف</th><th>عملیات</th><th style="width: 10rem">بچ استاندارد عملیات</th><th style="width: 12rem">رفتار در اختلاف</th><th style="width: 8rem">سقف اجرا</th><th style="width: 9rem">دسته‌ی انتقال</th><th style="width: 7rem">اجراها</th></tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-c>
+          <tr>
+            <td>{{ fa(c.row.sequence) }}</td><td>{{ c.row.operation }}</td><td>{{ num(c.row.batch) }}</td>
+            <td>{{ splitRule[c.row.splitRuleCode] }}</td><td>{{ num(c.row.maxRun) }}</td>
+            <td [style.color]="c.row.transferBatch && c.row.batch && c.row.transferBatch > c.row.batch ? 'var(--gng-danger, #e24c4c)' : null">{{ num(c.row.transferBatch) }}</td>
+            <td>{{ fa(c.runs) }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── منحنی یادگیری (F-ME-027، مطلوب) ───────── -->
+    <p-tabPanel header="منحنی یادگیری">
+      <div class="gng-note gng-note--info">
+        <strong>هنوز پیاده نشده.</strong> منحنی یادگیری یا ضریب کارایی به‌ازای منبع/محصول (F-ME-027) اولویت «مطلوب» دارد؛ پیشنهاد اصلاح استاندارد از داده‌ی واقعی (F-ME-028) «مهم» است و به گزارش تولید وابسته است.
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <p-tree [value]="pickTree" styleClass="gng-tree" selectionMode="single" [(selection)]="selectedPick" (onNodeSelect)="onPick($event)" (onNodeUnselect)="onUnpick($event)"></p-tree>
+  </div>
+</gng-opform-layout>

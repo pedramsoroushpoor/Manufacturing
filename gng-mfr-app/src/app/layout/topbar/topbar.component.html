@@ -1,0 +1,72 @@
+<header class="gng-topbar">
+  <div class="gng-topbar__right">
+    <button
+      pButton
+      type="button"
+      icon="pi pi-bars"
+      class="p-button-text p-button-rounded gng-topbar__burger"
+      pTooltip="باز/بسته کردن منو"
+      tooltipPosition="bottom"
+      (click)="toggleSidebar.emit()"
+    ></button>
+    <div class="gng-topbar__title-group">
+      <span class="gng-topbar__title">سیستم مدیریت تولید</span>
+      <span class="gng-topbar__subtitle" *ngIf="session.info() as s; else noDb">
+        <i class="pi pi-database"></i>
+        متصل به {{ s.database }} — {{ s.server }}
+      </span>
+      <ng-template #noDb>
+        <span class="gng-topbar__subtitle gng-topbar__subtitle--warn">
+          <i class="pi pi-exclamation-triangle"></i>
+          به هیچ دیتابیسی وصل نیستید
+        </span>
+      </ng-template>
+    </div>
+  </div>
+
+  <div class="gng-topbar__left">
+    <a
+      pButton
+      routerLink="/db-compare"
+      icon="pi pi-table"
+      label="بررسی دیتابیس"
+      class="p-button-outlined p-button-sm gng-topbar__db-switch"
+      pTooltip="مقایسه‌ی جدول‌ها و فیلدهای دو اسکیما"
+      tooltipPosition="bottom"
+    ></a>
+    <div class="gng-topbar__divider"></div>
+    <button
+      pButton
+      type="button"
+      [icon]="theme.mode() === 'dark' ? 'pi pi-sun' : 'pi pi-moon'"
+      class="p-button-text p-button-rounded"
+      [pTooltip]="theme.mode() === 'dark' ? 'حالت روشن' : 'حالت تاریک'"
+      tooltipPosition="bottom"
+      (click)="theme.toggle()"
+    ></button>
+    <button pButton type="button" icon="pi pi-search" class="p-button-text p-button-rounded" pTooltip="جستجو" tooltipPosition="bottom"></button>
+    <span class="gng-topbar__bell">
+      <button pButton type="button" icon="pi pi-bell" class="p-button-text p-button-rounded" pTooltip="اعلان‌ها" tooltipPosition="bottom"></button>
+      <span class="gng-topbar__bell-dot"></span>
+    </span>
+    <button pButton type="button" icon="pi pi-cog" class="p-button-text p-button-rounded" pTooltip="تنظیمات" tooltipPosition="bottom"></button>
+    <div class="gng-topbar__divider"></div>
+    <div class="gng-topbar__user">
+      <span class="gng-topbar__avatar">ک</span>
+      <span class="gng-topbar__user-text">
+        <strong>کاربر سیستم</strong>
+        <small>مدیر تولید</small>
+      </span>
+    </div>
+    <button
+      pButton
+      type="button"
+      icon="pi pi-sign-out"
+      class="p-button-text p-button-rounded p-button-sm gng-topbar__logout"
+      pTooltip="خروج (بستن اتصال دیتابیس)"
+      tooltipPosition="bottom"
+      aria-label="خروج"
+      (click)="logout()"
+    ></button>
+  </div>
+</header>

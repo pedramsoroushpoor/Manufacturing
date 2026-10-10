@@ -1,0 +1,114 @@
+<gng-opform-layout
+  domainTitle="چارچوب مشترک"
+  title="استودیوی توسعه‌پذیری"
+  code="FRM-PF-04"
+  formTypeLabel="استودیوی طراحی"
+  owner="مدیر سیستم / پلتفرم"
+  contextLabel="فیلدهای فعال"
+  contextIcon="pi pi-wrench"
+  [bannerText]="bannerSuccess"
+  bannerTone="success"
+  [auditFeatureRange]="auditRange"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-plus" label="افزودن فیلد به فرم" class="p-button-sm p-button-primary"></button>
+    <button pButton type="button" icon="pi pi-database" label="ساخت موجودیت کاربرساخته" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-code" label="نوشتن قاعده با ویرایشگر فرمول" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-print" label="طراحی الگوی چاپ" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-paperclip" label="پیوست فایل" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-file-excel" label="ورود / خروج اکسل" class="p-button-outlined p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs">
+    <p-tabPanel header="فیلد اضافی" [selected]="true">
+      <div class="gng-columns">
+        <div style="display:flex; flex-direction:column; gap:0.9rem">
+          <div class="gng-panel">
+            <h3>پیش‌نمای زنده‌ی فرم <span class="gng-hint" style="display:inline; margin:0">— {{ previewFormTarget }} — با فیلدهای اضافی</span></h3>
+            <div class="gng-field-grid gng-mt-sm">
+              <div class="gng-field" *ngFor="let f of previewBaseFields"><span class="gng-field__label">{{ f.label }}</span><span class="gng-field__value">{{ f.value }}</span></div>
+            </div>
+            <div class="gng-panel gng-mt-sm" style="border: 2px dashed var(--gng-primary); background: rgba(247,148,29,0.06)">
+              <span class="gng-profile-card__badge">{{ customFieldBadge }}</span>
+              <div class="gng-field-grid gng-mt-sm">
+                <div class="gng-field" *ngFor="let f of previewCustomFields"><span class="gng-field__label">{{ f.label }}</span><span class="gng-field__value">{{ f.value }}</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="gng-panel">
+            <h3>سایر ابزارهای توسعه‌پذیری</h3>
+            <div class="gng-flag-list gng-mt-sm">
+              <div class="gng-flag-row" *ngFor="let t of otherTools">
+                <span class="gng-flag-row__label"><i class="pi pi-circle-fill gng-sym--ok" style="font-size:0.5rem"></i>{{ t.label }}</span>
+                <p-tag [value]="t.meta" severity="secondary"></p-tag>
+              </div>
+            </div>
+          </div>
+
+          <div class="gng-note gng-note--info">{{ whyNote }}</div>
+        </div>
+
+        <div>
+          <h3>طراح فیلد اضافی <span class="gng-hint" style="display:inline; margin:0">— رفع Gap شناخته‌شده‌ی نسخه‌ی جاری بدون نیاز به توسعه</span></h3>
+          <div class="gng-field-grid gng-mt-sm">
+            <div class="gng-field"><span class="gng-field__label">نوع داده</span><span class="gng-field__value">متن — حداکثر ۲۰ نویسه</span></div>
+            <div class="gng-field"><span class="gng-field__label">عنوان فیلد</span><span class="gng-field__value">کد پروژه‌ی مشتری</span></div>
+            <div class="gng-field"><span class="gng-field__label">فرم هدف</span><span class="gng-field__value">دستور کار — FRM-PC-02</span></div>
+            <div class="gng-field"><span class="gng-field__label">نمایش در</span><span class="gng-field__value">فرم · لیست · خروجی گزارش اکسل</span></div>
+            <div class="gng-field"><span class="gng-field__label">اعتبارسنجی</span><span class="gng-field__value">الگوی ####-PRJ</span></div>
+            <div class="gng-field"><span class="gng-field__label">الزامی</span><span class="gng-field__value">فقط برای نوع دستور کارمزدی</span></div>
+          </div>
+
+          <h3 class="gng-mt">فیلدهای تعریف‌شده</h3>
+          <p-table [value]="definedFields" styleClass="p-datatable-sm gng-table gng-mt-sm" responsiveLayout="scroll">
+            <ng-template pTemplate="header"><tr><th>فرم</th><th>عنوان فیلد</th><th>نوع</th><th>الزامی</th><th>در لیست</th><th>در گزارش</th></tr></ng-template>
+            <ng-template pTemplate="body" let-d>
+              <tr>
+                <td>{{ d.form }}</td>
+                <td>{{ d.title }}</td>
+                <td>{{ d.type }}</td>
+                <td><p-tag [value]="d.required" [severity]="requiredSeverity(d.required)"></p-tag></td>
+                <td><i class="pi" [ngClass]="d.inList ? 'pi-check gng-sym--ok' : 'pi-minus gng-sym--no'"></i></td>
+                <td><i class="pi" [ngClass]="d.inReport ? 'pi-check gng-sym--ok' : 'pi-minus gng-sym--no'"></i></td>
+              </tr>
+            </ng-template>
+          </p-table>
+
+          <h3 class="gng-mt">قاعده‌ی کاربرساخته <span class="gng-hint" style="display:inline; margin:0">— ویرایشگر فرمول، بدون کدنویسی</span></h3>
+          <div class="gng-code-block gng-mt-sm">
+            <span class="gng-code-kw">IF</span> [نوع دستور] == <span class="gng-code-str">"کارمزدی دریافتی"</span><br />
+            &nbsp;&nbsp;<span class="gng-code-kw">AND</span> <span class="gng-code-fn">ISBLANK</span>([کد پروژه‌ی مشتری])<br />
+            <span class="gng-code-kw">THEN</span> <span class="gng-code-fn">ERROR</span>(<span class="gng-code-str">"کد پروژه برای دستور کارمزدی الزامی است"</span>)
+          </div>
+          <div class="gng-hint gng-mt-sm">{{ ruleNote }}</div>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="موجودیت اضافی">
+      <div class="gng-note gng-note--info">{{ customEntityNote }}</div>
+    </p-tabPanel>
+
+    <p-tabPanel header="قاعده‌ی کسب‌وکار">
+      <div class="gng-note gng-note--info">{{ businessRuleNote }}</div>
+      <div class="gng-code-block gng-mt-sm">
+        <span class="gng-code-kw">IF</span> [نوع دستور] == <span class="gng-code-str">"کارمزدی دریافتی"</span><br />
+        &nbsp;&nbsp;<span class="gng-code-kw">AND</span> <span class="gng-code-fn">ISBLANK</span>([کد پروژه‌ی مشتری])<br />
+        <span class="gng-code-kw">THEN</span> <span class="gng-code-fn">ERROR</span>(<span class="gng-code-str">"کد پروژه برای دستور کارمزدی الزامی است"</span>)
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="الگوی چاپ">
+      <div class="gng-note gng-note--info">{{ printTemplateNote }}</div>
+    </p-tabPanel>
+
+    <p-tabPanel header="پیوست و مدارک">
+      <div class="gng-note gng-note--info">{{ attachmentNote }}</div>
+    </p-tabPanel>
+
+    <p-tabPanel header="ورود و خروج اکسل">
+      <div class="gng-note gng-note--info">{{ excelNote }}</div>
+    </p-tabPanel>
+  </p-tabView>
+</gng-opform-layout>

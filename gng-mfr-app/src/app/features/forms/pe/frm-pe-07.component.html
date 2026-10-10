@@ -1,0 +1,110 @@
+<gng-opform-layout
+  domainTitle="مهندسی محصول"
+  title="پیکربندی محصول"
+  code="FRM-PE-07"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="مهندسی محصول / فروش"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-sliders-v"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="مدل‌های پیکربندی"
+  contextPanelHint="هر مدل روی یک کالا و ساختار تعریف می‌شود."
+  auditFeatureRange="F-PE-057 تا F-PE-060 (به درخواست کاربر)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-plus" label="ویژگی و مقدار" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-ban" label="قاعده‌ی سازگاری" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-filter" label="شرط ردیف" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <!-- ───────── ویژگی‌ها و مقادیر (F-PE-057) ───────── -->
+    <p-tabPanel header="ویژگی‌ها و مقادیر">
+      <div *ngIf="model as m" class="gng-field-grid">
+        <div class="gng-field"><span class="gng-field__label">کالا</span><span class="gng-field__value">{{ m.product }}</span></div>
+        <div class="gng-field"><span class="gng-field__label">ساختار پایه</span><span class="gng-field__value">{{ m.structure }}</span></div>
+        <div class="gng-field"><span class="gng-field__label">شرح</span><span class="gng-field__value">{{ m.description || '—' }}</span></div>
+      </div>
+      <div style="position: relative" class="gng-mt">
+        <gng-data-source-badge [source]="ds('pe07-values', 'ویژگی‌ها و مقادیر')"></gng-data-source-badge>
+        <p-table [value]="features" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th>ویژگی</th><th>مقادیر مجاز</th><th style="width: 8rem">الزامی</th><th style="width: 10rem">اثر بر ساختار</th></tr></ng-template>
+          <ng-template pTemplate="body" let-f>
+            <tr>
+              <td>{{ f.feature }}</td>
+              <td><span *ngFor="let v of f.values; let last = last"><strong *ngIf="v.isDefault">{{ v.value }}</strong><span *ngIf="!v.isDefault">{{ v.value }}</span>{{ last ? '' : ' · ' }}</span></td>
+              <td>{{ f.mandatory ? 'بله' : 'خیر' }}</td>
+              <td><p-tag [value]="f.hasEffect ? 'دارد' : 'ندارد'" [severity]="f.hasEffect ? 'success' : 'warning'"></p-tag></td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── قواعد سازگاری (F-PE-058) ───────── -->
+    <p-tabPanel header="قواعد سازگاری">
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pe07-rules', 'قواعد')"></gng-data-source-badge>
+        <p-table [value]="rules" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th style="width: 7rem">نوع</th><th>اگر</th><th>آنگاه</th><th>پیام</th></tr></ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr><td><p-tag [value]="r.typeCode === 1 ? 'الزام' : 'منع'" [severity]="r.typeCode === 1 ? 'info' : 'danger'"></p-tag></td>
+              <td>{{ r.ifTitle }}</td><td>{{ r.typeCode === 1 ? 'باید ' : 'نباید ' }}{{ r.thenTitle }}</td><td class="gng-text-muted">{{ r.message || '—' }}</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── شرط ردیف‌ها (F-PE-059) ───────── -->
+    <p-tabPanel header="شرط ردیف‌ها">
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pe07-conditions', 'شرط ردیف‌ها')"></gng-data-source-badge>
+        <p-table [value]="conditions" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th style="width: 10rem">اقدام</th><th>انتخاب</th><th style="width: 6rem">ردیف</th><th>قلم</th><th style="width: 9rem">مقدار</th><th style="width: 9rem">نقش تولیدی</th></tr></ng-template>
+          <ng-template pTemplate="body" let-c>
+            <tr>
+              <td>{{ c.action }}</td><td>{{ c.valueTitle }}</td><td>{{ c.itemSequence !== null ? fa(c.itemSequence) : 'افزوده' }}</td><td>{{ c.product }}</td><td>{{ num(c.quantity) }} {{ c.unit }}</td>
+              <td><p-tag [value]="c.hasProductionRole ? 'دارد' : 'ندارد'" [severity]="c.hasProductionRole ? 'success' : 'warning'"></p-tag></td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── ساختار مؤثر (F-PE-060) ───────── -->
+    <p-tabPanel header="ساختار مؤثر" [selected]="true">
+      <p class="gng-hint">ترکیب را انتخاب کنید؛ نقض قواعد و ساختار مؤثر (Resolved BOM) زنده حساب می‌شود. نگهداری پیکربندی روی سفارش و بچ (F-PE-061) با دستور کار می‌آید.</p>
+      <div class="gng-window">
+        <span *ngFor="let f of features" style="display: inline-flex; align-items: center; gap: 0.3rem">
+          <span class="gng-small">{{ f.feature }}</span>
+          <p-dropdown [options]="optionsOf(f)" [(ngModel)]="f.selected" (onChange)="resolve()"></p-dropdown>
+        </span>
+        <button pButton type="button" icon="pi pi-refresh" label="پیش‌فرض" class="p-button-outlined p-button-sm" (click)="resetDefaults()"></button>
+      </div>
+      <div *ngIf="violations.length" class="gng-note gng-note--danger gng-mt-sm">
+        <div *ngFor="let v of violations">{{ v.text }}<span *ngIf="v.message" class="gng-small"> — {{ v.message }}</span></div>
+      </div>
+      <div *ngIf="!violations.length && resolved.length" class="gng-note gng-note--success gng-mt-sm">ترکیب معتبر است؛ ساختار مؤثر {{ fa(effectiveCount) }} ردیف دارد.</div>
+      <div style="position: relative" class="gng-mt-sm">
+        <gng-data-source-badge [source]="ds('pe07-resolve', 'ساختار مؤثر')"></gng-data-source-badge>
+        <p-table [value]="resolved" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll" [loading]="resolving">
+          <ng-template pTemplate="header"><tr><th style="width: 5rem">ردیف</th><th>قلم</th><th style="width: 10rem">مقدار</th><th style="width: 9rem">وضعیت</th><th>شرط</th></tr></ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr [class.gng-text-muted]="r.status === 'excluded'" [style.text-decoration]="r.status === 'excluded' ? 'line-through' : null">
+              <td>{{ r.sequence !== null ? fa(r.sequence) : '+' }}</td><td>{{ r.product }}</td><td>{{ num(r.quantity) }} {{ r.unit }}</td>
+              <td><p-tag [value]="statusLabel(r.status)" [severity]="statusSeverity(r.status)"></p-tag></td><td class="gng-small">{{ r.condition || '—' }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="ds('pe07-models', 'مدل‌ها')"></gng-data-source-badge>
+    <p-tree [value]="pickTree" styleClass="gng-tree" selectionMode="single" [(selection)]="selectedPick" (onNodeSelect)="onPick($event)" (onNodeUnselect)="onUnpick($event)"></p-tree>
+  </div>
+</gng-opform-layout>

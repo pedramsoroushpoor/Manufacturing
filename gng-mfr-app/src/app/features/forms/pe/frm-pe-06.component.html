@@ -1,0 +1,99 @@
+<gng-opform-layout
+  domainTitle="مهندسی محصول"
+  title="ساختار ماتریسی و اقلام ابعادی"
+  code="FRM-PE-06"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="مهندسی محصول / R&D"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-th-large"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="مدل‌های پایه"
+  contextPanelHint="ساختار مدل پایه برای کالای ابعادی (FRM-PE-01) تعریف می‌شود؛ ساختار هر ترکیب از آن مشتق می‌شود."
+  auditFeatureRange="F-PE-052، F-PE-053، F-PE-055، F-PE-056 (خروجی) — فاز اول"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-plus" label="تعریف ساختار مدل پایه" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-table" label="ویرایش ماتریسی مصرف" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-file-excel" label="خروجی ماتریس" class="p-button-outlined p-button-sm" [disabled]="!selected" (click)="exportMatrix()"></button>
+    <button pButton type="button" icon="pi pi-upload" label="ورود گروهی از اکسل" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading" *ngIf="selected">
+    <p-tabPanel header="مدل پایه">
+      <div class="gng-field-grid">
+        <div class="gng-field"><span class="gng-field__label">ساختار</span><span class="gng-field__value">{{ selected.code }} — {{ selected.title }}</span></div>
+        <div class="gng-field"><span class="gng-field__label">کالای ابعادی</span><span class="gng-field__value">{{ selected.product }}</span></div>
+        <div class="gng-field"><span class="gng-field__label">ابعاد</span><span class="gng-field__value">{{ selected.dimensions }}</span></div>
+        <div class="gng-field"><span class="gng-field__label">ترکیب‌های فعال</span><span class="gng-field__value">{{ fa(selected.variantCount) }}</span></div>
+        <div class="gng-field"><span class="gng-field__label">اندازه‌ی مرجع</span><span class="gng-field__value">{{ selected.base }}</span></div>
+        <div class="gng-field"><span class="gng-field__label">نسخه</span><span class="gng-field__value">{{ selected.revision }}</span></div>
+        <div class="gng-field"><span class="gng-field__label">ردیف وابسته / مستقل</span><span class="gng-field__value">{{ fa(selected.dependentItems) }} / {{ fa(selected.independentItems) }}</span></div>
+      </div>
+      <p class="gng-hint gng-mt">ساختار هر ترکیب ذخیره نمی‌شود؛ از مدل پایه و جدول مصرف ابعادی مشتق می‌شود. تغییر مدل پایه همه‌ی ترکیب‌ها را یک‌جا عوض می‌کند.</p>
+    </p-tabPanel>
+
+    <p-tabPanel header="ماتریس ابعاد" [selected]="true">
+      <p class="gng-hint">ساختار مشتق هر ترکیب: ستون‌ها ردیف‌های مدل پایه، سطرها ترکیب‌ها. «—» یعنی جدول مصرف برای این ترکیب مقدار ندارد.</p>
+      <div style="position: relative; overflow-x: auto">
+        <gng-data-source-badge [source]="ds('pe06-derived', 'ساختار مشتق ترکیب‌ها')"></gng-data-source-badge>
+        <table class="gng-matrix">
+          <thead>
+            <tr>
+              <th>ترکیب</th>
+              <th *ngFor="let c of derived.items">{{ c.label }}<div class="gng-text-muted gng-small">{{ c.unit }}{{ c.dependent ? '' : ' · مستقل' }}</div></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let v of derived.variants">
+              <th>{{ v.title }}<div class="gng-text-muted gng-small" dir="ltr" style="text-align: right">{{ v.code }}</div></th>
+              <td *ngFor="let qty of v.quantities" [class.gng-sym--warn]="qty === null">{{ q(qty) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="جدول یا فرمول مصرف">
+      <p class="gng-hint">مقدار هر ردیف وابسته به‌ازای هر مقدارِ مجاز بُعدش در کالا. ورود گروهی از اکسل و ویرایش ماتریسی با ثبت و ویرایش می‌آید.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pe06-items', 'جدول مصرف ابعادی')"></gng-data-source-badge>
+        <p-table [value]="dependent" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th style="width: 4rem">ردیف</th><th>قلم</th><th style="width: 9rem">وابسته به</th><th>مقدار به‌ازای هر مقدار بُعد</th></tr></ng-template>
+          <ng-template pTemplate="body" let-i>
+            <tr>
+              <td>{{ fa(i.seq) }}</td>
+              <td>{{ i.product }}<div class="gng-text-muted gng-small">{{ i.role }}</div></td>
+              <td>{{ i.dimension }}</td>
+              <td>
+                <span *ngFor="let v of i.values" class="gng-origin gng-reason-chip" [class.gng-origin--closure]="v.quantity === null">
+                  {{ v.title }}: {{ v.quantity === null ? 'تعریف نشده' : q(v.quantity) + ' ' + i.unit }}
+                </span>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="اقلام مستقل از ابعاد">
+      <p class="gng-hint">اقلامی که مقدارشان در همه‌ی ترکیب‌ها یکی است (مثل نخ و برچسب در پوشاک، یا حلال در کپسول).</p>
+      <p-table [value]="independent" styleClass="p-datatable-sm gng-table">
+        <ng-template pTemplate="header"><tr><th style="width: 4rem">ردیف</th><th>قلم</th><th style="width: 10rem">مقدار</th></tr></ng-template>
+        <ng-template pTemplate="body" let-i><tr><td>{{ fa(i.seq) }}</td><td>{{ i.product }}<div class="gng-text-muted gng-small">{{ i.role }}</div></td><td>{{ q(i.baseQuantity) }} {{ i.unit }}</td></tr></ng-template>
+        <ng-template pTemplate="emptymessage"><tr><td colspan="3" class="gng-empty">قلم مستقل از ابعاد ندارد.</td></tr></ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <p-tabPanel header="مارکر برش">
+      <div class="gng-note gng-note--info"><strong>هنوز پیاده نشده.</strong> مصرف بر مبنای مارکر/الگوی برش — راندمان برش، عرض پارچه، تعداد لایه (F-PE-054) — اولویت «مهم» دارد.</div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="ds('pe06-structures', 'مدل‌های پایه')"></gng-data-source-badge>
+    <p-tree [value]="pickTree" styleClass="gng-tree" selectionMode="single" [(selection)]="selectedPick" (onNodeSelect)="onPick($event)" (onNodeUnselect)="onUnpick($event)"></p-tree>
+  </div>
+</gng-opform-layout>

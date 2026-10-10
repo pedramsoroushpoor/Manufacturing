@@ -1,0 +1,187 @@
+<gng-opform-layout
+  domainTitle="مهندسی تولید"
+  title="روش ساخت"
+  code="FRM-ME-02"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="مهندسی تولید"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-sitemap"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="روش‌های ساخت"
+  contextPanelHint="به تفکیک محصول؛ هر برگ یک نسخه است. الگوها جدا آمده‌اند."
+  auditFeatureRange="F-ME-008 تا F-ME-013، F-ME-015 تا F-ME-019 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-plus" label="روش جدید" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-clone" label="اشتقاق از الگو" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-copy" label="کپی نسخه" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-pencil" label="ویرایشگر گرافیکی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <!-- ───────── اطلاعات کلی (F-ME-008، 010، 017) ───────── -->
+    <p-tabPanel header="اطلاعات کلی">
+      <div *ngIf="routing as r" style="position: relative">
+        <gng-data-source-badge [source]="ds('me02-routings', 'روش‌ها')"></gng-data-source-badge>
+        <div class="gng-field-grid">
+          <div class="gng-field"><span class="gng-field__label">کد و نسخه</span><span class="gng-field__value">{{ r.code }} {{ r.version }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">عنوان</span><span class="gng-field__value">{{ r.title }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">وضعیت</span><span class="gng-field__value"><p-tag [value]="r.status" [severity]="statusSeverity(r.statusCode)"></p-tag></span></div>
+          <div class="gng-field"><span class="gng-field__label">نوع روش</span><span class="gng-field__value">{{ r.method }} · {{ r.type }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">اندازه‌ی بچ مرجع</span><span class="gng-field__value">{{ num(r.batch) }} {{ r.unit }} (از {{ num(r.minBatch) }} تا {{ num(r.maxBatch) }})</span></div>
+          <div class="gng-field"><span class="gng-field__label">خط پیش‌فرض</span><span class="gng-field__value">{{ r.line }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">اعتبار</span><span class="gng-field__value">{{ r.validFrom }} تا {{ r.validTo }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">الگو</span><span class="gng-field__value">{{ r.isTemplate ? 'خودش الگوست' : (r.template || '—') }}</span></div>
+          <div class="gng-field" *ngIf="r.isToll"><span class="gng-field__label">کارمزدی دریافتی برای</span><span class="gng-field__value">{{ r.customer }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">شرح</span><span class="gng-field__value">{{ r.description || '—' }}</span></div>
+        </div>
+
+        <h3 class="gng-mt">ساختارها و محصولاتی که این روش را استفاده می‌کنند</h3>
+        <div style="position: relative">
+          <gng-data-source-badge [source]="ds('me02-assignments', 'اختصاص به ساختار')"></gng-data-source-badge>
+          <p-table [value]="assignments" styleClass="p-datatable-sm gng-table">
+            <ng-template pTemplate="header"><tr><th>ساختار محصول</th><th>محصول</th><th style="width: 12rem">اندازه‌ی مرجع ساختار</th></tr></ng-template>
+            <ng-template pTemplate="body" let-a><tr><td>{{ a.structure }}</td><td>{{ a.product }}</td><td>{{ num(a.quantity) }} {{ a.unit }}</td></tr></ng-template>
+            <ng-template pTemplate="emptymessage"><tr><td colspan="3" class="gng-empty">{{ r.isTemplate ? 'الگو به ساختار اختصاص نمی‌یابد؛ روش‌های مشتق اختصاص می‌یابند.' : 'به هیچ ساختاری اختصاص ندارد.' }}</td></tr></ng-template>
+          </p-table>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── گراف عملیات (F-ME-011، 013، 015، 016) ───────── -->
+    <p-tabPanel header="گراف عملیات" [selected]="true">
+      <p class="gng-hint">نمای گرافیکی همین روش (راست به چپ). شاخه‌های موازی با درصد سهم‌بری، یال‌های هم‌پوشان با شرط شروع؛ عملیات نامعتبر قرمز است. ویرایش با درگ‌اند‌دراپ با ثبت و ویرایش می‌آید.</p>
+      <div style="overflow-x: auto; border: 1px solid var(--gng-border, #ddd); border-radius: 0.5rem; background: var(--gng-surface, transparent)">
+        <svg [attr.width]="graphW" [attr.height]="graphH + 30" [attr.viewBox]="'0 0 ' + graphW + ' ' + (graphH + 30)" style="display: block; margin-inline-start: auto">
+          <defs>
+            <marker id="me02-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#8a94a6"></path>
+            </marker>
+            <marker id="me02-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#e24c4c"></path>
+            </marker>
+          </defs>
+          <g *ngFor="let e of edges">
+            <line *ngIf="!e.back" [attr.x1]="e.x1" [attr.y1]="e.y1" [attr.x2]="e.x2" [attr.y2]="e.y2" stroke="#8a94a6" stroke-width="1.6" marker-end="url(#me02-arrow)"></line>
+            <path *ngIf="e.back" [attr.d]="backPath(e)" fill="none" stroke="#e24c4c" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#me02-arrow-bad)"></path>
+            <text *ngIf="e.label" [attr.x]="(e.x1 + e.x2) / 2" [attr.y]="labelY(e)" text-anchor="middle" font-size="11" [attr.fill]="e.back ? '#e24c4c' : '#5b6474'">{{ e.label }}</text>
+          </g>
+          <g *ngFor="let n of nodes">
+            <rect [attr.x]="n.x" [attr.y]="n.y" [attr.width]="nodeW" [attr.height]="nodeH" rx="8"
+                  [attr.fill]="n.op.outsourced ? '#fff4e0' : n.op.natureCode === 2 ? '#e8f1ff' : '#f3f6f9'"
+                  [attr.stroke]="n.invalid ? '#e24c4c' : '#9aa5b5'" [attr.stroke-width]="n.invalid ? 2.2 : 1.2"></rect>
+            <text [attr.x]="n.x + nodeW - 8" [attr.y]="n.y + 18" text-anchor="start" font-size="12" font-weight="600" fill="#1f2937">{{ fa(n.op.sequence) }} · {{ n.op.title }}</text>
+            <text [attr.x]="n.x + nodeW - 8" [attr.y]="n.y + 34" text-anchor="start" font-size="10.5" fill="#5b6474">{{ n.op.nature }}{{ n.op.share !== null ? ' · ' + num(n.op.share) + '٪' : '' }}{{ n.op.yieldPercent !== null ? ' · بازده ' + num(n.op.yieldPercent) : '' }}</text>
+            <text [attr.x]="n.x + nodeW - 8" [attr.y]="n.y + 49" text-anchor="start" font-size="10" [attr.fill]="n.op.resourceSource === 0 ? '#e24c4c' : '#7a8496'">{{ n.op.outsourced ? 'نزد پیمانکار' : (n.op.resource || 'بدون منبع') }}{{ n.op.resourceSource === 2 ? ' (کتابخانه)' : '' }}</text>
+          </g>
+        </svg>
+      </div>
+
+      <div style="position: relative" class="gng-mt">
+        <gng-data-source-badge [source]="ds('me02-operations', 'عملیات روش')"></gng-data-source-badge>
+        <p-table [value]="operations" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th style="width: 5rem">ردیف</th><th>عملیات کتابخانه</th><th style="width: 8rem">ماهیت</th><th>منبع</th><th style="width: 7rem">سهم‌بری</th><th style="width: 7rem">بازده</th><th>شرح</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-o>
+            <tr [style.color]="invalidOps.has(o.id) ? 'var(--gng-danger, #e24c4c)' : null">
+              <td>{{ fa(o.sequence) }}</td>
+              <td>{{ o.code }} — {{ o.title }}</td>
+              <td>{{ o.nature }}</td>
+              <td>
+                {{ o.outsourced ? 'نزد پیمانکار (FRM-ME-07)' : (o.resource || '—') }}
+                <p-tag *ngIf="o.resourceSource === 2" value="ارث از کتابخانه" severity="info" styleClass="gng-mr-sm"></p-tag>
+              </td>
+              <td>{{ o.share !== null ? num(o.share) + '٪' : '—' }}</td>
+              <td>{{ o.yieldPercent !== null ? num(o.yieldPercent) + '٪' : '—' }}</td>
+              <td class="gng-text-muted">{{ o.description || '—' }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+
+      <h3 class="gng-mt">یال‌ها، سهم‌بری و هم‌پوشانی</h3>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me02-links', 'یال‌ها')"></gng-data-source-badge>
+        <p-table [value]="links" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th>از</th><th>به</th><th style="width: 8rem">سهم‌بری</th><th style="width: 14rem">شروع هم‌پوشان</th><th>شرح</th></tr></ng-template>
+          <ng-template pTemplate="body" let-k>
+            <tr><td>{{ opLabel(k.fromId) }}</td><td>{{ opLabel(k.toId) }}</td><td>{{ k.share !== null ? num(k.share) + '٪' : '—' }}</td><td>{{ overlapText(k) }}</td><td class="gng-text-muted">{{ k.description || '—' }}</td></tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="5" class="gng-empty">یال صریح ندارد؛ ترتیب ساده‌ی ردیف‌ها مبناست.</td></tr></ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── عملیات جایگزین (F-ME-012) ───────── -->
+    <p-tabPanel header="عملیات جایگزین">
+      <p class="gng-hint">شرط انتخاب: بازه‌ی مقدار سفارش، در دسترس نبودن منبع اصلی، انتخاب کاربر، یا کمترین هزینه/زمان. انتخاب در زمان صدور دستور کار انجام می‌شود.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('me02-alternatives', 'جایگزین‌ها')"></gng-data-source-badge>
+        <p-table [value]="alternatives" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th style="width: 5rem">ردیف</th><th>عملیات اصلی</th><th>جایگزین</th><th>منبع جایگزین</th><th style="width: 13rem">شرط انتخاب</th><th style="width: 9rem">بازه‌ی مقدار</th><th style="width: 5rem">اولویت</th></tr></ng-template>
+          <ng-template pTemplate="body" let-a>
+            <tr>
+              <td>{{ fa(a.sequence) }}</td>
+              <td>{{ a.main }}</td>
+              <td>{{ a.alternative }} <span class="gng-text-muted gng-small">({{ a.alternativeNature }})</span><div *ngIf="a.description" class="gng-text-muted gng-small">{{ a.description }}</div></td>
+              <td>{{ a.resource }}</td>
+              <td><p-tag [value]="a.rule" severity="info"></p-tag></td>
+              <td>{{ a.fromQuantity === null && a.toQuantity === null ? '—' : (num(a.fromQuantity) + ' تا ' + num(a.toQuantity)) }}</td>
+              <td>{{ a.priority !== null ? fa(a.priority) : '—' }}</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="7" class="gng-empty">این روش عملیات جایگزین ندارد.</td></tr></ng-template>
+        </p-table>
+      </div>
+      <div class="gng-note gng-note--info gng-mt"><strong>هنوز پیاده نشده.</strong> عملیات شرطی وابسته به پارامتر سفارش یا نتیجه‌ی کیفی (F-ME-014) اولویت «مهم» دارد.</div>
+    </p-tabPanel>
+
+    <!-- ───────── نسخه و اعتبار (F-ME-009، 017، 018) ───────── -->
+    <p-tabPanel header="نسخه و اعتبار">
+      <p-table [value]="versions" styleClass="p-datatable-sm gng-table">
+        <ng-template pTemplate="header"><tr><th style="width: 6rem">نسخه</th><th>عنوان</th><th style="width: 10rem">وضعیت</th><th style="width: 16rem">اعتبار</th><th style="width: 6rem">عملیات</th><th>شرح</th></tr></ng-template>
+        <ng-template pTemplate="body" let-v>
+          <tr [class.gng-row-active]="v.id === routing?.id">
+            <td>{{ v.version }}</td><td>{{ v.title }}</td><td><p-tag [value]="v.status" [severity]="statusSeverity(v.statusCode)"></p-tag></td>
+            <td>{{ v.validFrom }} تا {{ v.validTo }}</td><td>{{ fa(v.operationCount) }}</td><td class="gng-text-muted">{{ v.description || '—' }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+
+      <h3 class="gng-mt">مقایسه‌ی نسخه‌ها یا روش با الگویش</h3>
+      <div class="gng-window">
+        <p-dropdown [options]="versionOptions" [(ngModel)]="leftId" (onChange)="runDiff()" placeholder="نسخه‌ی مبنا" styleClass="gng-diff-pick"></p-dropdown>
+        <span>در برابر</span>
+        <p-dropdown [options]="versionOptions" [(ngModel)]="rightId" (onChange)="runDiff()" styleClass="gng-diff-pick"></p-dropdown>
+      </div>
+      <p-table [value]="diff" styleClass="p-datatable-sm gng-table gng-mt-sm" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th style="width: 5rem">ردیف</th><th style="width: 8rem">تغییر</th><th>مبنا</th><th>مقایسه</th><th style="width: 10rem">فیلدها</th></tr></ng-template>
+        <ng-template pTemplate="body" let-d>
+          <tr><td>{{ fa(d.sequence) }}</td><td><p-tag [value]="diffLabel(d.kind)" [severity]="diffSeverity(d.kind)"></p-tag></td><td>{{ d.left }}</td><td>{{ d.right }}</td><td>{{ d.fields || '—' }}</td></tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage"><tr><td colspan="5" class="gng-empty">{{ leftId && rightId && leftId !== rightId ? 'دو نسخه از نظر عملیات یکسان‌اند.' : 'نسخه یا الگوی دیگری برای مقایسه نیست.' }}</td></tr></ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── کارمزدی دریافتی (F-ME-019) ───────── -->
+    <p-tabPanel header="کارمزدی دریافتی">
+      <p class="gng-hint">روش ساخت برای تولید به سفارش دیگران با مواد امانی مشتری. اقلام مالکیت مشتری و تسویه‌ی مازاد در FRM-ME-07 آمده است.</p>
+      <p-table [value]="tollRoutings" styleClass="p-datatable-sm gng-table">
+        <ng-template pTemplate="header"><tr><th>روش</th><th>مشتری</th><th>محصول</th><th style="width: 10rem">وضعیت</th><th>شرح</th></tr></ng-template>
+        <ng-template pTemplate="body" let-t>
+          <tr [class.gng-row-active]="t.id === routing?.id"><td>{{ t.code }} {{ t.version }} — {{ t.title }}</td><td>{{ t.customer }}</td><td>{{ t.products }}</td><td><p-tag [value]="t.status" [severity]="statusSeverity(t.statusCode)"></p-tag></td><td class="gng-text-muted">{{ t.description || '—' }}</td></tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage"><tr><td colspan="5" class="gng-empty">روش کارمزدی دریافتی تعریف نشده است.</td></tr></ng-template>
+      </p-table>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="ds('me02-routings', 'روش‌ها')"></gng-data-source-badge>
+    <p-tree [value]="pickTree" styleClass="gng-tree" selectionMode="single" [(selection)]="selectedPick" (onNodeSelect)="onPick($event)" (onNodeUnselect)="onUnpick($event)"></p-tree>
+  </div>
+</gng-opform-layout>

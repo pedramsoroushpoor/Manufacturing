@@ -1,0 +1,232 @@
+<div class="almspec">
+  <nav class="almspec__breadcrumb">
+    <span>ALM</span>
+    <i class="pi pi-angle-left"></i>
+    <span>شناسنامه‌ی فرم</span>
+    <i class="pi pi-angle-left"></i>
+    <span class="almspec__breadcrumb-current">{{ formCode }}</span>
+  </nav>
+
+  <div class="gng-loading" *ngIf="loading"><i class="pi pi-spin pi-spinner"></i> در حال خواندن از alm…</div>
+
+  <div class="almspec__error" *ngIf="errorText">
+    <i class="pi" [ngClass]="notFound ? 'pi-search' : 'pi-exclamation-triangle'"></i>
+    <span>{{ errorText }}</span>
+  </div>
+
+  <ng-container *ngIf="spec as s">
+    <header class="almspec__header">
+      <div>
+        <h1>{{ s.form.title }}</h1>
+        <div class="almspec__meta">
+          <span class="almspec__code">{{ s.form.code }}</span>
+          <span class="almspec__pill" *ngIf="s.form.formTypeTitle">{{ s.form.formTypeTitle }}</span>
+          <span class="almspec__pill" *ngIf="s.form.phaseTitle">مرحله: {{ s.form.phaseTitle }}</span>
+          <span class="almspec__pill" *ngIf="s.form.subSystemTitle">{{ s.form.subSystemTitle }}</span>
+        </div>
+      </div>
+      <a class="almspec__open" [routerLink]="['/forms', s.form.code]">
+        <i class="pi pi-external-link"></i> باز کردن خودِ فرم
+      </a>
+    </header>
+
+    <section class="almspec__summary" *ngIf="s.features.length">
+      <div class="almspec__summary-text">
+        این فرم باید <b>{{ fa(s.features.length) }}</b> فیچر را پوشش دهد؛
+        <b>{{ fa(implementedCount) }}</b> فیچر در فرم پیاده شده
+        <ng-container *ngIf="notImplementedCount"> و <b>{{ fa(notImplementedCount) }}</b> فیچر هنوز پیاده نشده</ng-container>.
+        <span class="almspec__muted">از پیاده‌شده‌ها، {{ fa(deliveredCount) }} فیچر تحویل نهایی شده است.</span>
+      </div>
+      <div class="almspec__coverage-bar" role="img" [attr.aria-label]="fa(implementedCount) + ' از ' + fa(s.features.length) + ' فیچر پیاده شده'">
+        <ng-container *ngFor="let b of coverage">
+          <span *ngIf="b.count" class="almspec__coverage-seg" [ngClass]="'almspec__st--' + b.key" [style.flex-grow]="b.count" [title]="b.label + ': ' + b.count"></span>
+        </ng-container>
+      </div>
+    </section>
+
+    <section class="almspec__stats">
+      <div class="almspec__stat">
+        <span class="almspec__stat-value">{{ fa(s.features.length) }}</span>
+        <span class="almspec__stat-label">فیچر — باید پوشش دهد</span>
+      </div>
+      <div class="almspec__stat almspec__stat--accent">
+        <span class="almspec__stat-value">{{ fa(implementedCount) }}</span>
+        <span class="almspec__stat-label">پیاده‌شده در فرم</span>
+      </div>
+      <div class="almspec__stat">
+        <span class="almspec__stat-value">{{ fa(deliveredCount) }}</span>
+        <span class="almspec__stat-label">تحویل نهایی</span>
+      </div>
+      <div class="almspec__stat">
+        <span class="almspec__stat-value">{{ fa(s.access.length) }}</span>
+        <span class="almspec__stat-label">گروه دسترسی</span>
+      </div>
+      <div class="almspec__stat">
+        <span class="almspec__stat-value">{{ fa(s.actions.length) }}</span>
+        <span class="almspec__stat-label">عملیات</span>
+      </div>
+    </section>
+
+    <p-tabView styleClass="almspec__tabs">
+      <!-- ───────── مشخصات فرم ───────── -->
+      <p-tabPanel header="مشخصات فرم">
+        <dl class="almspec__details">
+          <div><dt>کد فرم</dt><dd class="almspec__mono">{{ s.form.code }}</dd></div>
+          <div><dt>عنوان</dt><dd>{{ s.form.title }}</dd></div>
+          <div><dt>نوع فرم</dt><dd>{{ s.form.formTypeTitle || s.form.formTypeCode || '—' }}</dd></div>
+          <div><dt>مرحله</dt><dd>{{ s.form.phaseTitle || s.form.phaseCode || '—' }}</dd></div>
+          <div>
+            <dt>زیرسیستم</dt>
+            <dd>{{ s.form.subSystemTitle || '—' }} <span class="almspec__mono almspec__muted" *ngIf="s.form.subSystemCode">({{ s.form.subSystemCode }})</span></dd>
+          </div>
+          <div>
+            <dt>سند تحلیل</dt>
+            <dd>{{ s.form.analysisDocumentTitle || '—' }} <span class="almspec__mono almspec__muted" *ngIf="s.form.analysisDocumentCode">({{ s.form.analysisDocumentCode }})</span></dd>
+          </div>
+          <div><dt>مالک طراحی</dt><dd>{{ s.form.designOwner || '—' }}</dd></div>
+          <div><dt>سایر گروه‌های دسترسی</dt><dd>{{ s.form.otherAccessGroupsText || '—' }}</dd></div>
+        </dl>
+
+        <h3 class="almspec__h3">تب‌های فرم <span class="almspec__count">({{ s.form.tabCount ?? tabs.length }})</span></h3>
+        <ol class="almspec__tablist" *ngIf="tabs.length; else noTabs">
+          <li *ngFor="let t of tabs">{{ t }}</li>
+        </ol>
+        <ng-template #noTabs><p class="gng-empty">برای این فرم تبی در ALM ثبت نشده است.</p></ng-template>
+
+        <h3 class="almspec__h3">برآورد (نفر-روز)</h3>
+        <div class="almspec__estimate">
+          <div><span>از فیچرها</span><b>{{ s.form.estimateFromFeatures ?? '—' }}</b></div>
+          <i class="pi pi-plus"></i>
+          <div><span>سربار</span><b>{{ s.form.overheadEstimate ?? '—' }}</b></div>
+          <i class="pi pi-equals"></i>
+          <div class="almspec__estimate-total"><span>کل</span><b>{{ s.form.totalEstimate ?? '—' }}</b></div>
+        </div>
+
+        <div class="almspec__note" *ngIf="s.form.note">
+          <i class="pi pi-info-circle"></i>
+          <span>{{ s.form.note }}</span>
+        </div>
+      </p-tabPanel>
+
+      <!-- ───────── فیچرها ───────── -->
+      <p-tabPanel [header]="'فیچرها (' + s.features.length + ')'" [selected]="true">
+        <p class="gng-empty" *ngIf="!s.features.length">هیچ فیچری به این فرم نگاشت نشده است.</p>
+
+        <ng-container *ngIf="s.features.length">
+          <div class="almspec__coverage">
+            <ul class="almspec__coverage-legend">
+              <li *ngFor="let b of coverage">
+                <span class="almspec__dot" [ngClass]="'almspec__st--' + b.key"></span>
+                {{ b.label }}: <b>{{ b.count }}</b>
+                <span class="almspec__muted" *ngIf="b.count">({{ b.effort }} نفر-روز)</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="almspec__group" *ngFor="let g of groups">
+            <h3 class="almspec__h3">
+              {{ g.title }}
+              <span class="almspec__count">({{ g.features.length }} فیچر · {{ g.effort }} نفر-روز)</span>
+            </h3>
+            <div class="almspec__table-wrap">
+              <table class="almspec__table">
+                <thead>
+                  <tr>
+                    <th>الزام</th>
+                    <th>عنوان فیچر</th>
+                    <th>ماژول</th>
+                    <th>نوع</th>
+                    <th>اولویت</th>
+                    <th>پیچیدگی</th>
+                    <th class="almspec__num">نفر-روز</th>
+                    <th>وضعیت پوشش</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let f of g.features">
+                    <td class="almspec__mono" [title]="f.featureCode">{{ f.requirement || f.featureCode }}</td>
+                    <td>
+                      <div class="almspec__feature-title">{{ f.title || '—' }}</div>
+                      <div class="almspec__feature-info" *ngIf="f.extraInfo && f.extraInfo !== f.title">{{ f.extraInfo }}</div>
+                      <div class="almspec__feature-note" *ngIf="f.note"><i class="pi pi-wrench"></i>{{ f.note }}</div>
+                    </td>
+                    <td>{{ f.module || '—' }}</td>
+                    <td>{{ f.artifactTypeTitle || f.artifactTypeCode || '—' }}</td>
+                    <td><span class="almspec__prio" [ngClass]="'almspec__prio--' + (f.priorityCode || 'x')">{{ f.priorityTitle || '—' }}</span></td>
+                    <td>{{ f.complexityTitle || '—' }}</td>
+                    <td class="almspec__num">{{ f.effortDays ?? '—' }}</td>
+                    <td>
+                      <span class="almspec__status" [ngClass]="'almspec__st--' + coverageKey(f)">{{ coverageLabel(f) }}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </ng-container>
+      </p-tabPanel>
+
+      <!-- ───────── ماتریس دسترسی ───────── -->
+      <p-tabPanel [header]="'ماتریس دسترسی (' + s.access.length + ')'">
+        <p class="gng-empty" *ngIf="!s.access.length">برای این فرم دسترسی‌ای در alm.FormAccess ثبت نشده است.</p>
+        <div class="almspec__table-wrap" *ngIf="s.access.length">
+          <table class="almspec__table almspec__table--matrix">
+            <thead>
+              <tr>
+                <th>گروه کاربری</th>
+                <th class="almspec__cell-center" *ngFor="let c of permissionColumns">{{ c.label }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let a of s.access" [class.almspec__row-strong]="isPrimaryEditor(a)">
+                <td>
+                  <div>{{ groupLabel(a.userGroupCode) }}</div>
+                  <div class="almspec__mono almspec__muted" *ngIf="hasGroupLabel(a.userGroupCode)">{{ a.userGroupCode }}</div>
+                </td>
+                <td class="almspec__cell-center" *ngFor="let c of permissionColumns">
+                  <i class="pi pi-check almspec__yes" *ngIf="allowed(a, c.key); else no" [attr.aria-label]="'دارد'"></i>
+                  <ng-template #no><span class="almspec__no" aria-label="ندارد">—</span></ng-template>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </p-tabPanel>
+
+      <!-- ───────── عملیات‌ها ───────── -->
+      <p-tabPanel [header]="'عملیات‌ها (' + s.actions.length + ')'">
+        <p class="gng-empty" *ngIf="!s.actions.length">برای این فرم عملیاتی در alm.FormAction ثبت نشده است.</p>
+        <div class="almspec__table-wrap" *ngIf="s.actions.length">
+          <table class="almspec__table">
+            <thead>
+              <tr>
+                <th class="almspec__num">#</th>
+                <th>عملیات</th>
+                <th>نوع عملیات</th>
+                <th>مجوز لازم</th>
+                <th>توضیح</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let a of s.actions; let i = index">
+                <td class="almspec__num">{{ i + 1 }}</td>
+                <td>{{ a.title }}</td>
+                <td>
+                  <span class="almspec__pill" [class.almspec__pill--warn]="a.actionTypeCode === 'SecondApprovalRequired'">
+                    {{ a.actionTypeTitle || a.actionTypeCode || '—' }}
+                  </span>
+                </td>
+                <td class="almspec__mono">{{ a.requiredPermission || '—' }}</td>
+                <td>{{ a.note || '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </p-tabPanel>
+    </p-tabView>
+
+    <footer class="almspec__footer">
+      منبع: اسکیمای alm — Form · FormFeatureMapping · Feature · FormAccess · FormAction
+    </footer>
+  </ng-container>
+</div>

@@ -1,0 +1,65 @@
+<div class="gng-form" *ngIf="config">
+  <nav class="gng-form__breadcrumb">
+    <span>مدیریت تولید</span>
+    <i class="pi pi-angle-left"></i>
+    <span>{{ config.domainTitle }}</span>
+    <i class="pi pi-angle-left"></i>
+    <span class="gng-form__breadcrumb-current">{{ config.title }}</span>
+  </nav>
+
+  <header class="gng-form__header">
+    <div class="gng-form__title-block">
+      <h1>{{ config.title }}</h1>
+      <div class="gng-form__meta">
+        <gng-form-code-chip [code]="config.code"></gng-form-code-chip>
+        <span class="gng-form__type">{{ config.formTypeCode }}</span>
+      </div>
+    </div>
+
+    <div class="gng-form__toolbar">
+      <button pButton type="button" icon="pi pi-plus" label="ردیف جدید" class="p-button-outlined p-button-sm"></button>
+      <button pButton type="button" icon="pi pi-file-excel" label="خروجی اکسل" class="p-button-outlined p-button-sm"></button>
+      <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm gng-btn-primary"></button>
+    </div>
+  </header>
+
+  <p-tabView styleClass="gng-form__tabs">
+    <p-tabPanel *ngFor="let tab of config.tabLabels" [header]="tab">
+      <div class="gng-form__tab-placeholder">
+        <i class="pi pi-sliders-h"></i>
+        <p>
+          فیلدهای این بخش («{{ tab }}») در گام «چکش‌کاری پروتوتایپ» طراحی
+          می‌شود — چیدمان تب‌ها اکنون عیناً از ساختار مصوب فرم می‌آید.
+        </p>
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <section class="gng-form__features">
+    <h2>پوشش فیچرهای این فرم <span class="gng-form__features-count">({{ config.features.length }})</span></h2>
+    <p-table [value]="config.features" styleClass="p-datatable-sm gng-form__features-table" responsiveLayout="scroll">
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width: 6rem">کد الزام</th>
+          <th>عنوان قابلیت</th>
+          <th style="width: 12rem">نوع رابط</th>
+          <th style="width: 8rem">اولویت</th>
+          <th style="width: 9rem">پیچیدگی</th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-f>
+        <tr>
+          <td class="gng-form__req-code">{{ f.requirement }}</td>
+          <td>{{ f.title }}</td>
+          <td>{{ artifactLabel(f.artifactType) }}</td>
+          <td><p-tag [value]="priorityLabel(f.priority)" [severity]="prioritySeverity(f.priority)"></p-tag></td>
+          <td><p-tag [value]="complexityLabel(f.complexity)" [severity]="complexitySeverity(f.complexity)"></p-tag></td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </section>
+
+  <footer class="gng-form__audit">
+    <span>وضعیت طراحی: پروتوتایپ فاز ۱ — پیش از اتصال به mfr/generalmfr</span>
+  </footer>
+</div>

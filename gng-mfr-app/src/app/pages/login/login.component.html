@@ -1,0 +1,145 @@
+<div class="gng-login">
+  <form class="gng-login__card" (ngSubmit)="submit()">
+    <header class="gng-login__header">
+      <span class="gng-login__mark"><i class="pi pi-cog"></i></span>
+      <div>
+        <h1>سیستم مدیریت تولید</h1>
+        <p>اتصال به دیتابیس</p>
+      </div>
+    </header>
+
+    <!-- اتصال‌های قبلی: کل دلیل این صفحه این است که چند سرور وجود دارد، پس
+         سرورهای قبلی یک کلیک فاصله دارند. -->
+    <div class="gng-login__recents" *ngIf="recents.length">
+      <span class="gng-login__recents-label">اتصال‌های قبلی</span>
+      <div class="gng-login__recents-list">
+        <button
+          type="button"
+          class="gng-login__recent"
+          *ngFor="let r of recents"
+          [class.gng-login__recent--active]="isCurrent(r)"
+          (click)="use(r)"
+          [title]="r.server + ',' + r.port + ' / ' + r.database"
+        >
+          <span class="gng-login__recent-db">{{ r.database }}</span>
+          <span class="gng-login__recent-server">{{ r.server }}</span>
+          <span class="gng-login__recent-drop" (click)="forget(r, $event)" title="حذف از فهرست">
+            <i class="pi pi-times"></i>
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <div class="gng-login__body">
+      <label class="gng-login__field gng-login__field--span2">
+        <span class="gng-login__lbl">نام یا آدرس سرور <em>لازم</em></span>
+        <input
+          pInputText
+          name="server"
+          [(ngModel)]="server"
+          list="gng-servers"
+          placeholder="10.0.0.1   یا   SERVER\INSTANCE"
+          autocomplete="off"
+          required
+        />
+        <datalist id="gng-servers">
+          <option *ngFor="let s of knownServers" [value]="s"></option>
+        </datalist>
+      </label>
+
+      <label class="gng-login__field">
+        <span class="gng-login__lbl">پورت</span>
+        <input pInputText type="number" name="port" [(ngModel)]="port" placeholder="1433" />
+      </label>
+
+      <label class="gng-login__field">
+        <span class="gng-login__lbl">نام دیتابیس <em>لازم</em></span>
+        <input
+          pInputText
+          name="database"
+          [(ngModel)]="database"
+          list="gng-databases"
+          placeholder="GNG_AI_Dev"
+          autocomplete="off"
+          required
+        />
+        <datalist id="gng-databases">
+          <option *ngFor="let d of knownDatabases" [value]="d"></option>
+        </datalist>
+      </label>
+
+      <div class="gng-login__field gng-login__field--span2">
+        <span class="gng-login__lbl">نوع احراز هویت</span>
+        <div class="gng-login__modes">
+          <!--
+            عمداً div است نه label: label دورِ p-radioButton یک باگ شناخته‌شده
+            دارد — کلیکِ خودِ label یک کلیکِ synthetic دوم به input داخلیِ
+            PrimeNG می‌فرستد و مدل را با چیزی که کاربر واقعاً دید ناهم‌خوان
+            می‌کند (کارت SQL انتخاب‌شده دیده می‌شد ولی auth هنوز 'windows' بود).
+            (click) صریح روی خودِ div این ابهام را کاملاً از بین می‌برد.
+          -->
+          <div
+            class="gng-login__mode"
+            *ngFor="let m of modes"
+            [class.gng-login__mode--picked]="auth === m.code"
+            (click)="auth = m.code"
+          >
+            <p-radioButton name="auth" [value]="m.code" [ngModel]="auth"></p-radioButton>
+            <span class="gng-login__mode-text">
+              <span class="gng-login__mode-title">{{ m.title }}</span>
+              <span class="gng-login__mode-desc">{{ describe(m) }}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <label class="gng-login__field" *ngIf="auth === 'windows'">
+        <span class="gng-login__lbl">دامنه <em>لازم</em></span>
+        <!-- name="domain" عمداً به یک نامِ غیرمتعارف تغییر کرد: کروم روی
+             فیلدهایی با name="domain" حدس هوشمند فعال می‌کند و مقدار
+             ذخیره‌شده‌ی قبلی را حتی بعد از پاک‌کردن دستی کاربر دوباره پر
+             می‌کند (این چیزی است که کاربر «readonly» تجربه کرد: تایپ می‌کرد
+             ولی کروم بلافاصله همان مقدار قبلی را جایگزین می‌کرد).
+             autocomplete="off" به‌تنهایی مانع این رفتار کروم نمی‌شود. -->
+        <input pInputText name="gng-win-domain" [(ngModel)]="domain" placeholder="نام دامنه ویندوز" autocomplete="off" />
+      </label>
+
+      <label class="gng-login__field" [class.gng-login__field--span2]="auth !== 'windows'">
+        <span class="gng-login__lbl">نام کاربری <em>لازم</em></span>
+        <input
+          pInputText
+          name="user"
+          [(ngModel)]="user"
+          autocomplete="off"
+          [placeholder]="auth === 'windows' ? 'نام کاربر ویندوز' : 'نام لاگین SQL'"
+          required
+        />
+      </label>
+
+      <label class="gng-login__field gng-login__field--span2">
+        <span class="gng-login__lbl">رمز عبور <em>لازم</em></span>
+        <p-password
+          name="password"
+          [(ngModel)]="password"
+          [feedback]="false"
+          [toggleMask]="true"
+          autocomplete="off"
+          styleClass="gng-login__password"
+          inputStyleClass="gng-login__password-input"
+        ></p-password>
+      </label>
+
+      <label class="gng-login__check gng-login__field--span2">
+        <p-checkbox name="encrypt" [(ngModel)]="encrypt" [binary]="true"></p-checkbox>
+        <span>رمزگذاری ارتباط (Encrypt)</span>
+      </label>
+    </div>
+
+    <p-message *ngIf="note" severity="info" [text]="note" styleClass="gng-login__note"></p-message>
+    <p-message *ngIf="error" severity="error" [text]="error" styleClass="gng-login__error"></p-message>
+
+    <footer class="gng-login__footer">
+      <button pButton type="submit" [disabled]="busy" [label]="busy ? 'در حال اتصال…' : 'اتصال'" icon="pi pi-sign-in" iconPos="left"></button>
+    </footer>
+  </form>
+</div>

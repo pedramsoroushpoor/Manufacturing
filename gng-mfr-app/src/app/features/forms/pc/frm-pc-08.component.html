@@ -1,0 +1,195 @@
+<gng-opform-layout
+  domainTitle="کنترل تولید"
+  title="بازیابی مواد در اجرا"
+  code="FRM-PC-08"
+  formTypeLabel="فرم عملیاتی"
+  owner="اپراتور بازیافت حلال / انباردار پای کار"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-refresh"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="دستورهای دارای بازیابی"
+  contextPanelHint="رسید ماده‌ی بازیابی و اندازه‌گیری‌های موازنه‌ی هر دستور."
+  auditFeatureRange="F-PC-065 تا F-PC-068"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-inbox" label="ثبت رسید ماده‌ی بازیابی‌شده" class="p-button-sm p-button-info"></button>
+    <button pButton type="button" icon="pi pi-calculator" label="ثبت اندازه‌گیری موازنه" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <div *ngIf="loading" class="gng-loading gng-hint">در حال خواندن رسیدهای بازیابی و موازنه‌ها…</div>
+  <div *ngIf="loadFailed" class="gng-note gng-note--danger">داده خوانده نشد.</div>
+
+  <p-tabView styleClass="gng-tabs" *ngIf="!loading && !loadFailed">
+    <!-- ───────── رسید ماده‌ی بازیابی (065) ───────── -->
+    <p-tabPanel [header]="'رسید ماده‌ی بازیابی (' + faInt(rates.length) + ')'" [selected]="true">
+      <p class="gng-hint">هر رسید یک خروجی رسمی دستور کار است: بچ جدید با شمارنده‌ی چرخه‌ی بازیابی؛ پس از سقف چرخه، ماده دیگر به فرایند برنمی‌گردد.</p>
+      <div class="cards" style="position: relative">
+        <gng-data-source-badge [source]="ds('pc08-receipts', 'رسید ماده‌ی بازیابی')"></gng-data-source-badge>
+        <div class="rcard" *ngFor="let v of rates" [class.rcard--bad]="v.level === 'bad' || v.purityOk === false" [class.rcard--warn]="v.level === 'warn'">
+          <div class="gng-kpi__head"><span class="mono">{{ v.r.number }}</span><span>{{ faDateTime(v.r.date) }}</span></div>
+          <div class="batch">{{ v.r.batch }}</div>
+          <div>{{ v.r.recovered }} — <b>{{ faNum(v.r.qty) }} {{ v.r.unit }}</b></div>
+          <div class="gng-text-muted gng-small"><span class="mono">{{ v.r.wo }}</span> · عملیات {{ faInt(v.r.opSeq) }} {{ v.r.opTitle }} · {{ v.r.report }}</div>
+          <div class="gng-text-muted gng-small">از {{ v.r.source }} ({{ faNum(v.r.sourceInput) }} {{ v.r.unit }} ورودی)</div>
+
+          <div class="gng-mt-sm gng-small">چرخه‌ی بازیابی</div>
+          <div class="dots">
+            <span class="dot" *ngFor="let c of v.cycles" [ngClass]="'dot--' + c.state">{{ faInt(c.n) }}</span>
+            <span class="gng-small gng-text-muted">{{ faInt(v.r.cycle) }} از {{ faInt(v.r.maxCycles) }}{{ v.r.cycle >= (v.r.maxCycles || 0) ? ' — آخرین چرخه' : '' }}</span>
+          </div>
+
+          <div class="gng-mt-sm gng-kpi__head"><span>خلوص</span><b [style.color]="v.purityOk === false ? 'var(--gng-danger)' : ''">{{ faPct(v.r.purity) }} <span class="gng-small gng-text-muted">(حداقل {{ faPct(v.r.minPurity) }})</span></b></div>
+          <div class="purity">
+            <div class="purity__fill" [style.width.%]="purityWidth(v.r.purity)" [style.background]="v.purityOk === false ? 'var(--gng-danger)' : 'var(--gng-success)'"></div>
+            <div class="purity__min" [style.right.%]="purityWidth(v.r.minPurity)" pTooltip="حداقل خلوص برای بازگشت به فرمول"></div>
+          </div>
+
+          <div class="gng-mt-sm" style="display: flex; gap: .4rem; flex-wrap: wrap; align-items: center">
+            <p-tag [value]="'QC: ' + (STOCK_QC[v.r.qc ?? 0] || '—')" [severity]="qcTone(v.r.qc)"></p-tag>
+            <p-tag [value]="'نرخ ' + faPct(v.r.actual)" [severity]="levelTone(v.level)"></p-tag>
+            <span class="gng-small gng-text-muted">{{ v.r.inventory }}</span>
+          </div>
+          <div class="gng-small gng-mt-sm">سند: <span class="mono">{{ v.r.doc }}</span> · الگوی سند: <span [style.color]="v.r.docPattern ? '' : 'var(--gng-danger)'">{{ v.r.docPattern || 'تعیین نشده' }}</span></div>
+          <div class="gng-note gng-note--danger gng-mt-sm" *ngIf="v.purityOk === false">خلوص زیر حداقل است؛ این بچ نباید به فرمول برگردد — مسیر: تقطیر مجدد یا فروش به‌عنوان {{ v.std?.grade || 'درجه‌دو' }}.</div>
+          <div class="gng-small gng-text-muted gng-mt-sm" *ngIf="v.r.note">{{ v.r.note }}</div>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── نرخ واقعی (066) ───────── -->
+    <p-tabPanel [header]="'نرخ واقعی' + (badRates ? ' (' + faInt(badRates) + ' هشدار)' : '')">
+      <div class="gng-window">
+        <span>آستانه‌ی هشدار (واحد درصد):</span>
+        <b>{{ thresholdWhatIf === null ? 'ثبت‌شده' : '± ' + faInt(thresholdWhatIf) }}</b>
+        <p-slider [ngModel]="thresholdWhatIf ?? 5" (onChange)="setThreshold($event.value ?? null)" [min]="1" [max]="25" [style]="{ width: '14rem' }"></p-slider>
+        <button pButton type="button" class="p-button-text p-button-sm" label="بازگشت به ثبت‌شده" (click)="setThreshold(null)"></button>
+      </div>
+      <div class="gauges" style="position: relative">
+        <gng-data-source-badge [source]="ds('pc08-receipts', 'نرخ بازیابی')"></gng-data-source-badge>
+        <div class="gng-panel" *ngFor="let v of rates">
+          <h3 style="margin-bottom: .2rem"><span class="mono">{{ v.r.report }}</span> <span class="gng-hint" style="display: inline">{{ v.r.wo }}</span></h3>
+          <svg viewBox="0 0 200 118" style="width: 100%; max-width: 280px; display: block; margin: auto">
+            <path [attr.d]="gaugeTrack" fill="none" stroke="var(--gng-border)" stroke-width="16"></path>
+            <path [attr.d]="v.band" fill="none" stroke="rgba(39,174,96,.35)" stroke-width="22"></path>
+            <path [attr.d]="v.valueArc" fill="none" [attr.stroke]="levelColor(v.level)" stroke-width="8"></path>
+            <line x1="100" y1="95" [attr.x2]="v.needle.x" [attr.y2]="v.needle.y" stroke="var(--gng-text)" stroke-width="2.5"></line>
+            <circle cx="100" cy="95" r="4" fill="var(--gng-text)"></circle>
+            <circle [attr.cx]="v.stdMark.x" [attr.cy]="v.stdMark.y" r="3.5" fill="var(--gng-primary)"></circle>
+            <text x="100" y="80" text-anchor="middle" font-size="18" font-weight="800" [attr.fill]="levelColor(v.level)">{{ faPct(v.r.actual) }}</text>
+            <text x="100" y="113" text-anchor="middle" font-size="9" fill="var(--gng-text-muted)" direction="rtl">استاندارد {{ faPct(v.r.standard) }} ± {{ faInt(thresholdWhatIf ?? v.r.threshold) }}</text>
+            <text x="22" y="110" text-anchor="middle" font-size="8" fill="var(--gng-text-muted)">۰</text>
+            <text x="178" y="110" text-anchor="middle" font-size="8" fill="var(--gng-text-muted)">۱۰۰</text>
+          </svg>
+          <div class="gng-kpi__head"><span>انحراف</span><b [style.color]="levelColor(v.level)">{{ faNum(v.dev, 1) }} واحد درصد</b></div>
+          <div class="gng-kpi__head"><span>برای رسیدن به استاندارد</span><b>{{ faNum(v.needed, 1) }} {{ v.r.unit }} <span class="gng-small gng-text-muted">(کسری {{ faNum(v.shortfall, 1) }})</span></b></div>
+          <div class="gng-kpi__note gng-mt-sm"><b>منبع استاندارد: {{ v.r.standardSource }}.</b> {{ v.why }}</div>
+          <div class="gng-kpi__note" *ngIf="v.r.note">{{ v.r.note }}</div>
+        </div>
+      </div>
+
+      <h3 class="gng-mt">استانداردهای بازیابی</h3>
+      <p-table [value]="standards" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th style="width: 6rem">کد</th><th>ماده‌ی بازیابی‌شده</th><th>منبع</th><th style="width: 7rem">نرخ ماده</th><th style="width: 12rem">نرخ مسیر (عملیات)</th><th style="width: 6rem">تلفات</th><th style="width: 7rem">حداقل خلوص</th><th style="width: 6rem">سقف چرخه</th><th style="width: 6rem">معادل</th><th>درجه / انبار</th></tr></ng-template>
+        <ng-template pTemplate="body" let-s>
+          <tr>
+            <td>{{ s.code }}</td><td>{{ s.recovered }}</td><td class="gng-small">{{ s.source }}</td><td>{{ faPct(s.standard) }}</td>
+            <td>{{ s.routingRate !== null ? faPct(s.routingRate) + ' — ' + s.routingOp : '—' }}</td><td>{{ faPct(s.loss) }}</td><td>{{ faPct(s.minPurity) }}</td>
+            <td>{{ faInt(s.maxCycles) }}</td><td>{{ faNum(s.equivalence) }}</td><td class="gng-small">{{ s.grade }}<br />{{ s.inventory || '—' }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+      <p class="gng-hint gng-mt-sm">اولویت: نرخ عملیات بازیابی در مسیر ← نرخ استاندارد ماده. RC-GRN نرخ {{ faPct(standards.length > 1 ? standards[1].standard : null) }} دارد که برای بازیافت قرص شکسته به گرانول غیرعادی کم است.</p>
+    </p-tabPanel>
+
+    <!-- ───────── موازنه‌ی ماده (067) ───────── -->
+    <p-tabPanel [header]="'موازنه‌ی ماده' + (badBals ? ' (' + faInt(badBals) + ' خارج از تلورانس)' : '')">
+      <p class="gng-hint">مقدار مصرف‌شده = بازیابی‌شده + تلفات + باقی‌مانده در فرایند؛ «اختلاف» هر چیزی است که این معادله توضیح نمی‌دهد.</p>
+      <div class="gng-window">
+        <span>تلورانس فرضی:</span><b>{{ toleranceWhatIf === null ? 'ثبت‌شده' : faPct(toleranceWhatIf) }}</b>
+        <p-slider [ngModel]="toleranceWhatIf ?? 5" (onChange)="setTolerance($event.value ?? null)" [min]="1" [max]="30" [style]="{ width: '14rem' }"></p-slider>
+        <button pButton type="button" class="p-button-text p-button-sm" label="بازگشت به ثبت‌شده" (click)="setTolerance(null)"></button>
+      </div>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc08-balances', 'موازنه‌ی ماده')"></gng-data-source-badge>
+        <div class="gng-panel gng-mt-sm" *ngFor="let v of bals">
+          <div class="gng-kpi__head">
+            <b><span class="mono">{{ v.b.report }}</span> · {{ v.b.opTitle }}</b>
+            <span>{{ faTime(v.b.from) }} تا {{ faTime(v.b.to) }} · {{ BALANCE_SOURCE[v.b.source] }} · {{ v.b.measuredBy }}</span>
+          </div>
+          <div class="stack gng-mt-sm">
+            <div *ngFor="let s of v.segs" [style.width.%]="s.pct" [style.background]="s.color" [pTooltip]="s.label + ': ' + faNum(s.qty) + ' ' + v.b.unit" tooltipPosition="top">{{ s.pct >= 8 ? s.label + ' ' + faPct(s.pct, 0) : '' }}</div>
+          </div>
+          <div class="gng-kpi__head gng-mt-sm">
+            <span class="mono">{{ v.equation }}</span>
+            <p-tag [value]="'اختلاف ' + faPct(v.b.gapPct, 2) + ' / تلورانس ' + faPct(v.tol)" [severity]="levelTone(v.level)"></p-tag>
+          </div>
+          <div class="gng-kpi__note">{{ v.b.note }}</div>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── موازنه‌ی جرم پیوسته (068) ───────── -->
+    <p-tabPanel header="موازنه‌ی جرم پیوسته">
+      <p class="gng-hint">پروفایل پیوسته: ورودی توتالایزر توزین‌گرها − خروجی − ضایعات − تغییر ماند در خط باید در تلورانس باشد. مصرف ثبت‌شده در سامانه (PostedInput) هم با توتالایزر مقایسه می‌شود.</p>
+      <div class="gng-stat-grid">
+        <div class="gng-stat-card"><span class="gng-stat-card__label">ورودی توتالایزر (جمع)</span><span class="gng-stat-card__value">{{ faNum(massTotals.input, 1) }}</span><span class="gng-stat-card__meta">kg</span></div>
+        <div class="gng-stat-card"><span class="gng-stat-card__label">خروجی + ضایعات + ماند</span><span class="gng-stat-card__value">{{ faNum(massTotals.output + massTotals.loss + massTotals.inProcess, 1) }}</span><span class="gng-stat-card__meta">{{ faNum(massTotals.output, 1) }} + {{ faNum(massTotals.loss, 1) }} + {{ faNum(massTotals.inProcess, 1) }}</span></div>
+        <div class="gng-stat-card" [ngClass]="massTotals.gapPct > massTol ? 'gng-stat-card--danger' : 'gng-stat-card--success'"><span class="gng-stat-card__label">اختلاف تجمعی</span><span class="gng-stat-card__value">{{ faPct(massTotals.gapPct, 2) }}</span><span class="gng-stat-card__meta">{{ faNum(massTotals.gap, 1) }} kg</span></div>
+        <div class="gng-stat-card gng-stat-card--warning"><span class="gng-stat-card__label">مصرف ثبت‌شده در سامانه</span><span class="gng-stat-card__value">{{ faNum(massTotals.posted, 1) }}</span><span class="gng-stat-card__meta">{{ faNum(massTotals.input - massTotals.posted, 1) }} kg کمتر از توتالایزر</span></div>
+      </div>
+
+      <div class="gng-window gng-mt">
+        <span>تلورانس:</span><b>{{ faPct(massTol) }}</b>
+        <p-slider [ngModel]="massTolWhatIf ?? 1.5" (onChange)="setMassTol($event.value ?? null)" [min]="0.5" [max]="5" [step]="0.1" [style]="{ width: '14rem' }"></p-slider>
+        <button pButton type="button" class="p-button-text p-button-sm" label="بازگشت به ثبت‌شده" (click)="setMassTol(null)"></button>
+      </div>
+
+      <div class="gng-panel" style="position: relative">
+        <gng-data-source-badge [source]="ds('pc08-balances', 'موازنه‌ی جرم')"></gng-data-source-badge>
+        <svg [attr.viewBox]="'0 0 ' + chart.w + ' ' + chart.h" style="width: 100%; max-width: 640px; display: block; margin: auto">
+          <line x1="20" [attr.x2]="chart.w - 20" [attr.y1]="chart.h - chart.bottom" [attr.y2]="chart.h - chart.bottom" stroke="var(--gng-border)"></line>
+          <line x1="20" [attr.x2]="chart.w - 20" [attr.y1]="massTolY" [attr.y2]="massTolY" stroke="var(--gng-danger)" stroke-dasharray="5 4"></line>
+          <text x="24" [attr.y]="massTolY - 4" font-size="10" fill="var(--gng-danger)" direction="rtl" text-anchor="end">تلورانس {{ faPct(massTol) }}</text>
+          <g *ngFor="let b of massBars">
+            <rect [attr.x]="b.x" [attr.y]="b.y" [attr.width]="b.w" [attr.height]="b.h" [attr.fill]="b.color" rx="2"></rect>
+            <text [attr.x]="b.lx" [attr.y]="b.ly" font-size="10" text-anchor="middle" fill="var(--gng-text)">{{ b.label }}</text>
+          </g>
+          <text *ngFor="let m of mass; let i = index" [attr.x]="massLabelX(i)" [attr.y]="chart.h - 22" font-size="10" text-anchor="middle" fill="var(--gng-text)">{{ m.report }}</text>
+          <text *ngFor="let m of mass; let i = index" [attr.x]="massLabelX(i)" [attr.y]="chart.h - 8" font-size="9" text-anchor="middle" fill="var(--gng-text-muted)">{{ faTime(m.from) }}–{{ faTime(m.to) }}</text>
+        </svg>
+        <div class="gng-legend">
+          <span><span class="gng-legend-dot gng-legend-dot--success"></span> اختلاف موازنه (در تلورانس)</span>
+          <span><span class="gng-legend-dot gng-legend-dot--danger"></span> اختلاف موازنه (بیرون از تلورانس)</span>
+          <span><span class="gng-legend-dot" style="background: var(--gng-purple)"></span> توتالایزر − مصرف ثبت‌شده</span>
+        </div>
+      </div>
+
+      <p-table [value]="mass" styleClass="p-datatable-sm gng-table gng-mt" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th style="width: 9rem">گزارش</th><th style="width: 8rem">بازه</th><th>توتالایزر</th><th>خروجی</th><th>ضایعات</th><th>Δ ماند</th><th>اختلاف</th><th>٪</th><th>مصرف ثبت‌شده</th><th>توتالایزر − ثبت</th><th>شرح</th></tr></ng-template>
+        <ng-template pTemplate="body" let-m>
+          <tr [class.row-bad]="m.gapPct > massTol">
+            <td class="mono">{{ m.report }}</td><td>{{ faTime(m.from) }}–{{ faTime(m.to) }}</td><td>{{ faNum(m.input) }}</td><td>{{ faNum(m.output) }}</td><td>{{ faNum(m.loss) }}</td>
+            <td>{{ faNum(m.inProcess) }}</td><td><b>{{ faNum(m.gap) }}</b></td><td><b [style.color]="m.gapPct > massTol ? 'var(--gng-danger)' : ''">{{ faPct(m.gapPct, 2) }}</b></td>
+            <td>{{ faNum(m.posted) }}</td><td>{{ faNum(m.posted === null ? null : m.input - m.posted, 1) }}</td><td class="gng-small">{{ m.note || '—' }}</td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage"><tr><td colspan="11" class="gng-empty">این دستور پروفایل پیوسته ندارد.</td></tr></ng-template>
+      </p-table>
+      <div class="gng-note gng-note--info gng-mt"><strong>هنوز پیاده نشده.</strong> ثبت رسید ماده‌ی بازیابی و صدور بچ جدید، افزایش شمارنده‌ی چرخه، ثبت اندازه‌گیری موازنه (دستی/توتالایزر)، ارسال هشدار انحراف به FRM-PC-12 و اصلاح مصرف ثبت‌شده بر اساس توتالایزر با مرحله‌ی ایجاد/ویرایش می‌آید.</div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel>
+    <div class="wo-list">
+      <div class="wo-item" [class.wo-item--on]="selectedWoId === null" (click)="pickWo(null)"><b>همه</b><small>{{ faInt(woList.length) }} دستور</small></div>
+      <div class="wo-item" *ngFor="let w of woList" [class.wo-item--on]="selectedWoId === w.id" (click)="pickWo(w.id)">
+        <b class="mono">{{ w.wo }}</b>
+        <span *ngIf="w.alerts" style="margin-inline-start: .3rem"><p-tag [value]="faInt(w.alerts) + ' هشدار'" severity="danger"></p-tag></span>
+        <small>{{ w.type }}</small>
+      </div>
+    </div>
+  </div>
+</gng-opform-layout>

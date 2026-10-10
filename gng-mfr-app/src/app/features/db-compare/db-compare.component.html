@@ -1,0 +1,139 @@
+<div class="dbc">
+  <nav class="dbc__breadcrumb">
+    <span>ابزار توسعه</span>
+    <i class="pi pi-angle-left"></i>
+    <span class="dbc__breadcrumb-current">بررسی دیتابیس</span>
+  </nav>
+
+  <header class="dbc__header">
+    <div>
+      <h1>بررسی دیتابیس — مقایسه‌ی اسکیماها</h1>
+      <p>جدول‌های هم‌نام روبه‌روی هم می‌آیند؛ هر ردیف را باز کنید تا مغایرت فیلدها را ببینید. فقط ساختار خوانده می‌شود، نه داده.</p>
+    </div>
+  </header>
+
+  <!-- چون صفحه راست‌به‌چپ است، اولین فرزند سمت راست می‌نشیند: اول «راست»، بعد «چپ». -->
+  <section class="dbc__controls">
+    <label class="dbc__field">
+      <span>اسکیماهای سمت راست</span>
+      <p-multiSelect
+        [options]="schemas"
+        [(ngModel)]="rightSchemas"
+        optionLabel="name"
+        optionValue="name"
+        display="chip"
+        placeholder="انتخاب اسکیما"
+        [filter]="true"
+        styleClass="dbc__select"
+        appendTo="body"
+      >
+        <ng-template let-s pTemplate="item">{{ s.name }} <span class="dbc__muted">({{ fa(s.tableCount) }} جدول)</span></ng-template>
+      </p-multiSelect>
+    </label>
+
+    <button pButton type="button" icon="pi pi-arrows-h" class="p-button-text p-button-rounded dbc__swap" (click)="swapSides()" aria-label="جابه‌جا کردن دو طرف" title="جابه‌جا کردن دو طرف"></button>
+
+    <label class="dbc__field">
+      <span>اسکیماهای سمت چپ</span>
+      <p-multiSelect
+        [options]="schemas"
+        [(ngModel)]="leftSchemas"
+        optionLabel="name"
+        optionValue="name"
+        display="chip"
+        placeholder="انتخاب اسکیما"
+        [filter]="true"
+        styleClass="dbc__select"
+        appendTo="body"
+      >
+        <ng-template let-s pTemplate="item">{{ s.name }} <span class="dbc__muted">({{ fa(s.tableCount) }} جدول)</span></ng-template>
+      </p-multiSelect>
+    </label>
+
+    <button pButton type="button" icon="pi pi-sync" label="مقایسه" class="p-button-sm dbc__go" [disabled]="!canCompare || loading" (click)="compare()"></button>
+  </section>
+
+  <div class="dbc__error" *ngIf="errorText"><i class="pi pi-exclamation-triangle"></i>{{ errorText }}</div>
+  <div class="gng-loading" *ngIf="loading"><i class="pi pi-spin pi-spinner"></i> در حال خواندن ساختار…</div>
+
+  <ng-container *ngIf="pairs.length && !loading">
+    <section class="dbc__toolbar">
+      <div class="dbc__filters" role="group" aria-label="فیلتر وضعیت">
+        <button
+          *ngFor="let f of filters"
+          type="button"
+          class="dbc__filter"
+          [class.dbc__filter--on]="filter === f.key"
+          [attr.aria-pressed]="filter === f.key"
+          (click)="filter = f.key"
+        >
+          {{ f.label }} <b>{{ fa(count(f.key)) }}</b>
+        </button>
+      </div>
+      <div class="dbc__tools">
+        <input pInputText type="search" class="p-inputtext-sm" placeholder="جستجوی نام جدول" [(ngModel)]="search" aria-label="جستجوی نام جدول" />
+        <label class="dbc__check">
+          <p-checkbox [(ngModel)]="ignoreStandard" [binary]="true" (onChange)="rebuild()" inputId="dbc-std"></p-checkbox>
+          <span>نادیده گرفتن ۱۱ ستون استاندارد پایان جدول</span>
+        </label>
+        <button pButton type="button" label="باز کردن همه" class="p-button-text p-button-sm" (click)="expandAll()"></button>
+        <button pButton type="button" label="بستن همه" class="p-button-text p-button-sm" (click)="collapseAll()"></button>
+      </div>
+    </section>
+
+    <section class="dbc__list">
+      <div class="dbc__row dbc__row--head">
+        <div>راست: <span class="dbc__mono">{{ comparedRight.join('، ') }}</span></div>
+        <div>وضعیت</div>
+        <div>چپ: <span class="dbc__mono">{{ comparedLeft.join('، ') }}</span></div>
+      </div>
+
+      <p class="gng-empty" *ngIf="!visible.length">جدولی با این فیلتر پیدا نشد.</p>
+
+      <div class="dbc__item" *ngFor="let p of visible; trackBy: trackPair" [ngClass]="'dbc__item--' + p.status">
+        <button type="button" class="dbc__row dbc__row--table" [attr.aria-expanded]="isOpen(p)" (click)="toggle(p)">
+          <div class="dbc__cell">
+            <ng-container *ngIf="p.right as t; else none">
+              <i class="pi" [ngClass]="isOpen(p) ? 'pi-angle-down' : 'pi-angle-left'"></i>
+              <span class="dbc__mono"><span class="dbc__muted">{{ t.schema }}.</span>{{ t.table }}</span>
+              <span class="dbc__muted">{{ fa(t.columns.length) }} ستون</span>
+            </ng-container>
+          </div>
+          <div class="dbc__status">
+            <span class="dbc__badge" [ngClass]="'dbc__badge--' + p.status">{{ statusLabel(p) }}</span>
+            <span class="dbc__muted">{{ summary(p) }}</span>
+          </div>
+          <div class="dbc__cell">
+            <ng-container *ngIf="p.left as t; else none">
+              <i class="pi" [ngClass]="isOpen(p) ? 'pi-angle-down' : 'pi-angle-left'" *ngIf="!p.right"></i>
+              <span class="dbc__mono"><span class="dbc__muted">{{ t.schema }}.</span>{{ t.table }}</span>
+              <span class="dbc__muted">{{ fa(t.columns.length) }} ستون</span>
+            </ng-container>
+          </div>
+        </button>
+
+        <div class="dbc__detail" *ngIf="isOpen(p)">
+          <p class="gng-empty" *ngIf="!p.columns.length">فیلدی برای نمایش نیست.</p>
+          <div class="dbc__row dbc__row--col" *ngFor="let c of p.columns" [ngClass]="'dbc__col--' + c.status">
+            <div class="dbc__cell">
+              <ng-container *ngIf="c.right as r; else none">
+                <span class="dbc__mono dbc__colname">{{ r.name }}</span>
+                <span class="dbc__mono dbc__muted">{{ text(r) }}</span>
+              </ng-container>
+            </div>
+            <div class="dbc__status">
+              <span class="dbc__badge dbc__badge--sm" [ngClass]="'dbc__badge--' + c.status">{{ columnStatusLabel(c) }}</span>
+            </div>
+            <div class="dbc__cell">
+              <ng-container *ngIf="c.left as l; else none">
+                <span class="dbc__mono dbc__colname">{{ l.name }}</span>
+                <span class="dbc__mono dbc__muted">{{ text(l) }}</span>
+              </ng-container>
+            </div>
+          </div>
+        </div>
+      </div>
+      <ng-template #none><span class="dbc__none">—</span></ng-template>
+    </section>
+  </ng-container>
+</div>

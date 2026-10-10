@@ -1,0 +1,56 @@
+// ==========================================================================
+// GNG Design Tokens — استخراج‌شده از Design_UI_Kit.pdf
+// این فایل تنها منبع حقیقت رنگ/تایپوگرافی است؛ برای اصلاح تم فقط همین‌جا را
+// ویرایش کنید. مقادیر دقیق hex باید در فاز بعد با فایل طراحی اصلی (Figma/XD)
+// راستی‌آزمایی شوند — این‌ها برآورد چشمی از PDF پیوستی هستند.
+// ==========================================================================
+
+:root {
+  // برند / اصلی
+  --gng-primary: #f7941d;
+  --gng-primary-dark: #d97b0a;
+  --gng-primary-light: #fdb35c;
+
+  // ساختار تیره (سایدبار، نوار پایین لانچر)
+  --gng-dark-900: #1a2530;
+  --gng-dark-800: #212f3d;
+  --gng-dark-700: #2b3b4c;
+  --gng-dark-border: #354759;
+
+  // خنثی / روشن
+  --gng-bg: #f4f6f8;
+  --gng-surface: #ffffff;
+  --gng-border: #e1e5ea;
+  --gng-text: #2d3436;
+  --gng-text-muted: #8395a7;
+
+  // وضعیت‌ها
+  --gng-info: #2e86de;
+  --gng-success: #27ae60;
+  --gng-warning: #f2b134;
+  --gng-danger: #eb5757;
+  --gng-purple: #9b59b6;
+  --gng-teal: #17a2b8;
+
+  // تایپوگرافی
+  --gng-font: 'Vazirmatn', Tahoma, sans-serif;
+
+  // ابعاد لایه‌بندی
+  --gng-sidebar-width: 264px;
+  --gng-sidebar-collapsed-width: 64px;
+  --gng-topbar-height: 60px;
+  --gng-radius: 10px;
+  --gng-radius-sm: 6px;
+  --gng-shadow: 0 2px 10px rgba(26, 37, 48, 0.08);
+}
+
+// مد تاریک — سایدبار همان تیرگی همیشگی خودش را نگه می‌دارد (از قبل تیره
+// بود)، فقط ناحیه‌ی محتوا/نوار بالا و سطوح خنثی برعکس می‌شوند.
+:root[data-theme='dark'] {
+  --gng-bg: #17212b;
+  --gng-surface: #1f2b38;
+  --gng-border: #33424f;
+  --gng-text: #e7ecf1;
+  --gng-text-muted: #93a3b3;
+  --gng-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}

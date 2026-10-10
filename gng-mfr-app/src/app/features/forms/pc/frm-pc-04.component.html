@@ -1,0 +1,326 @@
+<gng-opform-layout
+  domainTitle="کنترل تولید"
+  title="گزارش تولید"
+  code="FRM-PC-04"
+  formTypeLabel="فرم عملیاتی"
+  owner="سرپرست خط و شیفت"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-chart-bar"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="دستورهای کار"
+  contextPanelHint="دستورهای در جریان بالاتر؛ هر دستوری که گزارش تولید دارد."
+  auditFeatureRange="F-PC-031 تا F-PC-034، F-PC-041 تا F-PC-043 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-plus" label="ثبت گزارش عملیات" class="p-button-sm p-button-success"></button>
+    <button pButton type="button" icon="pi pi-users" label="ثبت کارکرد منابع" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-share-alt" label="تسهیم کارکرد" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-sync" label="تحویل شیفت" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-replay" label="اصلاح — سند معکوس" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="تأیید" class="p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <!-- ───────── گزارش عملیات (F-PC-031، 032) ───────── -->
+    <p-tabPanel [header]="'گزارش عملیات (' + faInt(reports.length) + ')'" [selected]="true">
+      <div *ngIf="wo as w" class="gng-field-grid">
+        <div class="gng-field"><span class="gng-field__label">دستور</span><span class="gng-field__value">{{ w.number }} · {{ WO_TYPE[w.typeCode] }} <p-tag [value]="WO_STATUS[w.statusCode]" [severity]="woStatusTone(w.statusCode)"></p-tag></span></div>
+        <div class="gng-field"><span class="gng-field__label">محصول</span><span class="gng-field__value">{{ w.product }} — {{ faInt(w.quantity) }} {{ w.unit }}</span></div>
+        <div class="gng-field"><span class="gng-field__label">خط / شیفت</span><span class="gng-field__value">{{ w.line }}{{ w.shift ? ' · ' + w.shift : '' }}</span></div>
+        <div class="gng-field"><span class="gng-field__label">پیشرفت عملیات</span><span class="gng-field__value">{{ faInt(w.opsDone) }} از {{ faInt(w.opCount) }}{{ w.currentOp ? ' · جاری: ' + w.currentOp : '' }}</span></div>
+      </div>
+
+      <div class="chips">
+        <span class="gng-hint" style="margin: 0">منبع ثبت:</span>
+        <span *ngFor="let c of sourceChips" class="chip" [class.on]="sourceFilter === c.code" (click)="sourceFilter = c.code">{{ c.label }} ({{ faInt(sourceCount(c.code)) }})</span>
+        <span class="gng-legend" style="margin: 0 auto 0 0">
+          <span><i class="pi pi-stop-circle" style="color: var(--gng-info)"></i> ترمینال</span>
+          <span><i class="pi pi-stop-circle" style="color: var(--gng-purple)"></i> اداری</span>
+          <span><i class="pi pi-stop-circle" style="color: var(--gng-teal)"></i> PLC</span>
+          <span><i class="pi pi-minus" style="color: var(--gng-text-muted)"></i> برنامه</span>
+          <span><i class="pi pi-minus" style="color: var(--gng-danger)"></i> اکنون</span>
+        </span>
+      </div>
+
+      <div class="tl" style="position: relative">
+        <gng-data-source-badge [source]="ds('pc04-reports', 'گزارش‌های تولید')"></gng-data-source-badge>
+        <div class="tl-row" *ngFor="let l of lanes">
+          <div class="tl-label"><p-tag [value]="faInt(l.op.seq)" [severity]="opStatusTone(l.op.statusCode)"></p-tag> {{ l.op.title }}</div>
+          <div class="tl-track">
+            <div *ngIf="l.plan as p" class="tl-plan" [style.right.%]="p.right" [style.width.%]="p.width" [pTooltip]="p.title" tooltipPosition="top"></div>
+            <ng-container *ngFor="let b of l.blocks">
+              <div class="tl-block" [ngClass]="b.tone" [class.sel]="selReport?.number === b.key" [style.opacity]="!sourceFilter || b.tone === SOURCE_CLASS[sourceFilter] ? 1 : 0.2"
+                   [style.right.%]="b.right" [style.width.%]="b.width" [pTooltip]="b.title" tooltipPosition="top" (click)="laneClick(b.key)">{{ b.label }}</div>
+            </ng-container>
+            <div *ngIf="nowRight !== null" class="tl-now" [style.right.%]="nowRight"></div>
+          </div>
+        </div>
+        <div class="tl-axis"><span *ngFor="let t of ticks" [style.right.%]="t.right">{{ t.label }}</span></div>
+      </div>
+
+      <div class="gng-columns gng-mt" style="grid-template-columns: 1fr 1fr">
+        <div style="position: relative">
+          <div class="chips" style="margin-top: 0">
+            <input pInputText type="text" class="p-inputtext-sm" placeholder="جستجوی شماره، عملیات، ثبت‌کننده…" [(ngModel)]="search" style="width: 16rem" />
+          </div>
+          <p-table [value]="filteredReports" styleClass="p-datatable-sm gng-table" [scrollable]="true" scrollHeight="320px">
+            <ng-template pTemplate="header">
+              <tr><th>شماره</th><th>عملیات</th><th>بازه</th><th>سالم</th><th>ضایعات</th><th>منبع</th></tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-r>
+              <tr class="clickable" [class.gng-row-active]="selReport?.number === r.number" (click)="pickReport(r)">
+                <td>{{ r.number }}</td><td>{{ faInt(r.seq) }}</td><td>{{ faTime(r.start) }}–{{ faTime(r.end) }}</td>
+                <td>{{ faNum(r.completed) }}</td><td [style.color]="r.wasted ? 'var(--gng-danger)' : ''">{{ faNum(r.wasted) }}</td>
+                <td><p-tag [value]="REPORT_SOURCE[r.sourceCode]" [severity]="r.sourceCode === 2 ? 'info' : 'secondary'"></p-tag></td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage"><tr><td colspan="6" class="gng-empty">گزارشی با این فیلتر نیست.</td></tr></ng-template>
+          </p-table>
+        </div>
+
+        <div class="gng-panel" *ngIf="selReport as r">
+          <h3>{{ r.number }} <span class="gng-hint" style="display: inline">— {{ r.opTitle }} · {{ r.shiftCode || 'بدون شیفت' }}</span></h3>
+          <div class="gng-field-grid">
+            <div class="gng-field"><span class="gng-field__label">شروع / پایان</span><span class="gng-field__value">{{ faDateTime(r.start) }} — {{ faTime(r.end) }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">کارکرد محاسبه‌شده</span><span class="gng-field__value">{{ faDuration(r.duration) }} · {{ faInt(r.persons) }} نفر</span></div>
+            <div class="gng-field"><span class="gng-field__label">سالم / ضایعات / دوباره‌کاری</span><span class="gng-field__value">{{ faNum(r.completed) }} / {{ faNum(r.wasted) }} / {{ faNum(r.rework) }} {{ r.unit }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">بازده / انتقال</span><span class="gng-field__value">{{ faPct(r.yieldPct, 2) }} · {{ faNum(r.transferred) }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">ثبت‌کننده</span><span class="gng-field__value">{{ r.by }} ({{ REPORT_SOURCE[r.sourceCode] }})</span></div>
+          </div>
+          <div *ngIf="r.description" class="gng-note gng-note--info gng-mt-sm">{{ r.description }}</div>
+          <h4 class="gng-mt-sm">نفرات</h4>
+          <div class="gng-flag-list">
+            <div class="gng-flag-row" *ngFor="let l of selLabor">
+              <span class="gng-flag-row__label"><i class="pi pi-user"></i>{{ l.name }} ({{ l.code }}) · {{ l.activity }}</span>
+              <span>{{ faDuration(l.duration) }} <p-tag *ngIf="l.share < 100" [value]="'سهم ' + faInt(l.share) + '٪'" severity="warning"></p-tag></span>
+            </div>
+          </div>
+          <h4 class="gng-mt-sm" *ngIf="selWaste.length">ضایعات به تفکیک علت</h4>
+          <div class="gng-flag-row" *ngFor="let w of selWaste">
+            <span class="gng-flag-row__label">{{ w.reasonCode }} {{ w.reason }} <p-tag [value]="w.isSetup ? 'راه‌اندازی' : 'فرایند'" [severity]="w.isSetup ? 'warning' : 'danger'"></p-tag></span>
+            <b>{{ faNum(w.qty) }}</b>
+          </div>
+          <h4 class="gng-mt-sm" *ngIf="selCapacity.length">کارکرد منابع این گزارش</h4>
+          <div class="gng-flag-row" *ngFor="let c of selCapacity">
+            <span class="gng-flag-row__label">{{ c.title }}</span>
+            <span>{{ faNum(c.qty) }} {{ c.unit }} <span class="gng-text-muted">(استاندارد {{ c.std === null ? '—' : faNum(c.std) }})</span></span>
+          </div>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── مقادیر تولید و ضایعات (F-PC-033) ───────── -->
+    <p-tabPanel header="مقادیر تولید و ضایعات">
+      <div class="gng-stat-grid">
+        <div class="gng-stat-card"><div class="gng-stat-card__label">بازده اولین بار (حاصل‌ضرب عملیات)</div><div class="gng-stat-card__value">{{ faPct(fpy, 2) }}</div></div>
+        <div class="gng-stat-card gng-stat-card--danger"><div class="gng-stat-card__label">ضایعات کل دستور</div><div class="gng-stat-card__value">{{ faNum(wo?.wastedTotal ?? 0) }}</div><div class="gng-stat-card__meta">{{ wo?.unit }}</div></div>
+        <div class="gng-stat-card gng-stat-card--warning"><div class="gng-stat-card__label">ضایعات راه‌اندازی / فرایند</div><div class="gng-stat-card__value">{{ faNum(setupWaste) }} / {{ faNum(processWaste) }}</div></div>
+        <div class="gng-stat-card"><div class="gng-stat-card__label">ضایعات مواد (نه محصول)</div><div class="gng-stat-card__value">{{ faNum(materialWaste) }}</div></div>
+      </div>
+
+      <div *ngIf="reworkSource" class="gng-note gng-note--info gng-mt-sm">این دستور دوباره‌کاری است ← منشأ: <strong>{{ reworkSource }}</strong></div>
+      <div *ngFor="let k of reworkCards" class="gng-note gng-note--warning gng-mt-sm">
+        <strong>دوباره‌کاری عملیات {{ faInt(k.seq) }}:</strong> {{ faInt(k.toRepair) }} واحد — {{ k.reason }}. مانده {{ faInt(k.remained) }}. {{ k.description }}
+        <div class="gng-mt-sm">← {{ k.link }} · پیشرفت بازرسی مجدد {{ faPct(k.progress) }}</div>
+        <div class="gng-kpi__bar gng-mt-sm"><div class="gng-kpi__bar-fill gng-kpi__bar-fill--warning" [style.width.%]="k.progress"></div></div>
+      </div>
+
+      <div class="gng-columns gng-mt" style="grid-template-columns: 1.2fr 1fr">
+        <div style="position: relative">
+          <gng-data-source-badge [source]="ds('pc04-reports', 'مقادیر عملیات')"></gng-data-source-badge>
+          <h3>مقادیر هر عملیات</h3>
+          <p-table [value]="opQty" styleClass="p-datatable-sm gng-table">
+            <ng-template pTemplate="header"><tr><th>عملیات</th><th>دریافتی</th><th>سالم</th><th>ضایعات</th><th>دوباره‌کاری</th><th>بازده</th><th style="width: 11rem">ترکیب</th></tr></ng-template>
+            <ng-template pTemplate="body" let-q>
+              <tr>
+                <td>{{ faInt(q.op.seq) }} {{ q.op.title }}</td><td>{{ faNum(q.op.received) }}</td><td>{{ faNum(q.op.completed) }}</td>
+                <td [style.color]="q.op.wasted ? 'var(--gng-danger)' : ''">{{ faNum(q.op.wasted) }}</td>
+                <td [style.color]="q.op.rework ? 'var(--gng-warning)' : ''">{{ faNum(q.op.rework) }}</td>
+                <td>{{ faPct(q.yieldPct, 2) }}</td>
+                <td><div class="stack"><div class="seg-good" [style.width.%]="q.good"></div><div class="seg-waste" [style.width.%]="q.waste"></div><div class="seg-rework" [style.width.%]="q.rework"></div></div></td>
+              </tr>
+            </ng-template>
+          </p-table>
+          <div class="gng-legend"><span><i class="pi pi-circle-fill gng-legend-dot--success"></i> سالم</span><span><i class="pi pi-circle-fill gng-legend-dot--danger"></i> ضایعات (برای دیده‌شدن بزرگ‌نمایی نشده)</span><span><i class="pi pi-circle-fill gng-legend-dot--warning"></i> دوباره‌کاری</span><span>خالی = باقی‌مانده</span></div>
+        </div>
+        <div class="gng-panel" style="position: relative">
+          <gng-data-source-badge [source]="ds('pc04-waste', 'ضایعات')"></gng-data-source-badge>
+          <h3>Pareto ضایعات به تفکیک علت</h3>
+          <div class="pareto-row" *ngFor="let p of pareto">
+            <span>{{ p.reason }}<br /><span class="gng-text-muted gng-small">{{ p.parent }}</span></span>
+            <div><div class="pareto-bar" [class.setup]="p.setup" [class.material]="p.material" [style.width.%]="p.pct"></div></div>
+            <b>{{ faNum(p.qty) }}</b>
+            <span class="gng-text-muted">{{ faPct(p.cum, 0) }}</span>
+          </div>
+          <div *ngIf="!pareto.length" class="gng-empty">ضایعاتی ثبت نشده.</div>
+          <div class="gng-legend"><span><i class="pi pi-circle-fill" style="color: var(--gng-warning)"></i> راه‌اندازی</span><span><i class="pi pi-circle-fill gng-legend-dot--danger"></i> فرایند</span><span><i class="pi pi-circle-fill" style="color: var(--gng-purple)"></i> مواد</span><span>ستون آخر = درصد تجمعی</span></div>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── کارکرد منابع (F-PC-034) ───────── -->
+    <p-tabPanel header="کارکرد منابع">
+      <p class="gng-hint">جمع کارکرد واقعی هر نوع کارکرد استاندارد در هر عملیات، در برابر استاندارد روش ساخت. نوار از مرکز: چپ = بیش از استاندارد، راست = کمتر.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc04-capacity', 'کارکرد منابع')"></gng-data-source-badge>
+        <p-table [value]="resRows" styleClass="p-datatable-sm gng-table" sortMode="single">
+          <ng-template pTemplate="header">
+            <tr><th pSortableColumn="seq">عملیات <p-sortIcon field="seq"></p-sortIcon></th><th>نوع کارکرد</th><th>واقعی</th><th>استاندارد</th><th pSortableColumn="variance">انحراف <p-sortIcon field="variance"></p-sortIcon></th><th style="width: 10rem"></th><th>منبع</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr>
+              <td>{{ faInt(r.seq) }} {{ r.opTitle }}</td><td>{{ r.title }}</td>
+              <td>{{ faNum(r.qty) }} {{ r.unit }} <i *ngIf="r.implausible" class="pi pi-exclamation-triangle" style="color: var(--gng-danger)" [pTooltip]="r.implausible"></i></td>
+              <td>{{ r.std === null ? 'بدون استاندارد' : faNum(r.std) }}</td>
+              <td [style.color]="r.tone">{{ r.variance === null ? '—' : faPct(r.variance) }}</td>
+              <td><div class="div-bar"><div class="mid"></div><div class="fill" [style.right.%]="r.barRight" [style.width.%]="r.barWidth" [style.background]="r.tone"></div></div></td>
+              <td class="gng-small">{{ r.sources }}</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="7" class="gng-empty">کارکردی برای این دستور ثبت نشده.</td></tr></ng-template>
+        </p-table>
+      </div>
+      <div *ngIf="implausibleCount" class="gng-note gng-note--danger gng-mt-sm">
+        {{ faInt(implausibleCount) }} ردیف کارکرد در کل کارخانه نرخ ساعتی نامعقول دارد (مثلاً بخار خشک‌کن صدها هزار کیلو) — به نظر می‌رسد مقدار بر مبنای تعداد قرص ثبت شده نه وزن گرانول.
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── گزارش شیفت (F-PC-041) ───────── -->
+    <p-tabPanel header="گزارش شیفت">
+      <p class="gng-hint">زنجیره‌ی تحویل و تحول شیفت (از راست، قدیمی‌ترین). تولید هر شیفت از گزارش‌هایی که در بازه‌ی همان شیفت شروع شده‌اند محاسبه می‌شود.</p>
+      <div class="shift-chain" style="position: relative">
+        <gng-data-source-badge [source]="ds('pc04-shifts', 'گزارش شیفت')"></gng-data-source-badge>
+        <div class="shift-card" *ngFor="let c of shiftCards" [class.open]="c.open">
+          <h4>{{ c.s.title }} · {{ faDay(c.s.date) }}</h4>
+          <div class="handover">{{ c.s.line }} · {{ c.window }}</div>
+          <div class="kv"><b>تحویل:</b>{{ c.s.supervisor }} ← {{ c.s.next }}
+            <p-tag *ngIf="!c.open" [value]="'تحویل ' + faTime(c.s.handover)" severity="success"></p-tag>
+            <p-tag *ngIf="c.open" value="باز" severity="warning"></p-tag>
+          </div>
+          <div *ngIf="c.open" class="kv" style="color: var(--gng-warning)">{{ c.remain }}</div>
+          <div class="kv"><b>خلاصه:</b>{{ c.s.summary }}</div>
+          <div class="kv"><b>تجهیز:</b>{{ c.s.equipment }}</div>
+          <div class="kv"><b>مسائل باز:</b><span style="color: var(--gng-danger)">{{ c.s.issues || '—' }}</span></div>
+          <h4 class="gng-mt-sm" style="font-size: .8rem">موجودی در جریانِ تحویلی</h4>
+          <div class="gng-flag-row" *ngFor="let w of c.wip"><span class="gng-flag-row__label"><i class="pi pi-box"></i>{{ w.woNumber }} · {{ w.opTitle }}</span><b>{{ faNum(w.qty) }} {{ w.unit }}</b></div>
+          <div *ngIf="!c.wip.length" class="gng-text-muted gng-small">ثبت نشده</div>
+          <h4 class="gng-mt-sm" style="font-size: .8rem">تولید در شیفت ({{ faInt(c.reports) }} گزارش)</h4>
+          <div class="gng-flag-row" *ngFor="let p of c.produced"><span class="gng-flag-row__label">{{ p.wo }}</span><span>{{ faNum(p.qty) }} {{ p.unit }}</span></div>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── تسهیم اپراتور (F-PC-042) ───────── -->
+    <p-tabPanel header="تسهیم اپراتور">
+      <div class="gng-columns" style="grid-template-columns: 19rem 1fr">
+        <div style="position: relative">
+          <gng-data-source-badge [source]="ds('pc04-labor', 'کارکرد نفرات')"></gng-data-source-badge>
+          <p-table [value]="people" styleClass="p-datatable-sm gng-table" [scrollable]="true" scrollHeight="420px">
+            <ng-template pTemplate="header"><tr><th>نفر</th><th>بیشینه‌ی بار هم‌زمان</th></tr></ng-template>
+            <ng-template pTemplate="body" let-p>
+              <tr class="clickable" [class.gng-row-active]="p.code === personCode" (click)="selectPerson(p.code)">
+                <td>{{ p.name }}<br /><span class="gng-small gng-text-muted">{{ p.code }} · {{ faInt(p.rows) }} گزارش{{ p.shared ? ' · ' + faInt(p.shared) + ' تسهیمی' : '' }}</span></td>
+                <td><p-tag [value]="faPct(p.maxLoad, 0)" [severity]="p.maxLoad > 100 ? 'danger' : 'success'"></p-tag></td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+        <div *ngIf="person as p">
+          <h3>{{ p.name }} <span class="gng-hint" style="display: inline">— کارکرد کل {{ faDuration(p.minutes) }}</span></h3>
+          <div class="chips"><span *ngFor="let d of personDays" class="chip" [class.on]="d === personDay" (click)="selectDay(d)">{{ faDay(d + 'T00:00:00Z') }}</span></div>
+          <div class="tl">
+            <div class="tl-row" *ngFor="let l of personLanes">
+              <div class="tl-label">{{ l.a.report.woNumber }} · {{ faInt(l.a.report.seq) }}</div>
+              <div class="tl-track"><div class="tl-block" [ngClass]="l.block.tone" [style.right.%]="l.block.right" [style.width.%]="l.block.width" [pTooltip]="l.block.title">{{ l.block.label }}</div></div>
+            </div>
+            <div class="tl-axis"><span *ngFor="let t of personTicks" [style.right.%]="t.right">{{ t.label }}</span></div>
+            <div class="gng-small gng-text-muted" style="margin-inline-start: 11.5rem">بار هم‌زمان (خط‌چین = ۱۰۰٪، سقف نمودار ۴۰۰٪)</div>
+            <div class="load">
+              <div class="cap" [style.bottom.%]="25"></div>
+              <div *ngFor="let s of loadSegs" [class.over]="s.load > 100" [style.right.%]="s.right" [style.width.%]="s.width" [style.height.%]="loadHeight(s.load)" [pTooltip]="faPct(s.load, 0) + ' — ' + s.items"></div>
+            </div>
+          </div>
+          <div *ngIf="conflicts.length" class="gng-note gng-note--danger gng-mt-sm">
+            <strong>هم‌پوشانی:</strong> در {{ faInt(conflicts.length) }} بازه مجموع سهم این نفر از ۱۰۰٪ بیشتر است.
+            <div *ngFor="let c of conflicts.slice(0, 6)" class="gng-small">{{ faTime(iso(c.from)) }}–{{ faTime(iso(c.to)) }}: {{ faPct(c.load, 0) }} — {{ c.items }}</div>
+          </div>
+          <p-table [value]="personLanes" styleClass="p-datatable-sm gng-table gng-mt-sm">
+            <ng-template pTemplate="header"><tr><th>گزارش</th><th>بازه</th><th>سهم</th><th>کارکرد</th><th>سالم سهم نفر</th><th>بررسی</th></tr></ng-template>
+            <ng-template pTemplate="body" let-l>
+              <tr>
+                <td>{{ l.a.report.number }}</td><td>{{ faTime(l.a.report.start) }}–{{ faTime(l.a.report.end) }}</td>
+                <td><p-tag [value]="faInt(l.a.labor.share) + '٪'" [severity]="l.a.labor.share < 100 ? 'warning' : 'secondary'"></p-tag></td>
+                <td>{{ faDuration(l.a.labor.duration) }}</td><td>{{ faNum(l.a.labor.completed) }}</td>
+                <td class="gng-small" [style.color]="shareCheck(l.a) ? 'var(--gng-danger)' : ''">{{ shareCheck(l.a) || '✓' }}</td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── پیش‌بینی تکمیل (F-PC-043) ───────── -->
+    <p-tabPanel header="پیش‌بینی تکمیل">
+      <div class="whatif gng-panel">
+        <div><label>نرخ فرضی نسبت به نرخ واقعی جاری: <b>{{ faInt(rateFactor) }}٪</b></label><p-slider [(ngModel)]="rateFactor" [min]="50" [max]="150" [step]="5" (ngModelChange)="buildForecast()"></p-slider></div>
+        <div><label>ازسرگیری عملیات متوقف پس از: <b>{{ faDuration(resumeDelay) }}</b></label><p-slider [(ngModel)]="resumeDelay" [min]="0" [max]="480" [step]="15" (ngModelChange)="buildForecast()"></p-slider></div>
+      </div>
+      <div class="gng-stat-grid">
+        <div *ngFor="let o of orderEta" class="gng-stat-card" [ngClass]="o.tone === 'danger' ? 'gng-stat-card--danger' : o.tone === 'warning' ? 'gng-stat-card--warning' : 'gng-stat-card--success'">
+          <div class="gng-stat-card__label">{{ o.wo.number }} — {{ o.wo.name }}</div>
+          <div class="gng-stat-card__value" style="font-size: 1.05rem">{{ faDateTime(iso(o.eta)) }}</div>
+          <div class="gng-stat-card__meta">{{ o.verdict }} · برنامه {{ faDateTime(o.wo.plannedComplete) }}</div>
+        </div>
+      </div>
+      <div class="gng-columns gng-mt" style="grid-template-columns: 1.15fr 1fr">
+        <div style="position: relative">
+          <gng-data-source-badge [source]="ds('pc04-reports', 'نرخ واقعی از گزارش‌ها')"></gng-data-source-badge>
+          <p-table [value]="forecasts" styleClass="p-datatable-sm gng-table">
+            <ng-template pTemplate="header"><tr><th>دستور / عملیات</th><th>باقی‌مانده</th><th>پایان پیش‌بینی</th><th>وضعیت</th></tr></ng-template>
+            <ng-template pTemplate="body" let-f>
+              <tr class="clickable" [class.gng-row-active]="selForecast?.op?.id === f.op.id" (click)="pickForecast(f)">
+                <td>{{ f.wo.number }} · {{ faInt(f.op.seq) }} {{ f.op.title }}</td>
+                <td>{{ faNum(f.remaining) }} {{ f.wo.unit }}</td>
+                <td>{{ faDateTime(iso(f.eta)) }} <i *ngIf="f.chained" class="pi pi-link" pTooltip="محدود به پایان عملیات بالادست"></i></td>
+                <td><p-tag [value]="f.verdict" [severity]="f.tone"></p-tag></td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+        <div *ngIf="selForecast as f" class="gng-panel">
+          <h3>{{ f.wo.number }} · عملیات {{ faInt(f.op.seq) }}</h3>
+          <div class="gng-small gng-text-muted">{{ f.basis }}{{ f.chained ? ' · منتظر بالادست (ورودی ' + faNum(f.op.received) + ' از ' + faNum(f.op.toComplete) + ')' : '' }}</div>
+          <svg class="fc-chart gng-mt-sm" [attr.viewBox]="'0 0 ' + chart.w + ' ' + chart.h" preserveAspectRatio="none">
+            <line [attr.x1]="28" [attr.x2]="chart.w - 28" [attr.y1]="chart.targetY" [attr.y2]="chart.targetY" stroke="var(--gng-border)" stroke-dasharray="4 3"></line>
+            <polyline *ngIf="chart.plan" [attr.points]="chart.plan" fill="none" stroke="var(--gng-text-muted)" stroke-width="1.5" stroke-dasharray="5 4"></polyline>
+            <polyline [attr.points]="chart.actual" fill="none" stroke="var(--gng-info)" stroke-width="2.5"></polyline>
+            <polyline [attr.points]="chart.projection" fill="none" stroke="var(--gng-warning)" stroke-width="2" stroke-dasharray="6 3"></polyline>
+            <line [attr.x1]="chart.nowX" [attr.x2]="chart.nowX" y1="10" [attr.y2]="chart.h - 28" stroke="var(--gng-danger)" stroke-width="1.5"></line>
+            <circle [attr.cx]="chart.etaX" [attr.cy]="chart.targetY" r="4" fill="var(--gng-warning)"></circle>
+            <text *ngFor="let t of chart.ticks" [attr.x]="t.x" [attr.y]="chart.h - 10" font-size="9" text-anchor="middle" fill="var(--gng-text-muted)">{{ t.label }}</text>
+          </svg>
+          <div class="gng-legend"><span><i class="pi pi-minus" style="color: var(--gng-info)"></i> تجمعی واقعی</span><span><i class="pi pi-minus" style="color: var(--gng-warning)"></i> پیش‌بینی</span><span><i class="pi pi-minus" style="color: var(--gng-text-muted)"></i> برنامه</span></div>
+          <div class="gng-field-grid gng-mt-sm">
+            <div class="gng-field"><span class="gng-field__label">پایان برنامه‌ی عملیات</span><span class="gng-field__value">{{ faDateTime(f.op.planEnd) }}</span></div>
+            <div class="gng-field"><span class="gng-field__label">پایان پیش‌بینی</span><span class="gng-field__value">{{ faDateTime(iso(f.eta)) }}</span></div>
+          </div>
+          <div *ngIf="f.stopped" class="gng-note gng-note--danger gng-mt-sm">عملیات متوقف است؛ پیش‌بینی از ازسرگیری پس از {{ faDuration(resumeDelay) }} حساب شده — اسلایدر را جابه‌جا کنید.</div>
+        </div>
+      </div>
+      <div class="gng-note gng-note--info gng-mt"><strong>هنوز پیاده نشده.</strong> ثبت و اصلاح گزارش تولید (با سند معکوس)، ثبت کارکرد منابع و تسهیم اپراتور، ثبت و امضای تحویل شیفت، تأیید مدیر و ارسال هشدار ریسک عدم تحقق — با فاز ایجاد/ویرایش می‌آیند.</div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="ds('pc04-reports', 'دستورها')"></gng-data-source-badge>
+    <div class="gng-flag-list">
+      <div *ngFor="let o of orders" class="gng-panel clickable" style="padding: .5rem .7rem" [class.gng-row-active]="o.id === wo?.id" (click)="selectWo(o)">
+        <div class="gng-flag-row"><b>{{ o.number }}</b><p-tag [value]="WO_STATUS[o.statusCode]" [severity]="woStatusTone(o.statusCode)"></p-tag></div>
+        <div class="gng-small">{{ o.name }}</div>
+        <div class="gng-small gng-text-muted">{{ WO_TYPE[o.typeCode] }} · {{ faInt(o.opsDone) }}/{{ faInt(o.opCount) }} عملیات{{ o.currentOp ? ' · ' + o.currentOp : '' }}</div>
+      </div>
+    </div>
+  </div>
+</gng-opform-layout>

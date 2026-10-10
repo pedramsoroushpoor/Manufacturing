@@ -1,0 +1,307 @@
+<gng-opform-layout
+  domainTitle="مهندسی محصول"
+  title="ویژگی‌های تولیدی قلم"
+  code="FRM-PE-01"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="مهندسی محصول / R&D"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-box"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="کاتالوگ کالا"
+  contextPanelHint="کالاها از کاتالوگ انبار می‌آیند و این فرم فقط ویژگی تولیدی به آن‌ها می‌افزاید. با انتخاب یک کالا، همه‌ی تب‌ها به همان کالا محدود می‌شوند."
+  auditFeatureRange="F-PE-001 تا F-PE-006، F-PE-008 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-sitemap" label="افزودن نقش تولیدی به کالای انبار" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-shield" label="تعیین سطح ردیابی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-th-large" label="تعریف ابعاد و تولید ترکیب‌ها" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-eye-slash" label="علامت‌گذاری فانتوم" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <ng-template #issueCell let-id>
+    <div *ngFor="let i of issuesOf(id)" class="gng-small" [class.gng-sym--no]="i.tone === 'danger'" [class.gng-sym--warn]="i.tone === 'warning'">
+      <i class="pi pi-exclamation-triangle"></i> {{ i.text }}
+    </div>
+  </ng-template>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <!-- ───────── نقش تولیدی ───────── -->
+    <p-tabPanel header="نقش تولیدی" [selected]="true">
+      <p class="gng-hint">نقش تولیدی به کالای موجود در کاتالوگ انبار افزوده می‌شود؛ کالا دوباره تعریف نمی‌شود. کالای بدون نقش تولیدی در ساختار و دستور تولید نمی‌آید.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="source('pe01-items', 'نقش تولیدی')"></gng-data-source-badge>
+        <p-table [value]="visibleItems" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 6rem">کد</th>
+              <th>کالا</th>
+              <th style="width: 5rem">واحد</th>
+              <th style="width: 9rem">نقش تولیدی</th>
+              <th style="width: 10rem">سیاست تأمین</th>
+              <th style="width: 7rem">ردیابی</th>
+              <th>هشدار</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-i>
+            <tr [class.gng-text-muted]="!i.hasRole">
+              <td>{{ i.code }}</td>
+              <td>
+                {{ i.title }}
+                <p-tag *ngIf="i.isPhantom" value="فانتوم" severity="secondary" styleClass="gng-mr-sm"></p-tag>
+                <p-tag *ngIf="i.isDimensional" value="ابعادی" severity="info" styleClass="gng-mr-sm"></p-tag>
+                <div class="gng-text-muted gng-small">{{ i.group }}</div>
+              </td>
+              <td>{{ i.unit }}</td>
+              <td><p-tag [value]="i.role" [severity]="roleSeverity(i.roleCode)"></p-tag></td>
+              <td>{{ i.policySummary }}</td>
+              <td>{{ i.tracking }}</td>
+              <td><ng-container *ngTemplateOutlet="issueCell; context: { $implicit: i.productId }"></ng-container></td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+      <p class="gng-hint gng-mt-sm" *ngIf="!selected && withoutRole.length">
+        {{ fa(withoutRole.length) }} کالای کاتالوگ هنوز نقش تولیدی ندارند: {{ withoutRoleText }}.
+      </p>
+    </p-tabPanel>
+
+    <!-- ───────── سیاست تأمین ───────── -->
+    <p-tabPanel header="سیاست تأمین">
+      <p class="gng-hint">هر کالا می‌تواند چند سیاست تأمین با اولویت داشته باشد. برون‌سپاری به پیمانکاران FRM-RM-08 وصل است.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="source('pe01-policies', 'سیاست تأمین')"></gng-data-source-badge>
+        <p-table [value]="policies" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th *ngIf="!selected">کالا</th>
+              <th style="width: 5rem">اولویت</th>
+              <th style="width: 10rem">سیاست</th>
+              <th>پیمانکار / سایت مبدأ</th>
+              <th style="width: 6rem">سهم</th>
+              <th>شرح</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-p>
+            <tr>
+              <td *ngIf="!selected">{{ p.product }}</td>
+              <td>{{ fa(p.priority) }}</td>
+              <td><p-tag [value]="p.source" [severity]="p.sourceCode === 1 ? 'success' : p.sourceCode === 3 ? 'warning' : 'info'"></p-tag></td>
+              <td>
+                {{ p.partner }}
+                <div *ngIf="p.warning" class="gng-sym--warn gng-small"><i class="pi pi-exclamation-triangle"></i> {{ p.warning }}</div>
+              </td>
+              <td>{{ p.share }}</td>
+              <td>{{ p.description }}</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td [attr.colspan]="selected ? 5 : 6" class="gng-empty">سیاست تأمینی ثبت نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── هویت و ردیابی ───────── -->
+    <p-tabPanel header="هویت و ردیابی">
+      <p class="gng-hint">
+        سطح هویت‌بخشی (بدون ردیابی، بچ، سریال، بچ + سریال) و اجباری بودن آن. این تصمیم انطباقی است و تعیینش با کنترل کیفیت است.
+        محصول نهایی و نیمه‌ساخته بدون ردیابی بچ الزام GMP را نقض می‌کند.
+      </p>
+      <p-table [value]="visibleItems" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>کالا</th>
+            <th style="width: 9rem">نقش تولیدی</th>
+            <th style="width: 8rem">سطح ردیابی</th>
+            <th style="width: 6rem">اجباری</th>
+            <th>هشدار</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-i>
+          <tr *ngIf="i.hasRole">
+            <td>{{ i.code }} — {{ i.title }}</td>
+            <td>{{ i.role }}</td>
+            <td><p-tag [value]="i.tracking" [severity]="i.trackingCode === 0 ? 'secondary' : 'info'"></p-tag></td>
+            <td>{{ i.trackingMandatory ? 'بله' : 'خیر' }}</td>
+            <td><ng-container *ngTemplateOutlet="issueCell; context: { $implicit: i.productId }"></ng-container></td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── ویژگی‌های تولیدی ───────── -->
+    <p-tabPanel header="ویژگی‌های تولیدی">
+      <p class="gng-hint">ویژگی‌ها قابل‌گسترش‌اند: فهرست ویژگی تعریف می‌شود و هر کالا مقدار اسمی یا بازه‌ی مجاز خودش را می‌گیرد.</p>
+      <h3 class="gng-section-title" style="margin-top: 0">ویژگی‌های تعریف‌شده</h3>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="source('pe01-attributes', 'تعریف ویژگی')"></gng-data-source-badge>
+        <p-table [value]="attributeDefs" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th style="width: 6rem">کد</th><th>ویژگی</th><th style="width: 6rem">واحد</th><th style="width: 6rem">نوع</th><th style="width: 7rem">کاربرد</th><th>شرح</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-a>
+            <tr><td>{{ a.code }}</td><td>{{ a.title }}</td><td>{{ a.unit }}</td><td>{{ a.dataType }}</td><td>{{ fa(a.itemCount) }} کالا</td><td>{{ a.description }}</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+      <h3 class="gng-section-title">مقدار ویژگی در {{ selected ? '«' + selected.title + '»' : 'کالاها' }}</h3>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="source('pe01-item-attributes', 'مقدار ویژگی')"></gng-data-source-badge>
+        <p-table [value]="itemAttributes" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th *ngIf="!selected">کالا</th><th>ویژگی</th><th>مقدار</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-a>
+            <tr><td *ngIf="!selected">{{ a.product }}</td><td>{{ a.attribute }}</td><td>{{ a.value }}</td></tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td [attr.colspan]="selected ? 2 : 3" class="gng-empty">ویژگی تولیدی ثبت نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── فانتوم ───────── -->
+    <p-tabPanel header="فانتوم">
+      <div class="gng-note gng-note--info gng-mb-sm">
+        قلم فانتوم در محاسبات جای خود را به اجزایش می‌دهد و در ساختار دیده نمی‌شود؛ موجودی، سفارش و رسید مستقل ندارد. پس فانتوم
+        ردیابی ندارد و فقط تولید داخلی می‌شود. «باز شدن» فانتوم در ساختار محصول (FRM-PE-02) اعمال می‌شود.
+      </div>
+      <p-table [value]="phantoms" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr><th>قلم فانتوم</th><th style="width: 9rem">نقش</th><th style="width: 8rem">ردیابی</th><th style="width: 10rem">سیاست تأمین</th><th>هشدار</th></tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-i>
+          <tr>
+            <td>{{ i.code }} — {{ i.title }}<div class="gng-text-muted gng-small">{{ i.description }}</div></td>
+            <td>{{ i.role }}</td>
+            <td>{{ i.tracking }}</td>
+            <td>{{ i.policySummary }}</td>
+            <td><ng-container *ngTemplateOutlet="issueCell; context: { $implicit: i.productId }"></ng-container></td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr><td colspan="5" class="gng-empty">{{ selected ? '«' + selected.title + '» فانتوم نیست.' : 'قلم فانتومی تعریف نشده است.' }}</td></tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── ابعاد ───────── -->
+    <p-tabPanel header="ابعاد">
+      <p class="gng-hint">
+        قلم ابعادی با بُعدهای قابل تعریف (اندازه، رنگ، ...) و ترکیب‌هایی که خودکار ساخته می‌شوند. هر ترکیب یک کد مستقل دارد؛ ترکیبی
+        که دیگر ساخته نمی‌شود غیرفعال می‌شود، نه حذف.
+      </p>
+      <h3 class="gng-section-title" style="margin-top: 0">بُعدها و مقادیر</h3>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="source('pe01-dimensions', 'بُعدها')"></gng-data-source-badge>
+        <p-table [value]="dimensions" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th style="width: 7rem">کد</th><th style="width: 10rem">بُعد</th><th>مقادیر</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-d>
+            <tr>
+              <td>{{ d.code }}</td>
+              <td>{{ d.title }}</td>
+              <td>
+                <span *ngFor="let v of d.values" class="gng-origin gng-reason-chip" [class.gng-text-muted]="!v.used" [title]="v.used ? 'در دست‌کم یک کالا' : 'هنوز در هیچ کالایی استفاده نشده'">
+                  {{ v.code }} — {{ v.title }}
+                </span>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+      <h3 class="gng-section-title">مقادیر مجاز هر کالای ابعادی</h3>
+      <p-table [value]="itemDimensions" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr><th *ngIf="!selected">کالا</th><th style="width: 10rem">بُعد</th><th>مقادیر مجاز</th></tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-d>
+          <tr><td *ngIf="!selected">{{ d.product }}</td><td>{{ d.dimension }}</td><td>{{ d.values }}</td></tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr><td [attr.colspan]="selected ? 2 : 3" class="gng-empty">{{ selected ? '«' + selected.title + '» ابعادی نیست.' : 'کالای ابعادی تعریف نشده است.' }}</td></tr>
+        </ng-template>
+      </p-table>
+      <h3 class="gng-section-title">ترکیب‌های ساخته‌شده ({{ fa(variants.length) }})</h3>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="source('pe01-variants', 'ترکیب‌ها')"></gng-data-source-badge>
+        <p-table [value]="variants" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th *ngIf="!selected">کالا</th><th style="width: 12rem">کد ترکیب</th><th>ترکیب</th><th style="width: 6rem">وضعیت</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-v>
+            <tr [class.gng-text-muted]="!v.active">
+              <td *ngIf="!selected">{{ v.product }}</td>
+              <td dir="ltr" style="text-align: right">{{ v.code }}</td>
+              <td>{{ v.title }}</td>
+              <td><p-tag [value]="v.active ? 'فعال' : 'غیرفعال'" [severity]="v.active ? 'success' : 'secondary'"></p-tag></td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td [attr.colspan]="selected ? 3 : 4" class="gng-empty">ترکیبی ساخته نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── پیکربندی‌پذیری (فاز ۳) ───────── -->
+    <p-tabPanel header="پیکربندی‌پذیری">
+      <div class="gng-note gng-note--info">
+        <strong>هنوز پیاده نشده.</strong> قلم پیکربندی‌پذیر با فهرست ویژگی‌های انتخابی و مقادیر مجاز (F-PE-007) اولویت «مهم» و فاز ۳
+        دارد. تفاوتش با قلم ابعادی: ترکیب‌ها از پیش ساخته نمی‌شوند و هنگام سفارش انتخاب می‌شوند (FRM-PE-07).
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── اندازه‌ی بسته ───────── -->
+    <p-tabPanel header="اندازه‌ی بسته">
+      <p class="gng-hint">اندازه‌ی بچ استاندارد، حداقل، حداکثر و مضرب سفارش تولید به‌ازای کالا و خط. ردیف «همه‌ی خطوط» برای خطی است که ردیف خودش را ندارد.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="source('pe01-lot-sizes', 'اندازه‌ی بسته')"></gng-data-source-badge>
+        <p-table [value]="lotSizes" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th *ngIf="!selected">کالا</th>
+              <th style="width: 10rem">خط</th>
+              <th style="width: 10rem">اندازه‌ی بچ</th>
+              <th style="width: 9rem">حداقل</th>
+              <th style="width: 9rem">حداکثر</th>
+              <th style="width: 9rem">مضرب</th>
+              <th>شرح</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-l>
+            <tr>
+              <td *ngIf="!selected">{{ l.product }}</td>
+              <td>{{ l.line }}</td>
+              <td>{{ l.batch }}</td>
+              <td>{{ l.min }}</td>
+              <td>{{ l.max }}</td>
+              <td>{{ l.multiple }}</td>
+              <td>{{ l.description }}</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td [attr.colspan]="selected ? 6 : 7" class="gng-empty">اندازه‌ی بچ تعریف نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="source('pe01-catalog', 'کاتالوگ کالا (جانشین موقت)')"></gng-data-source-badge>
+    <p-tree
+      [value]="pickTree"
+      styleClass="gng-tree"
+      selectionMode="single"
+      [(selection)]="selectedPick"
+      (onNodeSelect)="onPick($event)"
+      (onNodeUnselect)="onUnpick($event)"
+    ></p-tree>
+  </div>
+</gng-opform-layout>

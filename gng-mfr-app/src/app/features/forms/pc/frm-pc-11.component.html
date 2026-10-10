@@ -1,0 +1,246 @@
+<gng-opform-layout
+  domainTitle="کنترل تولید"
+  title="پورتال پیمانکار و مشتری کارمزدی"
+  code="FRM-PC-11"
+  formTypeLabel="فرم عملیاتی"
+  owner="کارشناس برون‌سپاری / فناوری"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-globe"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="حساب‌های پورتال"
+  contextPanelHint="یک حساب را انتخاب کنید تا پورتال را از چشم او ببینید."
+  auditFeatureRange="F-PC-090"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-user-plus" label="حساب جدید" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-key" label="ویرایش دسترسی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-ban" label="غیرفعال‌سازی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <div class="gng-note gng-note--info" style="margin-bottom: 0.8rem">
+    <i class="pi pi-eye"></i> پیش‌نمایش نمای طرف بیرونی — ثبت پیشرفت در فاز ویرایش. آنچه در قاب زیر است دقیقاً همان داده‌ای است که سرور برای این حساب برمی‌گرداند.
+  </div>
+
+  <div class="pc11-wrap" [class.gng-loading]="loading || viewLoading">
+    <!-- ───────── قاب پورتال ───────── -->
+    <div class="pc11-frame" style="position: relative">
+      <gng-data-source-badge [source]="ds('pc11-progress', 'نمای پورتال')"></gng-data-source-badge>
+      <div class="pc11-chrome">
+        <span class="pc11-chrome__dots"><span></span><span></span><span></span></span>
+        <span class="pc11-chrome__url"><i class="pi pi-lock" style="font-size: 0.65rem"></i> https://{{ portalUrl }}</span>
+      </div>
+      <div class="pc11-top" *ngIf="account as a">
+        <div>
+          <div class="pc11-top__brand">پورتال همکاران تولید گلرنگ</div>
+          <div style="font-size: 0.8rem; opacity: 0.85">{{ partyName(a) }}{{ a.contractNumber ? ' · قرارداد ' + a.contractNumber : '' }}</div>
+        </div>
+        <div class="pc11-top__who">{{ a.displayName }}<br /><span style="opacity: 0.75">آخرین ورود: {{ faDateTime(a.lastLogin) }}</span></div>
+      </div>
+      <nav class="pc11-nav">
+        <button *ngFor="let tb of tabs; let i = index" type="button" [class.on]="portalTab === i" (click)="portalTab = i">{{ tb }}</button>
+      </nav>
+
+      <div class="pc11-body" style="position: relative" *ngIf="view as v; else waiting">
+        <!-- حساب غیرفعال -->
+        <div class="pc11-lock" *ngIf="!v.isActive">
+          <i class="pi pi-lock"></i>
+          <strong>این حساب غیرفعال است؛ طرف بیرونی نباید بتواند وارد شود.</strong>
+          <span>سرور برای حساب غیرفعال هیچ داده‌ای برنمی‌گرداند ({{ faInt(v.rowCount) }} ردیف)؛ ولی حساب باید حذف یا بسته شود.</span>
+        </div>
+
+        <ng-container *ngIf="hasWork; else noWork">
+          <!-- ───── سفارش‌های من ───── -->
+          <ng-container *ngIf="portalTab === 0">
+            <ng-container *ngIf="isContractor">
+              <div class="pc11-card pc11-order" *ngFor="let o of v.orders">
+                <svg viewBox="0 0 100 100" style="width: 110px; height: 110px">
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="#e3e6ec" stroke-width="9"></circle>
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="#1f3b63" stroke-width="9" [attr.stroke-dasharray]="ringDash(o.progressCompleted, o.toComplete)" transform="rotate(-90 50 50)" stroke-linecap="round"></circle>
+                  <text x="50" y="55" text-anchor="middle" font-size="17" font-weight="700" fill="#1f3b63">{{ faPct(pctOf(o.progressCompleted, o.toComplete), 0) }}</text>
+                </svg>
+                <div>
+                  <div class="pc11-status">{{ stage[o.stageCode || 1] }}</div>
+                  <div class="pc11-big">{{ o.workOrder }} · {{ o.opTitle }}</div>
+                  <div class="pc11-muted">{{ o.product }} · بچ {{ o.batch }}</div>
+                  <div class="pc11-muted">تکمیل اعلامی {{ faInt(o.progressCompleted) }} از {{ faInt(o.toComplete) }} · تحویل‌گرفته‌شده توسط گلرنگ {{ faInt(o.accepted) }}</div>
+                </div>
+                <div style="text-align: left">
+                  <div class="pc11-muted">موعد تحویل</div>
+                  <div class="pc11-big">{{ faDay(o.dueDate) }}</div>
+                  <div class="pc11-muted gng-mt-sm">پیش‌بینی شما {{ faDay(o.expectedReady) }}</div>
+                  <span class="pc11-chip" [ngClass]="o.delayDays > 0 ? 'pc11-chip--late' : 'pc11-chip--ok'">{{ orderDelayText(o) }}</span>
+                  <div class="pc11-muted gng-mt-sm">کارمزد:
+                    <span *ngIf="o.feePerUnit !== null">{{ faInt(o.feePerUnit) }} ریال {{ o.feeUnitTitle }} · قابل پرداخت {{ faInt(o.feePayable) }}</span>
+                    <span *ngIf="o.feePerUnit === null" class="pc11-mask" pTooltip="به این حساب نمایش داده نمی‌شود"><i class="pi pi-lock"></i> ••••••</span>
+                  </div>
+                </div>
+              </div>
+            </ng-container>
+            <ng-container *ngIf="!isContractor">
+              <div class="pc11-card" *ngFor="let c of v.contracts">
+                <div style="display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap">
+                  <div>
+                    <div class="pc11-muted">قرارداد {{ c.number }} · اعتبار تا {{ faDay(c.validTo) }}</div>
+                    <div class="pc11-big">{{ c.product }}</div>
+                    <div class="pc11-muted">سفارش {{ c.workOrder }} · بچ {{ c.batch }} · {{ faInt(c.orderQty) }} قرص</div>
+                  </div>
+                  <div style="text-align: left">
+                    <div class="pc11-muted">کارمزد</div>
+                    <div *ngIf="c.feePerUnit !== null" class="pc11-big">{{ faInt(c.feePerUnit) }} <span class="pc11-muted">ریال {{ c.feeUnitTitle }}</span></div>
+                    <div *ngIf="c.feePerUnit !== null" class="pc11-muted">برآورد کل {{ faInt(c.feeProjected) }} ریال</div>
+                    <div *ngIf="c.feePerUnit === null" class="pc11-mask"><i class="pi pi-lock"></i> ••••••</div>
+                  </div>
+                </div>
+                <div class="pc11-order gng-mt">
+                  <svg viewBox="0 0 100 100" style="width: 110px; height: 110px">
+                    <circle cx="50" cy="50" r="42" fill="none" stroke="#e3e6ec" stroke-width="9"></circle>
+                    <circle cx="50" cy="50" r="42" fill="none" stroke="#f7941d" stroke-width="9" [attr.stroke-dasharray]="ringDash(tollFurthest, tollOrderQty)" transform="rotate(-90 50 50)" stroke-linecap="round"></circle>
+                    <text x="50" y="55" text-anchor="middle" font-size="17" font-weight="700" fill="#1f3b63">{{ faPct(pctOf(tollFurthest, tollOrderQty), 0) }}</text>
+                  </svg>
+                  <div>
+                    <div class="pc11-status">{{ woStatus[c.woStatusCode] }}</div>
+                    <div class="pc11-muted">مرحله‌ی جاری: {{ tollCurrentOp }}</div>
+                    <div class="pc11-muted">تحویل‌شده به شما: {{ faInt(c.delivered) }} · ضایعات تا کنون {{ faInt(c.wastedSoFar) }} ({{ faPct(pctOf(c.wastedSoFar, c.orderQty), 2) }} — مجاز {{ faPct(c.allowedWastePct, 0) }})</div>
+                  </div>
+                  <div style="text-align: left"><div class="pc11-muted">موعد</div><div class="pc11-big">{{ faDay(tollDue) }}</div></div>
+                </div>
+              </div>
+            </ng-container>
+          </ng-container>
+
+          <!-- ───── ثبت پیشرفت ───── -->
+          <ng-container *ngIf="portalTab === 1">
+            <ng-container *ngIf="isContractor">
+              <div class="pc11-card" *ngFor="let o of v.orders">
+                <div class="pc11-big">{{ o.workOrder }} · {{ o.opTitle }}</div>
+                <ng-container *ngIf="account?.canReport; else noReport">
+                  <ng-container *ngIf="formFor(o) as f">
+                    <div class="pc11-form gng-mt-sm">
+                      <div><label>مرحله</label><p-dropdown [options]="stageOptions" [ngModel]="f.stage" [disabled]="true" styleClass="w-full"></p-dropdown></div>
+                      <div><label>تاریخ آماده‌شدن پیش‌بینی</label><input pInputText type="date" class="p-inputtext-sm" [ngModel]="f.ready" [disabled]="true" style="direction: ltr; width: 100%" /></div>
+                      <div><label>تکمیل‌شده‌ی تجمعی</label><p-inputNumber [ngModel]="f.completed" [disabled]="true" inputStyleClass="p-inputtext-sm" [style]="{ width: '100%' }"></p-inputNumber></div>
+                      <div><label>ضایعات تجمعی</label><p-inputNumber [ngModel]="f.wasted" [disabled]="true" inputStyleClass="p-inputtext-sm" [style]="{ width: '100%' }"></p-inputNumber></div>
+                      <div style="grid-column: 1 / -1"><label>یادداشت</label><input pInputText type="text" class="p-inputtext-sm" placeholder="مثلاً: یکی از پان‌ها در تعمیر است" [disabled]="true" style="width: 100%" /></div>
+                    </div>
+                    <button pButton type="button" icon="pi pi-send" label="ثبت گزارش پیشرفت" class="p-button-sm gng-mt-sm" [disabled]="true"></button>
+                    <span class="pc11-muted" style="margin-right: 0.6rem">در فاز ویرایش فعال می‌شود</span>
+                  </ng-container>
+                </ng-container>
+                <h4 class="gng-mt">گزارش‌های قبلی شما</h4>
+                <div class="pc11-tl">
+                  <div class="pc11-tl__item" *ngFor="let p of progressOf(o)">
+                    <strong>{{ stage[p.stageCode] }}</strong> · {{ faDateTime(p.reportedAt) }}
+                    <div class="pc11-muted">تکمیل {{ faInt(p.completed) }} · ضایعات {{ faInt(p.wasted) }} · آماده {{ faDay(p.expectedReady) }} · {{ p.reportedBy }}</div>
+                    <div *ngIf="p.note" class="pc11-muted">«{{ p.note }}»</div>
+                  </div>
+                </div>
+              </div>
+            </ng-container>
+            <ng-container *ngIf="!isContractor">
+              <div class="pc11-card">
+                <div class="pc11-big">پیشرفت تولید سفارش شما</div>
+                <div class="pc11-muted">این حساب فقط مشاهده می‌کند؛ پیشرفت را گلرنگ ثبت می‌کند.</div>
+                <div class="pc11-ops gng-mt">
+                  <div *ngFor="let op of v.operations" class="pc11-op" [ngClass]="opClass(op.statusCode)">
+                    <strong>{{ faInt(op.seq) }} · {{ op.title }}</strong>
+                    <div>{{ opStatus[op.statusCode] }}</div>
+                    <div class="pc11-muted">{{ faInt(op.completed) }} از {{ faInt(op.toComplete) }}</div>
+                    <div class="pc11-muted" *ngIf="op.start">{{ faDateTime(op.start) }} ← {{ faDateTime(op.end) }}</div>
+                  </div>
+                </div>
+              </div>
+            </ng-container>
+          </ng-container>
+
+          <!-- ───── ارسال و دریافت ───── -->
+          <ng-container *ngIf="portalTab === 2">
+            <div class="pc11-card pc11-ship" *ngFor="let s of v.shipments">
+              <div class="pc11-ship__icon" [class.pc11-ship__icon--out]="s.directionCode === 2 || s.directionCode === 3"><i class="pi" [ngClass]="s.directionCode === 2 || s.directionCode === 3 ? 'pi-arrow-up-left' : 'pi-arrow-down-right'"></i></div>
+              <div>
+                <div class="pc11-big">{{ portalDirection[s.directionCode] }} <span class="pc11-muted">· {{ s.number }} · {{ faDateTime(s.date) }}</span></div>
+                <div class="pc11-muted">بارنامه {{ s.waybill || '—' }} · {{ s.vehicle || '—' }} · راننده {{ s.driver || '—' }}{{ s.expectedReturn ? ' · بازگشت تا ' + faDay(s.expectedReturn) : '' }}</div>
+                <div class="pc11-bal" *ngFor="let i of s.items" style="grid-template-columns: 9rem 1fr 8rem">
+                  <span class="pc11-muted">{{ role[i.roleCode] }}</span><span>{{ i.product }} · {{ i.batch }}</span><span>{{ faNum(i.quantity, 3) }} {{ i.unit }}</span>
+                </div>
+              </div>
+            </div>
+            <div *ngIf="!v.shipments.length" class="pc11-empty"><i class="pi pi-truck"></i>محموله‌ای ثبت نشده.</div>
+          </ng-container>
+
+          <!-- ───── مانده‌ی مواد امانی ───── -->
+          <ng-container *ngIf="portalTab === 3">
+            <div *ngIf="!v.canViewBalances" class="pc11-empty"><i class="pi pi-lock"></i>این حساب مجوز دیدن مانده‌ی مواد را ندارد.</div>
+            <div class="pc11-card" *ngIf="v.canViewBalances && isContractor">
+              <div class="pc11-big">مواد گلرنگ نزد شما</div>
+              <div class="pc11-bal pc11-bal--head"><span>ماده</span><span>دریافتی</span><span>مصرف اعلامی</span><span>برگشتی</span><span>نزد شما</span></div>
+              <ng-container *ngFor="let b of v.subBalances">
+                <div class="pc11-bal">
+                  <span>{{ b.product }}<br /><span class="pc11-muted">{{ b.workOrder }} · {{ b.batch }}</span></span>
+                  <span>{{ faNum(b.sent, 3) }}</span><span>{{ faNum(b.declared, 3) }}</span><span>{{ faNum(b.returned, 3) }}</span>
+                  <strong>{{ faNum(b.remaining, 3) }} {{ b.unit }}</strong>
+                </div>
+                <div *ngIf="b.difference" class="pc11-chip pc11-chip--late" style="margin: 0.3rem 0">{{ faNum(b.difference, 3) }} {{ b.unit }} توضیح داده نشده — لطفاً در گزارش بعدی اعلام کنید</div>
+              </ng-container>
+            </div>
+            <div class="pc11-card" *ngIf="v.canViewBalances && !isContractor">
+              <div class="pc11-big">مواد شما نزد گلرنگ</div>
+              <div class="pc11-bal pc11-bal--head"><span>ماده</span><span>تحویلی شما</span><span>مصرف</span><span>مانده</span><span>مغایرت</span></div>
+              <div class="pc11-bal" *ngFor="let b of v.tollBalances">
+                <span>{{ b.product }}<br /><span class="pc11-muted">{{ b.batch }} · ورود {{ faDay(b.firstReceipt) }}</span></span>
+                <span>{{ faNum(b.received, 3) }}</span><span>{{ faNum(b.consumed, 3) }}</span><strong>{{ faNum(b.remaining, 3) }} {{ b.unit }}</strong>
+                <span [style.color]="b.difference ? '#c0392b' : ''">{{ b.difference ? faNum(b.difference, 3) : '—' }}</span>
+              </div>
+            </div>
+          </ng-container>
+        </ng-container>
+      </div>
+      <ng-template #waiting><div class="pc11-body"><div class="pc11-empty"><i class="pi pi-spin pi-spinner"></i>در حال بارگذاری نمای حساب…</div></div></ng-template>
+      <ng-template #noWork>
+        <div class="pc11-empty"><i class="pi pi-inbox"></i><strong>در حال حاضر سفارش فعالی برای شما نیست.</strong><div>هر وقت گلرنگ کاری ارسال کند، اینجا نمایش داده می‌شود.</div></div>
+      </ng-template>
+      <ng-template #noReport><div class="pc11-empty" style="padding: 1rem"><i class="pi pi-lock"></i>این حساب مجوز ثبت پیشرفت ندارد؛ فقط مشاهده.</div></ng-template>
+    </div>
+
+    <!-- ───────── جداسازی داده (نمای داخلی) ───────── -->
+    <div class="gng-panel" *ngIf="account as a">
+      <h3 style="margin-top: 0">جداسازی داده</h3>
+      <div class="pc11-iso">
+        <div *ngFor="let it of isolation" class="pc11-iso__row" [ngClass]="'pc11-iso__row--' + it.state">
+          <i class="pi" [ngClass]="it.state === 'shown' ? 'pi-eye' : it.state === 'masked' ? 'pi-eye-slash' : 'pi-ban'"></i>
+          <div><strong>{{ it.label }}</strong><div class="gng-text-muted gng-small">{{ it.note }}</div></div>
+        </div>
+      </div>
+      <div class="gng-field gng-mt"><span class="gng-field__label">ردیف‌های برگشتی سرور</span><span class="gng-field__value">{{ faInt(view?.rowCount ?? 0) }}</span></div>
+      <div class="gng-field"><span class="gng-field__label">شرح حساب</span><span class="gng-field__value">{{ a.description || '—' }}</span></div>
+    </div>
+  </div>
+
+  <div class="gng-note gng-note--info gng-mt">
+    <strong>هنوز پیاده نشده.</strong> ثبت پیشرفت توسط پیمانکار از پورتال (ورودی FRM-PC-10)، ساخت و غیرفعال‌سازی حساب و تعیین حقوق، بازنشانی رمز،
+    و ورود واقعی طرف بیرونی با احراز هویت جداگانه با فاز ایجاد/ویرایش می‌آید.
+  </div>
+
+  <!-- ───────── فهرست حساب‌ها ───────── -->
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="ds('pc11-accounts', 'حساب‌های پورتال')"></gng-data-source-badge>
+    <p-selectButton [options]="filterOptions" [(ngModel)]="filter" optionLabel="label" optionValue="value" styleClass="p-button-sm" style="display: block; margin-bottom: 0.6rem"></p-selectButton>
+    <div *ngFor="let a of shownAccounts" class="pc11-acc" [class.pc11-acc--on]="account?.id === a.id" [class.pc11-acc--off]="!a.active" (click)="pick(a)">
+      <div class="pc11-acc__name">
+        <span>{{ a.displayName }}</span>
+        <p-tag [value]="a.active ? 'فعال' : 'غیرفعال'" [severity]="a.active ? 'success' : 'danger'"></p-tag>
+      </div>
+      <div class="pc11-acc__user">{{ a.userName }}</div>
+      <div class="gng-small">{{ partyType[a.partyTypeCode] }} · {{ partyName(a) }}</div>
+      <div class="pc11-rights">
+        <span class="pc11-right" [ngClass]="a.canReport ? 'pc11-right--on' : 'pc11-right--off'">ثبت پیشرفت</span>
+        <span class="pc11-right" [ngClass]="a.canBalances ? 'pc11-right--on' : 'pc11-right--off'">مانده‌ها</span>
+        <span class="pc11-right" [ngClass]="a.canFees ? 'pc11-right--on' : 'pc11-right--off'">کارمزد</span>
+      </div>
+      <div class="gng-small gng-mt-sm" [style.color]="isStale(a) ? 'var(--gng-danger)' : ''"><i class="pi pi-clock"></i> {{ loginAge(a) }}</div>
+    </div>
+    <div *ngIf="!shownAccounts.length && !loading" class="gng-empty">حسابی نیست.</div>
+  </div>
+</gng-opform-layout>

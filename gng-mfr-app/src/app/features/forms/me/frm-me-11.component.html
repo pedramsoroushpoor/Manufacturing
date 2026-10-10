@@ -1,0 +1,470 @@
+<gng-opform-layout
+  domainTitle="مهندسی تولید"
+  title="رصدخانه‌ی مهندسی تولید"
+  code="FRM-ME-11"
+  formTypeLabel="BI / رصدخانه"
+  owner="مدیر مهندسی تولید"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-sitemap"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="روش‌های دامنه"
+  contextPanelHint="مرتب از ضعیف‌ترین؛ عدد = امتیاز سلامت (با برنامه‌ی اصلاح)"
+  auditFeatureRange="BI مهندسی تولید (فقط‌خواندنی)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-eraser" label="پاک کردن برنامه‌ی اصلاح" class="p-button-sm p-button-outlined" [disabled]="!fixed.size" (click)="clearFixes()"></button>
+    <button pButton type="button" icon="pi pi-send" label="ارجاع نقص‌ها به مالکان" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check-square" label="ثبت استاندارد پیشنهادی" class="p-button-outlined p-button-sm"></button>
+  </ng-container>
+
+  <!-- ───────── پنل کناری: روش‌های دامنه ───────── -->
+  <div contextPanel class="ctx">
+    <div class="ctx__i" *ngFor="let h of healths" [class.ctx__i--on]="sel?.routing?.id === h.routing.id" (click)="pickRouting(h.routing.id); space = 'map'">
+      <span class="ctx__s" [ngClass]="'ctx__s--' + h.tone">{{ faInt(h.score) }}</span>
+      <div>
+        <b class="mono">{{ h.routing.code }} {{ h.routing.version }}</b>
+        <small>{{ h.routing.title }} · {{ routingStatus[h.routing.status] }}{{ h.routing.isTemplate ? ' · الگو' : '' }}</small>
+      </div>
+    </div>
+    <div class="gng-empty" *ngIf="!healths.length">روشی در این دامنه نیست.</div>
+  </div>
+
+  <div class="bp" [class.gng-loading]="loading">
+    <div class="bp__state" *ngIf="loading && !eng"><i class="pi pi-spin pi-spinner"></i> در حال خواندن روش‌ها، نقص‌ها و گزارش‌های اجرا…</div>
+    <div class="bp__state bp__state--err" *ngIf="loadFailed"><i class="pi pi-ban"></i> خواندن داده ناموفق بود؛ endpoint ‎/api/me11/bundle در دسترس نیست.</div>
+
+    <ng-container *ngIf="eng">
+      <!-- ───────── دامنه ───────── -->
+      <div class="bp__scope">
+        <div class="seg"><span class="dim">خط:</span>
+          <button type="button" class="chip" *ngFor="let l of lines" [class.chip--on]="scopeLines.includes(l.id)" (click)="toggleLine(l.id)">{{ l.title }}</button>
+        </div>
+        <div class="seg"><span class="dim">نوع روش:</span>
+          <button type="button" class="chip" [class.chip--on]="scopeTypes.includes(1)" (click)="toggleType(1)">بچی</button>
+          <button type="button" class="chip" [class.chip--on]="scopeTypes.includes(2)" (click)="toggleType(2)">پیوسته</button>
+        </div>
+        <div class="seg"><span class="dim">کالا:</span>
+          <button type="button" class="chip" *ngFor="let p of products" [class.chip--on]="scopeProduct === p.id" (click)="setProduct(p.id)">{{ p.code }}</button>
+        </div>
+        <div class="seg">
+          <input class="inp" type="search" placeholder="جست‌وجوی روش…" [ngModel]="search" (ngModelChange)="onSearch($event)" />
+          <label class="dim"><input type="checkbox" [ngModel]="showAll" (ngModelChange)="setShowAll($event)" /> الگو و منسوخ هم</label>
+          <button type="button" class="chip" (click)="clearScope()" title="پاک کردن فیلترها"><i class="pi pi-filter-slash"></i></button>
+        </div>
+        <div class="crumb"><i class="pi pi-compass"></i> {{ breadcrumb }}<span *ngIf="fixed.size"> · برنامه‌ی اصلاح: {{ faInt(fixed.size) }} نقص</span></div>
+      </div>
+
+      <!-- ───────── ابزارها ───────── -->
+      <div class="inst">
+        <button type="button" class="gauge" (click)="space = 'map'">
+          <div class="gauge__l">سلامت میانگین روش‌ها</div>
+          <div class="gauge__v" [ngClass]="avgHealth >= 90 ? 't-ok' : avgHealth >= 70 ? 't-info' : avgHealth >= 50 ? 't-warn' : 't-bad'">{{ faInt(avgHealth) }}</div>
+          <div class="gauge__s">{{ faInt(healths.length) }} روش در دامنه</div>
+        </button>
+        <button type="button" class="gauge" (click)="space = 'debt'">
+          <div class="gauge__l">بدهی فنی (اثر)</div>
+          <div class="gauge__v t-bad">{{ faInt(debtTotal) }}</div>
+          <div class="gauge__s">{{ faInt(debtItems.length) }} نقص · در برنامه {{ faInt(debtPlanned) }}</div>
+        </button>
+        <button type="button" class="gauge" (click)="space = 'calib'" *ngIf="cal">
+          <div class="gauge__l">عملیات با سوگیری سیستماتیک</div>
+          <div class="gauge__v t-warn">{{ faInt(calBiased) }}</div>
+          <div class="gauge__s">{{ faInt(cal.rows.length) }} عملیات سنجیده با گزارش واقعی</div>
+        </button>
+        <button type="button" class="gauge" (click)="space = 'sim'" *ngIf="simBase?.bottleneck as bn">
+          <div class="gauge__l">گلوگاه تقاضای باز</div>
+          <div class="gauge__v" [ngClass]="'t-' + bn.tone">{{ bn.utilLabel }}</div>
+          <div class="gauge__s">{{ bn.title }}</div>
+        </button>
+        <button type="button" class="gauge" (click)="space = 'cov'">
+          <div class="gauge__l">شکاف / تعارض نسخه</div>
+          <div class="gauge__v" [ngClass]="covGaps ? 't-bad' : 't-ok'">{{ faInt(covGaps) }} / {{ faInt(covConflicts) }}</div>
+          <div class="gauge__s">خانه‌ی بی‌نسخه (عادی) / هم‌اولویت هم‌پوشان</div>
+        </button>
+        <button type="button" class="gauge" (click)="space = 'ext'" *ngIf="risks.length">
+          <div class="gauge__l">پرریسک‌ترین پیمانکار</div>
+          <div class="gauge__v" [ngClass]="'t-' + risks[0].tone">{{ faInt(risks[0].score) }}</div>
+          <div class="gauge__s">{{ risks[0].c.title }}</div>
+        </button>
+      </div>
+
+      <!-- ───────── ریل فضاها ───────── -->
+      <nav class="rail">
+        <button type="button" [class.on]="space === 'map'" (click)="space = 'map'"><i class="pi pi-share-alt"></i> نقشه‌ی سلامت روش‌ها</button>
+        <button type="button" [class.on]="space === 'calib'" (click)="space = 'calib'"><i class="pi pi-sliders-h"></i> استاندارد در برابر واقعیت <b *ngIf="cal">{{ faInt(cal.rows.length) }}</b></button>
+        <button type="button" [class.on]="space === 'sim'" (click)="space = 'sim'"><i class="pi pi-filter"></i> شبیه‌ساز گلوگاه</button>
+        <button type="button" [class.on]="space === 'cov'" (click)="space = 'cov'"><i class="pi pi-table"></i> پوشش نسخه‌ی تولید <b [class.hot]="covGaps > 0">{{ faInt(covGaps) }}</b></button>
+        <button type="button" [class.on]="space === 'ext'" (click)="space = 'ext'"><i class="pi pi-truck"></i> وابستگی بیرونی و هزینه</button>
+        <button type="button" [class.on]="space === 'debt'" (click)="space = 'debt'"><i class="pi pi-exclamation-triangle"></i> بدهی فنی <b class="hot">{{ faInt(debtItems.length) }}</b></button>
+      </nav>
+
+      <!-- ═════════ ۱) نقشه‌ی سلامت ═════════ -->
+      <section class="sp cols" *ngIf="space === 'map'">
+        <div class="panel">
+          <gng-data-source-badge [source]="dsHealth"></gng-data-source-badge>
+          <div class="ph"><h3>نقشه‌ی روش‌ها <small>— گراف هر روش، رنگ گره = بدترین نقص عملیات</small></h3></div>
+          <div class="cards">
+            <div class="rc" *ngFor="let h of healths" [class.rc--on]="sel?.routing?.id === h.routing.id" [class.rc--muted]="h.routing.isTemplate || h.routing.status === 4"
+              (click)="pickRouting(h.routing.id)">
+              <div class="rc__h">
+                <div class="ring" [style.background]="ring(h.score)"><span>{{ faInt(h.score) }}</span></div>
+                <div class="rc__t"><b>{{ h.routing.code }} {{ h.routing.version }}</b><span>{{ h.routing.title }}</span></div>
+              </div>
+              <gng-me11-flow [ops]="opsOf(h.routing.id)" [links]="linksOf(h.routing.id)" [sev]="h.opSev" [compact]="true"></gng-me11-flow>
+              <div class="dots" title="دسته‌های چک‌لیست؛ رنگ = بدترین نقص">
+                <span class="dot" *ngFor="let c of h.checks" [ngClass]="'dot--' + c.worst" [title]="c.label"></span>
+              </div>
+              <div class="rc__m">
+                <span>{{ routingStatus[h.routing.status] }} · {{ h.routing.ptype === 2 ? 'پیوسته' : 'بچی' }}</span>
+                <span *ngIf="h.base !== h.score" class="proj">{{ faInt(h.base) }} ← {{ faInt(h.score) }}</span>
+                <span>{{ faInt(h.defectCount) }} نقص</span>
+              </div>
+            </div>
+          </div>
+          <div class="hint">{{ healthFormula }} کادر خط‌چین = عملیات یتیم، یال قرمز = حلقه، نقطه‌ی سبز = عملیات خروجی دارد. کم‌رنگ = الگو یا منسوخ.</div>
+        </div>
+
+        <div class="panel" *ngIf="sel as h">
+          <div class="dh">
+            <div class="ring ring--lg" [style.background]="ring(h.score)"><span>{{ faInt(h.score) }}</span></div>
+            <div class="dh__id">
+              <b>{{ h.routing.code }} {{ h.routing.version }}</b>
+              <div>{{ h.routing.title }}</div>
+              <div class="kv">
+                <span>{{ routingStatus[h.routing.status] }}</span><span>{{ h.routing.line || 'بدون خط' }}</span>
+                <span>بچ <b>{{ faNum(h.routing.batch) }}</b> {{ h.routing.unit }}</span>
+                <span>نسخه‌ی فعال <b>{{ faInt(h.routing.activeVersions) }}</b></span><span>دستور باز <b>{{ faInt(h.routing.openWos) }}</b></span>
+                <span>گزارش اجرا <b>{{ faInt(h.routing.reports) }}</b></span>
+              </div>
+              <div class="proj" *ngIf="h.base !== h.score">با برنامه‌ی اصلاح: {{ faInt(h.base) }} ← {{ faInt(h.score) }}</div>
+            </div>
+          </div>
+          <gng-me11-flow [ops]="selOps()" [links]="linksOf(h.routing.id)" [sev]="h.opSev" [selected]="selOpId" (pick)="pickOp($event)"></gng-me11-flow>
+
+          <div class="opc" *ngIf="selOp as so">
+            <h4>{{ so.op.seq }} — {{ so.op.title }} <span class="pill">{{ nature[so.op.nature] }}</span></h4>
+            <div class="kv">
+              <span>منبع <b>{{ so.op.resTitle || '—' }}</b>{{ so.op.resSource === 2 ? ' (ارث از کتابخانه)' : '' }}</span>
+              <span *ngIf="so.op.hasTiming">راه‌اندازی <b>{{ faNum(so.op.setup) }}′</b> · اجرا <b>{{ perK(so.std) }}′</b>/هزار</span>
+              <span *ngIf="!so.op.hasTiming" class="t-bad">زمان ندارد</span>
+              <span>مواد {{ faInt(so.op.matCount) }} · خروجی {{ faInt(so.op.outCount) }} · ویژگی بچ {{ faInt(so.op.attrCount) }} · فعالیت {{ faInt(so.op.actCount) }}</span>
+              <span *ngIf="so.op.outsourced">پیمانکار واجد شرایط <b>{{ faInt(so.op.qualifiedSubs) }}</b> از {{ faInt(so.op.subCount) }}</span>
+            </div>
+            <div class="kv" *ngFor="let a of so.alts">جایگزین: {{ a }}</div>
+            <div class="df" *ngFor="let d of so.defects"><span></span><span><span class="sev" [ngClass]="'sev--' + d.sev">{{ sevLabel[d.sev] }}</span>{{ d.title }}</span>
+              <a class="form" [routerLink]="['/forms', d.form]">{{ d.form }}</a></div>
+            <div class="df" *ngFor="let d of so.inherited"><span></span><span><span class="sev sev--1">از کتابخانه</span>{{ d.title }}</span>
+              <a class="form" [routerLink]="['/forms', d.form]">{{ d.form }}</a></div>
+          </div>
+
+          <div class="ck" *ngFor="let c of h.checks">
+            <div class="ck__h" (click)="toggleCat(c.cat)">
+              <i class="pi" [ngClass]="c.worst === 0 ? 'pi-check-circle t-ok' : c.worst === 3 ? 'pi-times-circle t-bad' : c.worst === 2 ? 'pi-exclamation-circle t-warn' : 'pi-info-circle t-info'"></i>
+              <span>{{ c.label }}</span>
+              <small>{{ c.worst === 0 ? 'سالم' : faInt(c.defects.length + c.inherited.length) + ' نقص · −' + faInt(c.penalty) }}</small>
+              <a class="form" [routerLink]="['/forms', c.form]" (click)="$event.stopPropagation()">{{ c.form }}</a>
+            </div>
+            <ng-container *ngIf="openCat === c.cat || c.worst >= 2">
+              <label class="df" *ngFor="let d of c.defects" [class.df--fixed]="isFixed(d.key)" title="علامت = در برنامه‌ی اصلاح">
+                <input type="checkbox" [checked]="isFixed(d.key)" (change)="toggleFix(d.key)" />
+                <span><span class="sev" [ngClass]="'sev--' + d.sev">{{ sevLabel[d.sev] }}</span>{{ d.title }}<small *ngIf="d.detail">{{ d.detail }}</small></span>
+                <span class="mono dim">{{ d.ref }}</span>
+              </label>
+              <label class="df" *ngFor="let d of c.inherited" [class.df--fixed]="isFixed(d.key)">
+                <input type="checkbox" [checked]="isFixed(d.key)" (change)="toggleFix(d.key)" />
+                <span><span class="sev sev--1">ارثی</span>{{ d.title }}</span><span class="mono dim">{{ d.ref }}</span>
+              </label>
+            </ng-container>
+          </div>
+          <div class="hint">علامت زدن یک نقص آن را به «برنامه‌ی اصلاح» می‌برد؛ امتیاز پیش‌بینی‌شده‌ی روش، رتبه‌ی بدهی و بنر فوراً به‌روز می‌شوند (فقط در همین صفحه).</div>
+        </div>
+      </section>
+
+      <!-- ═════════ ۲) استاندارد در برابر واقعیت ═════════ -->
+      <section class="sp" *ngIf="space === 'calib' && cal">
+        <div class="panel">
+          <gng-data-source-badge [source]="dsActual"></gng-data-source-badge>
+          <div class="ph">
+            <h3>کالیبراسیون زمان اجرا با گزارش‌های تولید <small>— دقیقه به‌ازای هزار واحد</small></h3>
+            <button type="button" class="chip chip--on" (click)="useCalibrated()"><i class="pi pi-arrow-left"></i> استفاده در شبیه‌ساز گلوگاه</button>
+          </div>
+          <div class="ctl">
+            <label><input type="checkbox" [ngModel]="calRework" (ngModelChange)="setCal({ calRework: $event })" /> دوباره‌کاری هم حساب شود</label>
+            <label><input type="checkbox" [ngModel]="calOnlyBias" (ngModelChange)="setCal({ calOnlyBias: $event })" /> فقط سوگیری ≥ ۱۵٪</label>
+            <span class="seg">
+              <button type="button" class="chip" [class.chip--on]="calMode === 'auto'" (click)="setCal({ calMode: 'auto' })">پیشنهاد خودکار (انقباضی)</button>
+              <button type="button" class="chip" [class.chip--on]="calMode === 'manual'" (click)="setCal({ calMode: 'manual' })">ترکیب دستی</button>
+            </span>
+            <label *ngIf="calMode === 'auto'">قدرت باور به استاندارد k = <b class="mono">{{ faInt(calK) }}</b>
+              <input type="range" min="1" max="12" step="1" [ngModel]="calK" (ngModelChange)="setCal({ calK: $event * 1 })" /></label>
+            <label *ngIf="calMode === 'manual'">استاندارد <input type="range" min="0" max="1" step="0.05" [ngModel]="calW" (ngModelChange)="setCal({ calW: $event * 1 })" /> واقعیت
+              <b class="mono">{{ faPct(calW * 100, 0) }}</b></label>
+          </div>
+          <div class="hint">
+            <span class="pill pill--warn" *ngFor="let u of cal.uniform">{{ u.wo }}: همه‌ی {{ faInt(u.count) }} گزارش دقیقاً {{ faInt(u.minutes) }} دقیقه — احتمال ثبت تخمینی</span>
+            <span class="pill pill--muted" *ngIf="cal.excludedZero.length">{{ faInt(cal.excludedZero.length) }} گزارش با مقدار صفر کنار گذاشته شد ({{ cal.excludedZero[0].number }}…)</span>
+            <span class="pill pill--muted" *ngIf="cal.excludedRework">{{ faInt(cal.excludedRework) }} گزارش دوباره‌کاری کنار گذاشته شد</span>
+          </div>
+          <table class="tbl">
+            <tr><th>عملیات</th><th>استاندارد</th><th>n</th><th>توزیع (نسبت به استاندارد ⎮)</th><th>میانه</th><th>سوگیری</th><th>اطمینان</th><th>پیشنهاد</th><th>اثر بر هر بچ</th><th>بازده استاندارد ← واقعی</th></tr>
+            <ng-container *ngFor="let r of calRows">
+              <tr class="click" [class.on]="calOpen === r.roId" (click)="toggleCalRow(r.roId)">
+                <td><b class="mono">{{ r.routing }}/{{ r.seq }}</b> {{ r.title }}<div class="dim">{{ r.resource }}</div></td>
+                <td class="num">{{ r.hasStd ? perK(r.std) : '—' }}</td>
+                <td class="num">{{ faInt(r.n) }}</td>
+                <td>
+                  <div class="strip" [title]="'کمینه ' + perK(r.min) + ' · بیشینه ' + perK(r.max)">
+                    <span class="strip__rng" [style.left.%]="r.minPos" [style.width.%]="r.maxPos - r.minPos"></span>
+                    <span class="strip__std" *ngIf="r.hasStd" [style.left.%]="r.stdPos"></span>
+                    <span class="strip__dot" *ngFor="let s of r.samples" [class.strip__dot--adj]="s.adjusted" [style.left.%]="s.pos" [title]="s.number + ': ' + perK(s.perUnit)"></span>
+                    <span class="strip__med" [style.left.%]="r.medPos"></span>
+                    <span class="strip__sug" [style.left.%]="r.sugPos"></span>
+                  </div>
+                </td>
+                <td class="num">{{ perK(r.med) }}</td>
+                <td><span class="pill" [ngClass]="'pill--' + biasTone(r.bias)">{{ r.bias > 0 ? '+' : '' }}{{ faNum(r.bias, 0) }}٪</span>
+                  <span class="pill pill--bad" *ngIf="r.systematic" title="همه‌ی نمونه‌ها یک طرف استاندارد">سیستماتیک</span></td>
+                <td><span class="pill" [ngClass]="'pill--' + confTone(r.confidence)">{{ confLabel(r.confidence) }}</span></td>
+                <td class="num"><b>{{ perK(r.suggested) }}</b> <span class="dim">w={{ faNum(r.w, 2) }}</span></td>
+                <td class="num" [ngClass]="r.deltaBatchMin > 0 ? 't-bad' : 't-ok'">{{ r.deltaBatchMin > 0 ? '+' : '−' }}{{ faNum(r.deltaBatchMin < 0 ? -r.deltaBatchMin : r.deltaBatchMin, 0) }}′</td>
+                <td class="num">{{ r.yieldStd === null ? '—' : faPct(r.yieldStd) }} ← <span [ngClass]="r.yieldAct !== null && r.yieldStd !== null && r.yieldAct < r.yieldStd - 0.5 ? 't-bad' : ''">{{ r.yieldAct === null ? '—' : faPct(r.yieldAct, 2) }}</span></td>
+              </tr>
+              <tr *ngIf="calOpen === r.roId">
+                <td colspan="10">
+                  <div class="kv"><span>نمونه‌ها:</span>
+                    <span *ngFor="let s of r.samples"><b class="mono">{{ s.number }}</b> {{ faInt(s.minutes) }}′ / {{ faNum(s.units, 1) }} = {{ perK(s.perUnit) }}{{ s.adjusted ? ' (راه‌اندازی کسر شد)' : '' }}</span>
+                  </div>
+                  <table class="tbl" *ngIf="r.usage.length">
+                    <tr><th>کارکرد</th><th>استاندارد ME-03</th><th>واقعی PC-04</th><th>نسبت</th><th></th></tr>
+                    <tr *ngFor="let u of r.usage">
+                      <td>{{ u.cap }} <span class="dim">({{ u.unit }})</span></td><td class="num">{{ u.std === null ? '—' : faNum(u.std, 2) }}</td>
+                      <td class="num">{{ u.actual === null ? '—' : faNum(u.actual, 2) }}</td>
+                      <td><span class="pill" *ngIf="u.ratio !== null" [ngClass]="'pill--' + biasTone((u.ratio - 1) * 100)">{{ faPct(u.ratio * 100, 0) }}</span></td>
+                      <td class="dim">{{ u.note }}</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </ng-container>
+          </table>
+          <div class="empty" *ngIf="!calRows.length">در این دامنه گزارش تولیدی برای سنجش نیست.</div>
+          <div class="hint">{{ calibFormula }} نوار: خط سفید = استاندارد، زرد = میانه، لوزی سبز = پیشنهاد، دایره‌ی توخالی = نمونه‌ی راه‌اندازی‌کسرشده. اطمینان بالا: n ≥ ۵ و پراکندگی &lt; ۳۵٪.</div>
+        </div>
+      </section>
+
+      <!-- ═════════ ۳) شبیه‌ساز گلوگاه ═════════ -->
+      <section class="sp sim" *ngIf="space === 'sim'">
+        <div class="panel">
+          <div class="ph"><h3>ترکیب و فرض‌ها</h3><button type="button" class="chip" (click)="resetSim()"><i class="pi pi-refresh"></i> پایه</button></div>
+          <div class="ctl">
+            <label>افق <b class="mono">{{ faInt(simHorizon) }}</b> هفته <input type="range" min="1" max="4" step="1" [ngModel]="simHorizon" (ngModelChange)="setSim({ simHorizon: $event * 1 })" /></label>
+            <button type="button" class="chip" (click)="refillMix()" title="باقی‌مانده‌ی دستورهای باز و درخواست‌های بی‌دستور تا پایان افق">پر کردن از تقاضای باز</button>
+            <label>کارایی <b class="mono">{{ faInt(simEff) }}٪</b> <input type="range" min="60" max="130" step="5" [ngModel]="simEff" (ngModelChange)="setSim({ simEff: $event * 1 })" /></label>
+            <label>مقدار <b class="mono">{{ faInt(simQty) }}٪</b> <input type="range" min="25" max="250" step="5" [ngModel]="simQty" (ngModelChange)="setSim({ simQty: $event * 1 })" /></label>
+            <label><input type="checkbox" [ngModel]="simUseCal" (ngModelChange)="setSim({ simUseCal: $event })" /> استاندارد کالیبره‌شده (اطمینان متوسط و بالا)</label>
+          </div>
+          <div class="mix gng-mt-sm">
+            <ng-container *ngFor="let p of simShown()">
+              <span class="sw" [style.background]="simColor(p.id)"></span>
+              <span>{{ p.code }} {{ p.title }}</span>
+              <input class="inp inp--num" type="number" min="0" [ngModel]="simMix[p.id]" (ngModelChange)="setMix(p.id, $event)" [title]="p.unit" />
+              <span></span>
+              <select class="inp" [ngModel]="simRoute[p.id]" (ngModelChange)="setRoute(p.id, $event)">
+                <option *ngFor="let r of routesFor(p.id)" [ngValue]="r.id">{{ r.code }} {{ r.version }} — {{ routingStatus[r.status] }}</option>
+              </select>
+            </ng-container>
+          </div>
+          <ng-container *ngIf="altOps.length">
+            <div class="dim gng-mt-sm">انتقال به عملیات جایگزین</div>
+            <div class="ctl" *ngFor="let a of altOps">
+              <label>{{ a.label }} ← {{ a.alt }} <b class="mono">{{ faInt(simAlt[a.roId] || 0) }}٪</b>
+                <input type="range" min="0" max="100" step="10" [ngModel]="simAlt[a.roId] || 0" (ngModelChange)="setAlt(a.roId, $event)" /></label>
+            </div>
+          </ng-container>
+          <div class="hint">{{ simFormula }}</div>
+        </div>
+
+        <div class="panel" *ngIf="sim">
+          <gng-data-source-badge [source]="dsCapacity"></gng-data-source-badge>
+          <div class="ph"><h3>بار منابع در افق <small>— خط سفید = ۱۰۰٪ ظرفیت؛ کلیک = جزئیات و «اگر»</small></h3></div>
+          <ng-container *ngFor="let b of sim.bars">
+            <div class="lb" [class.lb--hot]="b.bottleneck" (click)="toggleBar(b.key)">
+              <div class="lb__k"><b>{{ b.bottleneck ? '◆ ' : '' }}{{ b.title }}</b><small>{{ b.line }} · {{ hours(b.reqMin) }} از {{ hours(b.capMin) }} ساعت</small></div>
+              <div class="lb__t">
+                <span class="lb__seg" *ngFor="let sgm of b.segs" [style.background]="sgm.color" [style.left.%]="sgm.left" [style.width.%]="sgm.w"></span>
+                <span class="lb__cap" [style.left.%]="b.capWidth"></span>
+              </div>
+              <div class="lb__v" [ngClass]="'t-' + b.tone">{{ b.utilLabel }} <small class="dim">{{ simDelta(b) }}</small></div>
+              <div class="lb__x" *ngIf="simOpen === b.key || b.flags.length">
+                <span *ngFor="let f of b.flags" class="t-warn">⚠ {{ f }}</span>
+                <ng-container *ngIf="simOpen === b.key">
+                  <span *ngFor="let sgm of b.segs"><i class="sw" [style.background]="sgm.color" style="display:inline-block"></i> {{ productTitle(sgm.productId) }} {{ faPct(sgm.pct, 0) }}</span>
+                  <span *ngFor="let o of b.ops">{{ o.label }}: {{ hours(o.min) }} ساعت</span>
+                  <label (click)="$event.stopPropagation()"><input type="checkbox" [ngModel]="!!simExtraShift[b.key]" (ngModelChange)="setShift(b.key, $event)" /> شیفت اضافه</label>
+                  <label (click)="$event.stopPropagation()">دستگاه/نفر اضافه
+                    <input class="inp" type="number" min="0" max="5" style="width:3.5rem" [ngModel]="simExtraUnit[b.key] || 0" (ngModelChange)="setUnit(b.key, $event)" /></label>
+                </ng-container>
+              </div>
+            </div>
+          </ng-container>
+          <p class="story">{{ sim.narrative }}</p>
+          <div class="kv gng-mt-sm" *ngIf="sim.unassigned.length"><span class="t-bad">بار بی‌صاحب:</span>
+            <span *ngFor="let u of sim.unassigned">{{ u.label }} — {{ u.why }}{{ u.min ? ' (' + hours(u.min) + ' ساعت)' : '' }}</span></div>
+          <div class="kv gng-mt-sm" *ngIf="sim.external.length"><span>بیرون از کارخانه:</span>
+            <span *ngFor="let x of sim.external">{{ x.label }}: {{ faNum(x.qty, 0) }} · {{ x.lead }}</span></div>
+        </div>
+      </section>
+
+      <!-- ═════════ ۴) پوشش نسخه‌ی تولید ═════════ -->
+      <section class="sp" *ngIf="space === 'cov'">
+        <div class="panel">
+          <gng-data-source-badge [source]="dsCoverage"></gng-data-source-badge>
+          <div class="ph"><h3>کالا × خط × نوع دستور <small>— نسخه‌های واجد شرایط امروز (قواعد mes.SelectManufacturingVersion بدون قید مقدار)</small></h3></div>
+          <div style="overflow-x:auto">
+            <table class="cov">
+              <tr>
+                <th rowspan="2">کالا</th>
+                <th *ngFor="let l of covLines()" [attr.colspan]="orderTypes.length">{{ l.title }}</th>
+              </tr>
+              <tr>
+                <ng-container *ngFor="let l of covLines()"><th *ngFor="let t of orderTypes">{{ t.label }}</th></ng-container>
+              </tr>
+              <tr *ngFor="let p of covProducts">
+                <th style="text-align:right"><b class="mono">{{ p.code }}</b> {{ p.title }}<div class="dim" *ngIf="!p.hasStructure">بدون ساختار</div></th>
+                <ng-container *ngFor="let l of covLines()">
+                  <ng-container *ngFor="let t of orderTypes">
+                    <td class="cell" *ngIf="cell(p.id, l.id, t.code) as c" [ngClass]="'cell--' + c.tone" [class.cell--on]="covSel === c" (click)="pickCell(p.id, l.id, t.code)">
+                      {{ c.label }}<small *ngIf="c.status === 'conflict'">تعارض اولویت</small><small *ngIf="c.demand.length">{{ faInt(c.demand.length) }} سفارش</small>
+                    </td>
+                  </ng-container>
+                </ng-container>
+              </tr>
+            </table>
+          </div>
+          <div class="hint">سبز = نسخه‌ی واجد شرایط (چند نسخه با «·»)، زرد = دو نسخه‌ی هم‌اولویت با بازه‌ی بچ هم‌پوشان، قرمز = نسخه هست ولی هیچ‌کدام مجاز نیست، خاکستری = نسخه‌ای تعریف نشده. «n سفارش» = تقاضای باز همین نوع.</div>
+        </div>
+
+        <div class="panel" *ngIf="covSel as c">
+          <div class="ph">
+            <h3>{{ productTitle(c.productId) }} · {{ lineTitle(c.lineId) }} · دستور {{ orderType[c.orderType] }}</h3>
+            <label class="ctl">مقدار آزمایشی <input class="inp inp--num" type="number" min="0" [ngModel]="covProbe" (ngModelChange)="probe($event)" /></label>
+          </div>
+          <div class="story">برنده برای {{ faNum(covProbe, 0) }}: {{ covWinner }}</div>
+          <div class="bands">
+            <span class="band" *ngFor="let b of covBands" [ngClass]="'band--' + b.tone" [style.left.%]="b.left" [style.width.%]="b.width" [title]="b.label">{{ b.width > 9 ? b.label : '' }}</span>
+            <span class="dmd" *ngFor="let d of covDemand" [class.dmd--miss]="!d.covered" [style.left.%]="d.left" [title]="d.number + ': ' + faNum(d.qty, 0) + (d.covered ? ' ← ' + d.winner : ' — بی‌نسخه')"></span>
+          </div>
+          <div class="ticks"><span *ngFor="let t of covTicks" [style.left.%]="t.left">{{ t.label }}</span></div>
+          <div class="kv gng-mt-sm" *ngIf="covDemand.length"><span>تقاضای باز:</span>
+            <span *ngFor="let d of covDemand" [ngClass]="d.covered ? '' : 't-bad'"><b class="mono">{{ d.number }}</b> {{ faNum(d.qty, 0) }} ← {{ d.covered ? d.winner : 'بی‌نسخه' }}</span></div>
+          <table class="tbl gng-mt-sm">
+            <tr><th>نسخه</th><th>اولویت</th><th>بازه‌ی بچ</th><th>روش</th><th>وضعیت</th></tr>
+            <tr *ngFor="let e of c.eligible"><td class="mono">{{ e.code }}</td><td>{{ faInt(e.priority) }}</td><td class="num">{{ faNum(e.min, 0) }} – {{ e.max === null ? '∞' : faNum(e.max, 0) }}</td>
+              <td class="mono">{{ e.routingCode }}</td><td><span class="pill pill--ok">واجد شرایط</span></td></tr>
+            <tr *ngFor="let e of c.rejected"><td class="mono">{{ e.code }}</td><td>{{ faInt(e.priority) }}</td><td class="num">{{ faNum(e.min, 0) }} – {{ e.max === null ? '∞' : faNum(e.max, 0) }}</td>
+              <td class="mono">{{ e.routingCode }}</td><td><span class="pill pill--bad">{{ e.reject }}</span></td></tr>
+          </table>
+          <div class="hint">نوار آبی = برنده‌ی بازه (اولویت کمتر، سپس بازه‌ی باریک‌تر)، هاشور زرد = برابری اولویت، هاشور قرمز = مقدار بی‌نسخه؛ خط عمودی = مقدار هر سفارش باز (قرمز = بی‌نسخه).
+            آزمون دقیق با تاریخ دلخواه در <a class="form" [routerLink]="['/forms', 'FRM-ME-08']">FRM-ME-08</a>.</div>
+        </div>
+      </section>
+
+      <!-- ═════════ ۵) وابستگی بیرونی و هزینه ═════════ -->
+      <section class="sp" *ngIf="space === 'ext'">
+        <div class="panel">
+          <gng-data-source-badge [source]="dsSubs"></gng-data-source-badge>
+          <h3>ریسک پیمانکاران <small>— از RM-08، ME-07 و اجرای PC-10</small></h3>
+          <div class="risk">
+            <div class="rk" *ngFor="let r of risks" [ngClass]="'rk--' + r.tone">
+              <div class="rk__h"><b>{{ r.c.code }} — {{ r.c.title }}</b><span class="rk__s" [ngClass]="'t-' + r.tone">{{ faInt(r.score) }}</span></div>
+              <div class="kv"><span>{{ r.c.active ? 'فعال' : 'غیرفعال' }}</span><span>صلاحیت {{ qualStatus[r.c.qual] }}</span>
+                <span>{{ r.c.daysLeft === null ? 'بدون تاریخ قرارداد' : faInt(r.c.daysLeft) + ' روز تا پایان قرارداد' }}</span><span>{{ faInt(r.c.caps) }} قابلیت</span></div>
+              <ul *ngIf="r.reasons.length"><li *ngFor="let x of r.reasons">{{ x }}</li></ul>
+              <div *ngFor="let o of r.ops" class="dim">در روش: {{ o.label }} · اولویت {{ faInt(o.priority) }}{{ o.fee !== null && o.regFee !== null && o.fee !== o.regFee ? ' · کارمزد با RM-08 فرق دارد' : '' }}</div>
+              <div *ngFor="let l of r.live">اجرا {{ l.wo }}: پیشرفت {{ faPct(l.progress, 0) }} · تأخیر {{ faInt(l.delay) }} روز · ضایعات {{ faPct(l.wastePct, 1) }}{{ l.allowed !== null ? ' (مجاز ' + faPct(l.allowed, 1) + ')' : '' }}</div>
+            </div>
+          </div>
+          <div class="hint">امتیاز ریسک: غیرفعال/تعلیق ۴۰، قرارداد تمام‌شده ۳۰، کمتر از ۶۰ روز یا صلاحیت مشروط ۱۵، بی‌قابلیت ۲۰، هر قابلیت منقضی ۱۰، هر روز تأخیر اجرا ۵، ضایعات بیش از مجاز ۱۵.</div>
+        </div>
+
+        <div class="cols">
+          <div class="panel">
+            <h3>عملیات برون‌سپاری <small>— تک‌منبعی یعنی یک پیمانکار واجد شرایط (فعال، بی‌تعلیق، قرارداد، قابلیت و نرخ معتبر)</small></h3>
+            <table class="tbl">
+              <tr><th>عملیات</th><th>واجد شرایط</th><th>ارزان‌ترین واجد شرایط</th><th></th></tr>
+              <tr *ngFor="let o of outOps" class="click" (click)="focusRouting(o.routing.id); pickOp(o.op.id)">
+                <td><b class="mono">{{ o.routing.code }} {{ o.routing.version }}/{{ o.op.seq }}</b> {{ o.op.title }}</td>
+                <td class="num"><span class="pill" [ngClass]="'pill--' + o.tone">{{ faInt(o.qualified) }} از {{ faInt(o.total) }}</span></td>
+                <td>{{ o.cheapest ? o.cheapest.contractor + ' · ' + faNum(o.cheapest.fee, 0) + ' ' + o.cheapest.feeUnit : '—' }}</td>
+                <td><span class="pill pill--warn" *ngIf="o.singleSource">تک‌منبعی</span></td>
+              </tr>
+            </table>
+            <div class="empty" *ngIf="!outOps.length">عملیات برون‌سپاری در دامنه نیست.</div>
+          </div>
+
+          <div class="panel">
+            <h3>پوشش محرک هزینه و ارزش‌افزایی <small>— ME-10</small></h3>
+            <table class="tbl">
+              <tr><th>روش</th><th>عملیات با فعالیت</th><th>ارزش‌افزا</th><th>بی‌محرک</th><th>سهم هم‌زاد</th></tr>
+              <tr *ngFor="let c of costRows" class="click" (click)="focusRouting(c.routing.id)">
+                <td class="mono">{{ c.routing.code }} {{ c.routing.version }}</td>
+                <td><span class="bar bar--bg"><i [style.width.%]="c.ops ? (c.withActivities / c.ops) * 100 : 0"></i></span> {{ faInt(c.withActivities) }}/{{ faInt(c.ops) }}</td>
+                <td>{{ c.vaPct === null ? '—' : faPct(c.vaPct, 0) }}</td>
+                <td><span class="pill" [ngClass]="c.noDriver ? 'pill--bad' : 'pill--ok'">{{ faInt(c.noDriver) }}</span></td>
+                <td><span class="pill" [ngClass]="c.shareIssues ? 'pill--bad' : 'pill--muted'">{{ c.shareIssues ? '≠ ۱۰۰٪' : '—' }}</span></td>
+              </tr>
+            </table>
+            <div class="hint">ارزش‌افزا = زمان فعالیت‌های ارزش‌افزا ÷ کل زمان استاندارد فعالیت‌ها.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════════ ۶) بدهی فنی ═════════ -->
+      <section class="sp" *ngIf="space === 'debt'">
+        <div class="panel">
+          <gng-data-source-badge [source]="dsDefects"></gng-data-source-badge>
+          <div class="ph">
+            <h3>بدهی فنی مهندسی تولید <small>— {{ faInt(debtItems.length) }} نقص · اثر کل {{ faInt(debtTotal) }} · در برنامه {{ faPct(debtTotal ? (debtPlanned / debtTotal) * 100 : 0, 0) }}</small></h3>
+            <div class="seg">
+              <span class="dim">گروه:</span>
+              <button type="button" class="chip" [class.chip--on]="debtBy === 'cat'" (click)="setDebtBy('cat')">دسته</button>
+              <button type="button" class="chip" [class.chip--on]="debtBy === 'form'" (click)="setDebtBy('form')">فرم</button>
+              <button type="button" class="chip" [class.chip--on]="debtBy === 'routing'" (click)="setDebtBy('routing')">روش</button>
+              <button type="button" class="chip" [class.chip--on]="debtBy === 'product'" (click)="setDebtBy('product')">کالا</button>
+              <button type="button" class="chip" [class.chip--on]="debtBy === 'owner'" (click)="setDebtBy('owner')">مالک داده</button>
+              <button type="button" class="chip" (click)="planTop(10)">۱۰ اثر بالا به برنامه</button>
+            </div>
+          </div>
+          <div class="owners">
+            <span class="own" *ngFor="let o of owners">{{ o.owner }}<b>{{ faInt(o.impact) }}</b><span class="dim">({{ faInt(o.count) }})</span></span>
+          </div>
+          <div class="dg" *ngFor="let g of debtGroups">
+            <div class="dg__h" (click)="toggleGroup(g.key)">
+              <span><i class="pi" [ngClass]="debtOpen === g.key ? 'pi-angle-down' : 'pi-angle-left'"></i> <b>{{ g.title }}</b> <span class="dim">{{ faInt(g.items.length) }} نقص</span></span>
+              <span class="dg__b"><i [style.width.%]="g.pct"></i></span>
+              <span class="num">{{ faNum(g.impact, 1) }}</span>
+            </div>
+            <ng-container *ngIf="debtOpen === g.key || debtGroups.length === 1">
+              <label class="di" *ngFor="let it of g.items" [class.df--fixed]="isFixed(it.d.key)">
+                <input type="checkbox" [checked]="isFixed(it.d.key)" (change)="toggleFix(it.d.key)" />
+                <span class="di__imp" [ngClass]="'t-' + (it.d.sev === 3 ? 'bad' : it.d.sev === 2 ? 'warn' : 'info')">{{ faNum(it.impact, 1) }}</span>
+                <span>{{ it.d.title }}
+                  <small>{{ it.routing }} · {{ catLabel[it.d.cat] }} · {{ it.owner }} · شدت {{ sevLabel[it.d.sev] }} × وضعیت {{ faNum(it.factor, 1) }} × گستره {{ faInt(it.reach) }}{{ it.d.detail ? ' · ' + it.d.detail : '' }}</small></span>
+                <span><a class="form" [routerLink]="['/forms', it.d.form]">رفع در {{ it.d.form }}</a>
+                  <button type="button" class="chip" *ngIf="it.d.routingId !== null" (click)="$event.preventDefault(); focusRouting(it.d.routingId)" title="نمایش روی نقشه"><i class="pi pi-share-alt"></i></button></span>
+              </label>
+            </ng-container>
+          </div>
+          <div class="hint">{{ debtFormula }} علامت زدن = افزودن به برنامه‌ی اصلاح (امتیاز پیش‌بینی‌شده‌ی روش‌ها در نقشه به‌روز می‌شود).</div>
+        </div>
+      </section>
+    </ng-container>
+
+    <div class="gng-note gng-note--info todo">
+      <strong>هنوز پیاده نشده.</strong> ثبت استاندارد پیشنهادی در زمان عملیات (ME-03)، ارجاع نقص‌ها به مالکان و پیگیری رفع، ذخیره‌ی سناریوی شبیه‌ساز و برنامه‌ی اصلاح
+      (فعلاً فقط در حافظه‌ی صفحه)، و بار زمان‌بندی‌شده‌ی واقعی برنامه‌ریزی تولید به‌جای تقاضای باز با فاز ایجاد/ویرایش و حوزه‌ی برنامه‌ریزی می‌آید.
+    </div>
+  </div>
+</gng-opform-layout>

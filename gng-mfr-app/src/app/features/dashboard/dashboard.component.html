@@ -1,0 +1,40 @@
+<div class="gng-dashboard">
+  <div class="gng-dashboard__hero">
+    <div>
+      <span class="gng-dashboard__eyebrow">گروه صنعتی گلرنگ — داروسازی ۱</span>
+      <h1 class="gng-dashboard__title">سیستم مدیریت تولید</h1>
+      <p class="gng-dashboard__hint">
+        پنج حوزه‌ی کامل، از چارچوب پیکربندی پلتفرم تا کنترل کف کارگاه — یک مسیر واحد، از درخواست تا محصول نهایی.
+      </p>
+    </div>
+    <div class="gng-dashboard__hero-badge">
+      <i class="pi pi-verified"></i>
+      <span>هر ۵ حوزه تکمیل شد</span>
+    </div>
+  </div>
+
+  <div class="gng-stat-grid gng-dashboard__stats">
+    <div class="gng-stat-card" *ngFor="let s of stats">
+      <i class="gng-dashboard__stat-icon" [ngClass]="s.icon"></i>
+      <span class="gng-stat-card__value">{{ s.value }}</span>
+      <span class="gng-stat-card__label">{{ s.label }}</span>
+    </div>
+  </div>
+
+  <h2 class="gng-dashboard__section-title">حوزه‌های سیستم</h2>
+  <div class="gng-dashboard__domain-grid">
+    <button type="button" class="gng-domain-card" *ngFor="let d of domains" (click)="openDomain(d)">
+      <span class="gng-domain-card__icon" [style.background]="d.colorVar">
+        <i [class]="d.icon"></i>
+      </span>
+      <span class="gng-domain-card__body">
+        <span class="gng-domain-card__title-row">
+          <strong>{{ d.title }}</strong>
+          <span class="gng-domain-card__count">{{ d.formCount }} فرم</span>
+        </span>
+        <span class="gng-domain-card__desc">{{ d.description }}</span>
+      </span>
+      <i class="pi pi-arrow-left gng-domain-card__arrow"></i>
+    </button>
+  </div>
+</div>

@@ -1,0 +1,160 @@
+<gng-opform-layout
+  domainTitle="مهندسی تولید"
+  title="نسخه‌ی تولید"
+  code="FRM-ME-08"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="مهندسی تولید / برنامه‌ریزی"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-link"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="نسخه‌های تولید"
+  contextPanelHint="به تفکیک محصول؛ پل ساختار محصول و روش ساخت."
+  auditFeatureRange="F-ME-059 تا F-ME-063، F-ME-065 تا F-ME-067 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-plus" label="نسخه‌ی جدید" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-send" label="ارسال برای تأیید" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-pause" label="تعلیق" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <div *ngIf="versionIssues.length" class="gng-note gng-note--warning" style="margin-bottom: 0.6rem">
+    <span *ngFor="let i of versionIssues; let last = last">{{ i.text }}{{ last ? '' : '؛ ' }}</span>
+  </div>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <!-- ───────── ترکیب ساختار و روش (F-ME-059) ───────── -->
+    <p-tabPanel header="ترکیب ساختار و روش" [selected]="true">
+      <div *ngIf="version as v" style="position: relative">
+        <gng-data-source-badge [source]="ds('me08-versions', 'نسخه‌های تولید')"></gng-data-source-badge>
+        <div class="gng-field-grid">
+          <div class="gng-field"><span class="gng-field__label">محصول</span><span class="gng-field__value">{{ v.product }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">ساختار محصول</span><span class="gng-field__value">{{ v.structure }} <p-tag *ngIf="!v.productMatches" value="محصول ناهمخوان" severity="danger"></p-tag></span></div>
+          <div class="gng-field"><span class="gng-field__label">روش ساخت</span><span class="gng-field__value">{{ v.routing }} <p-tag [value]="routingStatus[v.routingStatusCode]" [severity]="v.routingStatusCode === 3 ? 'success' : 'danger'"></p-tag></span></div>
+          <div class="gng-field"><span class="gng-field__label">روش به ساختار اختصاص دارد؟</span><span class="gng-field__value"><p-tag [value]="v.routingAssigned ? 'بله' : 'خیر'" [severity]="v.routingAssigned ? 'success' : 'danger'"></p-tag></span></div>
+          <div class="gng-field"><span class="gng-field__label">نوع تولید / مبنای دستور</span><span class="gng-field__value">{{ v.productionTypeCode === 2 ? 'پیوسته' : 'بچی' }} · {{ v.orderBasisCode === 2 ? 'شیفت' : 'مقدار' }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">شرح</span><span class="gng-field__value">{{ v.description || '—' }}</span></div>
+        </div>
+      </div>
+      <h3 class="gng-mt">نسخه‌های دیگر همین محصول</h3>
+      <p-table [value]="siblings" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th style="width: 8rem">کد</th><th>ساختار</th><th>روش</th><th style="width: 6rem">اولویت</th><th style="width: 8rem">وضعیت</th></tr></ng-template>
+        <ng-template pTemplate="body" let-s>
+          <tr [class.gng-row-active]="s.id === version?.id"><td>{{ s.code }}</td><td>{{ s.structure }}</td><td>{{ s.routing }}</td><td>{{ fa(s.priority) }}</td><td><p-tag [value]="s.status" [severity]="statusSeverity(s.statusCode)"></p-tag></td></tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── دامنه‌ی مکانی ───────── -->
+    <p-tabPanel header="دامنه‌ی مکانی">
+      <div *ngIf="version as v" class="gng-field-grid">
+        <div class="gng-field"><span class="gng-field__label">خط</span><span class="gng-field__value">{{ v.line || '—' }}</span></div>
+        <div class="gng-field"><span class="gng-field__label">گره سازمانی</span><span class="gng-field__value">{{ v.orgNode || '—' }}</span></div>
+        <div class="gng-field"><span class="gng-field__label">خطوطی که این نسخه برایشان معتبر است</span><span class="gng-field__value">{{ v.linesInScope || '—' }}</span></div>
+      </div>
+      <p class="gng-hint gng-mt">دامنه یا یک خط است یا یک گره‌ی سازمانی با همه‌ی خطوط زیرش (FRM-RM-01).</p>
+    </p-tabPanel>
+
+    <!-- ───────── محدوده‌ی اندازه‌ی بچ ───────── -->
+    <p-tabPanel header="محدوده‌ی اندازه‌ی بچ">
+      <p-table [value]="siblings" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th style="width: 8rem">کد</th><th style="width: 13rem">بازه‌ی نسخه</th><th style="width: 13rem">بازه‌ی روش</th><th>خطوط</th><th style="width: 6rem">اولویت</th></tr></ng-template>
+        <ng-template pTemplate="body" let-s>
+          <tr [class.gng-row-active]="s.id === version?.id">
+            <td>{{ s.code }}</td><td>{{ num(s.minBatch) }} تا {{ num(s.maxBatch) }} {{ s.unit }}</td><td>{{ num(s.routingMinBatch) }} تا {{ num(s.routingMaxBatch) }}</td><td>{{ s.linesInScope }}</td><td>{{ fa(s.priority) }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── اعتبار و اولویت + انتخاب خودکار (F-ME-061، 062، 063) ───────── -->
+    <p-tabPanel header="اعتبار و اولویت">
+      <div *ngIf="version as v" class="gng-field-grid">
+        <div class="gng-field"><span class="gng-field__label">نوع اعتبار</span><span class="gng-field__value">{{ v.effectivity }}</span></div>
+        <div class="gng-field" *ngIf="v.effectivityCode === 1"><span class="gng-field__label">بازه‌ی تاریخ</span><span class="gng-field__value">{{ v.validFrom }} تا {{ v.validTo }}</span></div>
+        <div class="gng-field" *ngIf="v.effectivityCode === 2"><span class="gng-field__label">بازه‌ی بچ</span><span class="gng-field__value">{{ v.fromBatch }} تا {{ v.toBatch }}</span></div>
+        <div class="gng-field" *ngIf="v.effectivityCode === 3"><span class="gng-field__label">سفارش</span><span class="gng-field__value">{{ v.workOrder }}</span></div>
+        <div class="gng-field"><span class="gng-field__label">اولویت انتخاب</span><span class="gng-field__value">{{ fa(v.priority) }} (عدد کمتر = اولویت بالاتر)</span></div>
+      </div>
+
+      <h3 class="gng-mt">شبیه‌سازی انتخاب خودکار در صدور سفارش</h3>
+      <div class="gng-window">
+        <p-dropdown [options]="productOptions" [(ngModel)]="simProduct" styleClass="gng-diff-pick"></p-dropdown>
+        <p-dropdown [options]="lineOptions" [(ngModel)]="simLine"></p-dropdown>
+        <p-inputNumber [(ngModel)]="simQuantity" [min]="0" inputStyleClass="p-inputtext-sm" [style]="{ width: '9rem' }"></p-inputNumber>
+        <input type="date" class="p-inputtext p-inputtext-sm" [(ngModel)]="simDate" style="direction: ltr" />
+        <p-dropdown [options]="orderTypes" [(ngModel)]="simOrderType"></p-dropdown>
+        <button pButton type="button" icon="pi pi-play" label="انتخاب" class="p-button-sm" [loading]="simRunning" (click)="simulate()"></button>
+      </div>
+      <div class="gng-note gng-mt-sm" [ngClass]="simWinner ? 'gng-note--success' : 'gng-note--warning'">{{ simReason }}</div>
+      <div style="position: relative" class="gng-mt-sm">
+        <gng-data-source-badge [source]="ds('me08-select', 'انتخاب خودکار')"></gng-data-source-badge>
+        <p-table [value]="simRows" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th style="width: 7rem">نتیجه</th><th style="width: 8rem">کد</th><th>عنوان</th><th style="width: 6rem">اولویت</th><th style="width: 13rem">بازه‌ی بچ</th><th>دلیل رد</th></tr></ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr>
+              <td><p-tag [value]="r.selected ? 'انتخاب' : r.rank ? 'رتبه‌ی ' + fa(r.rank) : 'رد'" [severity]="r.selected ? 'success' : r.rank ? 'info' : 'secondary'"></p-tag></td>
+              <td>{{ r.code }}</td><td>{{ r.title }}</td><td>{{ fa(r.priority) }}</td><td>{{ num(r.minBatch) }} تا {{ num(r.maxBatch) }}</td>
+              <td class="gng-text-muted">{{ r.rejectReason || '—' }}</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="6" class="gng-empty">برای این کالا نسخه‌ی تولیدی تعریف نشده است.</td></tr></ng-template>
+        </p-table>
+      </div>
+      <div class="gng-note gng-note--info gng-mt"><strong>هنوز پیاده نشده.</strong> انتخاب دستی نسخه توسط کاربر مجاز با ثبت دلیل (F-ME-064) روی دستور کار ثبت می‌شود و با فرم دستور کار می‌آید. در دسترس بودن منبع و مواد هنوز در انتخاب خودکار بررسی نمی‌شود.</div>
+    </p-tabPanel>
+
+    <!-- ───────── انواع مجاز (F-ME-060) ───────── -->
+    <p-tabPanel header="انواع مجاز">
+      <p-table [value]="siblings" styleClass="p-datatable-sm gng-table">
+        <ng-template pTemplate="header"><tr><th style="width: 8rem">کد</th><th style="width: 7rem">عادی</th><th style="width: 8rem">دوباره‌کاری</th><th style="width: 7rem">نمونه</th><th style="width: 7rem">کارمزدی</th><th style="width: 9rem">مبنای دستور</th></tr></ng-template>
+        <ng-template pTemplate="body" let-s>
+          <tr [class.gng-row-active]="s.id === version?.id">
+            <td>{{ s.code }}</td>
+            <td><i [class]="s.allowsStandard ? 'pi pi-check' : 'pi pi-minus'"></i></td><td><i [class]="s.allowsRework ? 'pi pi-check' : 'pi pi-minus'"></i></td>
+            <td><i [class]="s.allowsSample ? 'pi pi-check' : 'pi pi-minus'"></i></td><td><i [class]="s.allowsToll ? 'pi pi-check' : 'pi pi-minus'"></i></td>
+            <td>{{ s.orderBasisCode === 2 ? 'شیفت' : 'مقدار' }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+      <p class="gng-hint gng-mt">کنترل واحد سه‌گانه: نوع تولید روش، نوع دستور کار و مبنای دستور باید با هم بخوانند.</p>
+    </p-tabPanel>
+
+    <!-- ───────── چرخه‌ی عمر (F-ME-065) ───────── -->
+    <p-tabPanel header="چرخه‌ی عمر">
+      <div class="gng-stepper" *ngIf="version as v">
+        <div class="gng-step" *ngFor="let s of ['پیش‌نویس', 'در تأیید', 'فعال', 'معلق', 'منسوخ']; let i = index"
+             [ngClass]="i + 1 === v.statusCode ? 'gng-step--active' : i + 1 < v.statusCode && v.statusCode <= 3 ? 'gng-step--done' : ''">
+          <div class="gng-step__circle"><span>{{ fa(i + 1) }}</span></div><span>{{ s }}</span>
+        </div>
+      </div>
+      <p-table [value]="versions" styleClass="p-datatable-sm gng-table gng-mt" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th style="width: 8rem">کد</th><th>عنوان</th><th style="width: 8rem">وضعیت</th><th style="width: 10rem">تأییدکننده</th></tr></ng-template>
+        <ng-template pTemplate="body" let-s>
+          <tr [class.gng-row-active]="s.id === version?.id"><td>{{ s.code }}</td><td>{{ s.title }}</td><td><p-tag [value]="s.status" [severity]="statusSeverity(s.statusCode)"></p-tag></td><td>{{ s.approver || '—' }}</td></tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── هزینه و زمان مبنا (F-ME-066) ───────── -->
+    <p-tabPanel header="هزینه و زمان مبنا">
+      <p class="gng-hint">برای مقایسه‌ی گزینه‌ها؛ هزینه به ریال برای بچ میانه‌ی بازه.</p>
+      <p-table [value]="siblings" styleClass="p-datatable-sm gng-table">
+        <ng-template pTemplate="header"><tr><th style="width: 8rem">کد</th><th>عنوان</th><th style="width: 13rem">هزینه‌ی مبنا</th><th style="width: 10rem">زمان مبنا</th><th style="width: 13rem">هزینه به‌ازای ۱۰۰۰ واحد</th></tr></ng-template>
+        <ng-template pTemplate="body" let-s>
+          <tr [class.gng-row-active]="s.id === version?.id">
+            <td>{{ s.code }}</td><td>{{ s.title }}</td><td>{{ num(s.baseCost, 0) }}</td><td>{{ s.baseLeadHours !== null ? num(s.baseLeadHours) + ' ساعت' : '—' }}</td>
+            <td>{{ s.baseCost !== null && s.minBatch !== null && s.maxBatch !== null ? num((s.baseCost * 2000) / (s.minBatch + s.maxBatch), 0) : '—' }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="ds('me08-versions', 'نسخه‌های تولید')"></gng-data-source-badge>
+    <p-tree [value]="pickTree" styleClass="gng-tree" selectionMode="single" [(selection)]="selectedPick" (onNodeSelect)="onPick($event)" (onNodeUnselect)="onUnpick($event)"></p-tree>
+  </div>
+</gng-opform-layout>

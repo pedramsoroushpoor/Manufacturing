@@ -1,0 +1,106 @@
+<gng-opform-layout
+  domainTitle="مهندسی محصول"
+  title="خروجی‌های ساختار و بازدهی"
+  code="FRM-PE-04"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="مهندسی محصول / R&D"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-chart-pie"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="ساختارها"
+  contextPanelHint="خروجی‌ها روی همان جدول محصول اصلیِ ساختار (ProductStructureMaster) ثبت می‌شوند."
+  auditFeatureRange="F-PE-034 تا F-PE-037، F-PE-039 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-plus" label="تعریف هم‌زاد و سهم‌بری" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-dollar" label="ارزش‌گذاری جانبی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-table" label="ثبت جدول بازدهی" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <ng-template #outputTable let-list let-cost="cost" let-valuation="valuation" let-recyclable="recyclable">
+    <div style="position: relative">
+      <gng-data-source-badge [source]="ds()"></gng-data-source-badge>
+      <p-table [value]="list" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th *ngIf="!selected" style="width: 8rem">ساختار</th>
+            <th style="width: 9rem">نوع</th>
+            <th>خروجی</th>
+            <th style="width: 9rem">مقدار استاندارد</th>
+            <th style="width: 8rem">فرایند حصول</th>
+            <th *ngIf="cost" style="width: 7rem">سهم از هزینه</th>
+            <th *ngIf="valuation" style="width: 7rem">ارزش‌گذاری</th>
+            <th *ngIf="recyclable" style="width: 8rem">بازیافت</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-o>
+          <tr>
+            <td *ngIf="!selected">{{ codeOf(o.structureId) }}</td>
+            <td>{{ o.type }}</td>
+            <td>{{ o.product }}<div *ngIf="o.description" class="gng-text-muted gng-small">{{ o.description }}</div></td>
+            <td>{{ o.quantity }}</td>
+            <td>{{ o.process }}</td>
+            <td *ngIf="cost">{{ o.costShare !== null ? fa(o.costShare) + '٪' : '—' }}</td>
+            <td *ngIf="valuation">{{ o.valuation }}</td>
+            <td *ngIf="recyclable"><p-tag [value]="o.recyclable ? 'قابل بازیافت' : 'غیرقابل بازیافت'" [severity]="o.recyclable ? 'success' : 'secondary'"></p-tag></td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage"><tr><td colspan="8" class="gng-empty">موردی ثبت نشده است.</td></tr></ng-template>
+      </p-table>
+    </div>
+  </ng-template>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading">
+    <p-tabPanel header="محصول هم‌زاد">
+      <p class="gng-hint">محصول اصلی و هم‌زادها با مقدار استاندارد و درصد سهم‌بری از هزینه؛ جمع سهم‌ها ۱۰۰٪ است. جانبی و ضایعات سهم ندارند.</p>
+      <ng-container *ngTemplateOutlet="outputTable; context: { $implicit: rows(1, 2), cost: true }"></ng-container>
+    </p-tabPanel>
+
+    <p-tabPanel header="محصول جانبی">
+      <p class="gng-hint">محصول جانبی ارزش‌گذاری مستقل دارد: بازیافتی، فروشی یا بی‌ارزش.</p>
+      <ng-container *ngTemplateOutlet="outputTable; context: { $implicit: rows(3), valuation: true }"></ng-container>
+    </p-tabPanel>
+
+    <p-tabPanel header="ضایعات مورد انتظار">
+      <p class="gng-hint">ضایعات مورد انتظار خروجی صریح ساختار است، نه فقط کسری محاسباتی؛ دسته‌بندی قابل بازیافت / غیرقابل بازیافت.</p>
+      <ng-container *ngTemplateOutlet="outputTable; context: { $implicit: rows(4), recyclable: true, valuation: true }"></ng-container>
+    </p-tabPanel>
+
+    <p-tabPanel header="جدول بازدهی" [selected]="true">
+      <p class="gng-hint">درصد برش هر خروجی از ورودی با محدوده‌ی مجاز. موازنه‌ی جرم: جمع درصد همه‌ی خروجی‌ها، با ضایعات و تلفات، باید ۱۰۰٪ باشد.</p>
+      <ng-container *ngFor="let s of scopedStructures">
+        <ng-container *ngIf="s.hasYieldTable">
+          <h3 class="gng-section-title">{{ s.code }} — {{ s.title }}
+            <p-tag [value]="'جمع ' + fa(s.yieldTotal ?? 0) + '٪'" [severity]="s.massOk ? 'success' : 'danger'" styleClass="gng-mr-sm"></p-tag>
+          </h3>
+          <div class="gng-stack-bar gng-mb-sm">
+            <div *ngFor="let o of yieldOf(s.id); let n = index" [ngClass]="'gng-stack-bar__seg--' + 'abcde'[n % 5]" [style.width.%]="o.yieldPercent" [title]="o.product + ' — ' + fa(o.yieldPercent ?? 0) + '٪'"></div>
+          </div>
+          <p-table [value]="yieldOf(s.id)" styleClass="p-datatable-sm gng-table">
+            <ng-template pTemplate="header"><tr><th>خروجی</th><th style="width: 9rem">نوع</th><th style="width: 7rem">بازدهی</th><th style="width: 10rem">محدوده‌ی مجاز</th></tr></ng-template>
+            <ng-template pTemplate="body" let-o>
+              <tr><td>{{ o.product }}</td><td>{{ o.type }}</td><td><strong>{{ fa(o.yieldPercent ?? 0) }}٪</strong></td><td>{{ o.yieldRange }}</td></tr>
+            </ng-template>
+          </p-table>
+        </ng-container>
+      </ng-container>
+      <p *ngIf="!yieldRows.length" class="gng-empty">برای این ساختار جدول بازدهی ثبت نشده است.</p>
+      <p class="gng-hint gng-mt-sm">بازدهی وابسته به کیفیت خوراک (F-PE-038، پروفایل معدن و پتروشیمی) اولویت «مهم» دارد و نیامده است.</p>
+    </p-tabPanel>
+
+    <p-tabPanel header="انبار پیش‌فرض">
+      <div class="gng-note gng-note--info">
+        <strong>هنوز پیاده نشده.</strong> طبق ALM، انبار پیش‌فرض رسید هر خروجی (F-PE-040) در سطح «نسخه‌ی تولید» تعیین می‌شود، نه ساختار؛
+        با ساخته شدن FRM-ME-08 (نسخه‌ی تولید) همان‌جا می‌آید.
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="ds()"></gng-data-source-badge>
+    <p-tree [value]="pickTree" styleClass="gng-tree" selectionMode="single" [(selection)]="selectedPick" (onNodeSelect)="onPick($event)" (onNodeUnselect)="onUnpick($event)"></p-tree>
+  </div>
+</gng-opform-layout>

@@ -1,0 +1,240 @@
+<gng-opform-layout
+  domainTitle="مدیریت منابع"
+  title="تجهیزات، ابزار و قالب"
+  code="FRM-RM-02"
+  formTypeLabel="فرم اطلاعات پایه"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-cog"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="سلسله‌مراتب سازمانی و مکانی"
+  contextPanelHint="با انتخاب هر گره، خط یا ایستگاه، همه‌ی تب‌ها به تجهیزات و ابزار همان دامنه محدود می‌شوند."
+  auditFeatureRange="F-RM-011 تا F-RM-019"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-plus" label="تعریف تجهیز" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-clock" label="تعریف قابلیت تجهیز" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-sync" label="ثبت الزام ابزار برای عملیات" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-hourglass" label="تعریف عمر مفید و اعتبار" class="p-button-outlined p-button-sm p-button-danger"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="scopeLoading">
+    <p-tabPanel header="تجهیز و سلسله‌مراتب" [selected]="true">
+      <p class="gng-hint">تجهیزات دامنه‌ی انتخاب‌شده به ترتیب والد و زیرمجموعه — {{ fa(equipmentList.length) }} ردیف.</p>
+      <div style="position: relative">
+      <gng-data-source-badge [source]="equipmentSource()"></gng-data-source-badge>
+      <p-table [value]="equipmentList" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th style="width: 8rem">کد</th>
+            <th>عنوان</th>
+            <th style="width: 7rem">والد</th>
+            <th style="width: 7rem">نوع</th>
+            <th>محل نصب</th>
+            <th style="width: 7rem">وضعیت</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-e>
+          <tr>
+            <td>{{ e.code }}</td>
+            <td>
+              <span [style.padding-inline-start.rem]="e.depth * 1.3">
+                <i class="pi pi-arrow-down-left gng-sub-icon" *ngIf="e.depth > 0"></i>{{ e.title }}
+              </span>
+            </td>
+            <td>{{ e.parent }}</td>
+            <td>{{ e.type }}</td>
+            <td>{{ e.location }}</td>
+            <td><p-tag [value]="e.status" [severity]="e.status === 'فعال' ? 'success' : 'danger'"></p-tag></td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr><td colspan="6" class="gng-empty">در «{{ contextLabel }}» تجهیزی تعریف نشده است.</td></tr>
+        </ng-template>
+      </p-table>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="ویژگی‌های فنی">
+      <p class="gng-hint">مشخصات فنی به‌صورت ویژگی قابل‌تعریف ذخیره می‌شود، نه فیلد ثابت — افزودن ویژگی جدید بدون تغییر ساختار جدول ممکن است.</p>
+      <div style="position: relative">
+      <gng-data-source-badge [source]="attributesSource()"></gng-data-source-badge>
+      <p-table [value]="attributes" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>تجهیز</th>
+            <th>ویژگی</th>
+            <th style="width: 8rem">مقدار</th>
+            <th style="width: 7rem">واحد</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-a>
+          <tr>
+            <td>{{ a.equipment }}</td>
+            <td>{{ a.attribute }}</td>
+            <td>{{ a.value }}</td>
+            <td>{{ a.unit }}</td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr><td colspan="4" class="gng-empty">برای تجهیزات این دامنه ویژگی فنی ثبت نشده است.</td></tr>
+        </ng-template>
+      </p-table>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="قابلیت تجهیز">
+      <div style="position: relative">
+      <gng-data-source-badge [source]="capabilitiesSource()"></gng-data-source-badge>
+      <p-table [value]="capabilities" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>تجهیز</th>
+            <th>عملیات</th>
+            <th style="width: 10rem">محدوده‌ی محصول</th>
+            <th style="width: 11rem">نرخ اسمی</th>
+            <th>ابزار الزامی</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-c>
+          <tr>
+            <td>{{ c.equipment }}</td>
+            <td>{{ c.operation }}</td>
+            <td>{{ c.productRange }}</td>
+            <td>{{ c.nominalRate }}</td>
+            <td>{{ c.requiredTool }}</td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr><td colspan="5" class="gng-empty">برای تجهیزات این دامنه قابلیتی تعریف نشده است.</td></tr>
+        </ng-template>
+      </p-table>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="ابزار و قالب">
+      <p class="gng-hint">عمر مفید ابزار/قالب بر اساس تعداد ضربه یا کارکرد تجمعی — دریافتی خودکار از سیستم نت. ابزارِ نصب‌نشده فقط با انتخاب یک گره‌ی سازمانی دیده می‌شود.</p>
+      <div style="position: relative">
+      <gng-data-source-badge [source]="toolsSource()"></gng-data-source-badge>
+      <p class="gng-empty" *ngIf="!toolLife.length">در این دامنه ابزار یا قالبی ثبت نشده است.</p>
+      <div class="gng-kpi-grid">
+        <div class="gng-kpi" *ngFor="let t of toolLife">
+          <div class="gng-kpi__head"><b>{{ t.code }} — {{ t.title }}</b><span>{{ fa(t.lifePercent) }}٪</span></div>
+          <div class="gng-kpi__bar"><div class="gng-kpi__bar-fill" [ngClass]="barFillClass(t.severity)" [style.width.%]="t.lifePercent"></div></div>
+          <span class="gng-kpi__note">{{ t.note }}</span>
+          <span class="gng-kpi__note"><i class="pi pi-cog"></i> {{ t.mountedOn }}</span>
+        </div>
+      </div>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="کارکرد تجمعی">
+      <div class="gng-note gng-note--info">
+        <strong>هم‌گام‌سازی با نت:</strong> کارکرد تجمعی هر تجهیز/ابزار به‌صورت رویدادی از سیستم نت دریافت و به‌عنوان محرک نگهداری استفاده می‌شود؛ وضعیت «در دسترس / تحت تعمیر / متوقف» نیز از همان مسیر به‌روزرسانی می‌شود.
+      </div>
+      <div style="position: relative">
+      <gng-data-source-badge [source]="equipmentSource()"></gng-data-source-badge>
+      <p-table [value]="equipmentList" styleClass="p-datatable-sm gng-table gng-mt" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th style="width: 8rem">کد</th>
+            <th>تجهیز</th>
+            <th style="width: 11rem">کارکرد تجمعی (ساعت)</th>
+            <th style="width: 10rem">آخرین دریافت</th>
+            <th style="width: 9rem">وضعیت نت</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-e>
+          <tr>
+            <td>{{ e.code }}</td>
+            <td>{{ e.title }}</td>
+            <td>{{ e.hoursText }}</td>
+            <td>{{ e.hoursUpdatedText }}</td>
+            <td><p-tag [value]="maintenanceLabel(e.maintenance)" [severity]="maintenanceSeverity(e.maintenance)"></p-tag></td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr><td colspan="5" class="gng-empty">در این دامنه تجهیزی تعریف نشده است.</td></tr>
+        </ng-template>
+      </p-table>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="ماتریس زمان تعویض">
+      <div class="gng-flow-header">
+        <span>ماتریس زمان تعویض <small>— دقیقه، سطر = از، ستون = به · ورودی به زمان‌بندی وابسته به توالی</small></span>
+      </div>
+      <div style="position: relative">
+      <gng-data-source-badge [source]="changeoverSource()"></gng-data-source-badge>
+      <p class="gng-empty" *ngIf="!changeover.length">برای تجهیزات این دامنه زمان تعویضی ثبت نشده است.</p>
+      <section class="gng-line-block" *ngFor="let m of changeover; trackBy: trackMatrix">
+        <header class="gng-line-block__head">
+          <span class="gng-line-block__title"><i class="pi pi-cog"></i>{{ m.equipment }}</span>
+        </header>
+        <table class="gng-matrix">
+          <thead>
+            <tr>
+              <th>از \ به</th>
+              <th *ngFor="let p of m.classes">{{ p }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of m.cells; let i = index">
+              <th>{{ m.classes[i] }}</th>
+              <td *ngFor="let cell of row; let j = index" [class.gng-matrix-diag]="i === j">
+                {{ cell === null ? '—' : fa(cell) }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      </div>
+      <p class="gng-hint" style="margin-top: 0.6rem">ماتریس تعویض نامتقارن است — مثلاً رفتن از «قرص رنگی» به «قرص سفید» تمیزکاری کامل می‌خواهد و از مسیر معکوس طولانی‌تر است.</p>
+    </p-tabPanel>
+
+    <p-tabPanel header="نسخه‌ی برنامه‌ی دستگاه">
+      <div style="position: relative">
+      <gng-data-source-badge [source]="softwareSource()"></gng-data-source-badge>
+      <p-table [value]="softwareVersions" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>تجهیز</th>
+            <th style="width: 8rem">برنامه</th>
+            <th style="width: 8rem">نسخه‌ی فعلی</th>
+            <th style="width: 8rem">آخرین نسخه</th>
+            <th style="width: 9rem">آخرین به‌روزرسانی</th>
+            <th style="width: 10rem">وضعیت</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-v>
+          <tr>
+            <td>{{ v.equipment }}</td>
+            <td>{{ v.software }}</td>
+            <td>{{ v.currentVersion }}</td>
+            <td>{{ v.latestVersion }}</td>
+            <td>{{ v.updatedAt }}</td>
+            <td><p-tag [value]="v.status" [severity]="v.status === 'به‌روز' ? 'success' : 'warning'"></p-tag></td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr><td colspan="6" class="gng-empty">برای تجهیزات این دامنه نسخه‌ی برنامه‌ای ثبت نشده است.</td></tr>
+        </ng-template>
+      </p-table>
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+  <gng-data-source-badge [source]="orgTreeSource()"></gng-data-source-badge>
+  <p-tree
+    [value]="orgTree"
+    styleClass="gng-tree"
+    selectionMode="single"
+    [(selection)]="selectedTreeNode"
+    (onNodeSelect)="onTreeSelect($event)"
+    (onNodeUnselect)="onTreeUnselect($event)"
+  ></p-tree>
+  </div>
+</gng-opform-layout>

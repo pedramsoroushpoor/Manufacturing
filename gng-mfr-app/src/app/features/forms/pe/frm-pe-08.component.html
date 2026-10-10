@@ -1,0 +1,104 @@
+<gng-opform-layout
+  domainTitle="مهندسی محصول"
+  title="نماها و محاسبات ساختار"
+  code="FRM-PE-08"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="مهندسی محصول / برنامه‌ریزی"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-share-alt"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  auditFeatureRange="F-PE-062 تا F-PE-064، F-PE-066 (فاز اول)"
+>
+  <ng-template #explodeBar>
+    <div class="gng-window">
+      <p-dropdown [options]="structureOptions" [(ngModel)]="structureId" (onChange)="onStructureChange()" styleClass="gng-diff-pick" [filter]="true"></p-dropdown>
+      <span>برای</span>
+      <p-inputNumber [(ngModel)]="quantity" [min]="0" inputStyleClass="p-inputtext-sm" [style]="{ width: '9rem' }"></p-inputNumber>
+      <span>{{ unit }}</span>
+      <label class="gng-small"><input type="checkbox" [(ngModel)]="applyWaste" /> اعمال ضایعات ردیف</label>
+      <button pButton type="button" icon="pi pi-play" label="بسط" class="p-button-sm" [loading]="exploding" (click)="explode()"></button>
+    </div>
+  </ng-template>
+
+  <p-tabView styleClass="gng-tabs">
+    <p-tabPanel header="درخت‌واره‌ی چندسطحی" [selected]="true">
+      <ng-container *ngTemplateOutlet="explodeBar"></ng-container>
+      <p class="gng-hint">هر کالایی که ساختار تولیدیِ پیش‌فرض دارد تا آخرین لایه باز می‌شود. فانتوم شفاف است: اجزایش نمایش داده می‌شوند و خودش در جمع نیاز نمی‌آید.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pe08-explode', 'بسط ساختار')"></gng-data-source-badge>
+        <p-treeTable [value]="tree" styleClass="p-treetable-sm gng-table gng-reason-tree">
+          <ng-template pTemplate="header">
+            <tr><th>قلم</th><th style="width: 5rem">سطح</th><th style="width: 11rem">مقدار لازم</th><th style="width: 10rem">ساختار فرزند</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-rowNode let-d="rowData">
+            <tr [ttRow]="rowNode" [class.gng-text-muted]="d.isPhantom">
+              <td>
+                <p-treeTableToggler [rowNode]="rowNode"></p-treeTableToggler>
+                {{ d.product }}
+                <p-tag *ngIf="d.isPhantom" value="فانتوم — شفاف" severity="secondary" styleClass="gng-mr-sm"></p-tag>
+                <p-tag *ngIf="d.isCycle" value="حلقه — قطع شد" severity="danger" styleClass="gng-mr-sm"></p-tag>
+              </td>
+              <td>{{ fa(d.level) }}</td>
+              <td>{{ d.formula ? 'فرمولی' : d.required !== null ? fa(d.required) + ' ' + d.unit : '—' }}</td>
+              <td>{{ d.childStructure || '—' }}</td>
+            </tr>
+          </ng-template>
+        </p-treeTable>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="بسط ساختار">
+      <ng-container *ngTemplateOutlet="explodeBar"></ng-container>
+      <p class="gng-hint">نیاز ناخالص مواد برگ برای مقدار وارده، جمع همه‌ی مسیرها، با ضایعات ردیف. واحدهای شمارشی به بالا گرد می‌شوند.</p>
+      <p-table [value]="requirements" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th>ماده</th><th style="width: 12rem">نیاز ناخالص</th><th style="width: 7rem">مسیرها</th></tr></ng-template>
+        <ng-template pTemplate="body" let-r><tr><td>{{ r.product }}</td><td><strong>{{ fa(r.required) }}</strong> {{ r.unit }}</td><td>{{ fa(r.paths) }}</td></tr></ng-template>
+        <ng-template pTemplate="emptymessage"><tr><td colspan="3" class="gng-empty">ساختاری بسط داده نشده است.</td></tr></ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <p-tabPanel header="کاربرد معکوس">
+      <div class="gng-window">
+        <p-dropdown [options]="productOptions" [(ngModel)]="productId" styleClass="gng-diff-pick" [filter]="true"></p-dropdown>
+        <label class="gng-small"><input type="checkbox" [(ngModel)]="multiLevel" /> چندسطحی</label>
+        <button pButton type="button" icon="pi pi-search" label="جست‌وجو" class="p-button-sm" [loading]="searching" (click)="runWhereUsed()"></button>
+      </div>
+      <p class="gng-hint">این کالا در کدام ساختارها و در کدام نسخه‌ها آمده — مستقیم یا از راه الگو. چندسطحی: سپس محصولِ همان ساختارها کجا به کار رفته.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pe08-where-used', 'کاربرد معکوس')"></gng-data-source-badge>
+        <p-table [value]="whereUsed ?? []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th style="width: 4rem">سطح</th><th>کالای جست‌وجو</th><th>ساختار</th><th style="width: 7rem">نوع</th><th>محصول ساختار</th><th style="width: 7rem">نسخه‌ها</th><th style="width: 9rem">وضعیت</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-w>
+            <tr>
+              <td>{{ fa(w.level) }}</td>
+              <td>{{ w.searched }}</td>
+              <td>{{ w.structure }} <span *ngIf="w.isDefault">★</span></td>
+              <td>{{ w.type }}</td>
+              <td>{{ w.mainProduct }}</td>
+              <td>{{ w.revisions }}</td>
+              <td>
+                <p-tag [value]="w.inCurrent ? 'در نسخه‌ی جاری' : 'فقط نسخه‌ی قدیم'" [severity]="w.inCurrent ? 'success' : 'secondary'"></p-tag>
+                <p-tag *ngIf="w.viaTemplate" value="از الگو" severity="info" styleClass="gng-mr-sm"></p-tag>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="7" class="gng-empty">در هیچ ساختاری به کار نرفته است.</td></tr></ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <p-tabPanel header="خواص تجمعی">
+      <div class="gng-note gng-note--info"><strong>هنوز پیاده نشده.</strong> محاسبه‌ی خواص تجمعی محصول از اجزا با فرمول قابل تعریف (F-PE-065) اولویت «مهم» دارد.</div>
+    </p-tabPanel>
+
+    <p-tabPanel header="شبیه‌ساز تغییر ماده">
+      <div class="gng-note gng-note--info">
+        <strong>هنوز پیاده نشده.</strong> شبیه‌سازی «اگر این ماده حذف یا جایگزین شود چه محصولات و سفارش‌هایی متأثر می‌شوند» (F-PE-067) اولویت «مهم» دارد.
+        بخش محصولاتِ آن همین «کاربرد معکوس چندسطحی» است؛ بخش سفارش‌ها به دستور تولید نیاز دارد.
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+</gng-opform-layout>

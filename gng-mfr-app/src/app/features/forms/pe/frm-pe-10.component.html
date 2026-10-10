@@ -1,0 +1,403 @@
+<gng-opform-layout
+  domainTitle="مهندسی محصول"
+  title="رصدخانه‌ی مهندسی محصول"
+  code="FRM-PE-10"
+  formTypeLabel="BI / رصدخانه"
+  owner="مدیر مهندسی محصول"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-star"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  auditFeatureRange="BI رصدخانه‌ی مهندسی محصول (فقط‌خواندنی)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-check" label="اعمال مقدار پیشنهادی در ساختار" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-file-edit" label="ثبت ECO از سناریو" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-user-edit" label="ارجاع نقص به مسئول" class="p-button-outlined p-button-sm"></button>
+  </ng-container>
+
+  <div class="ob" [class.gng-loading]="loading">
+    <div class="ob__state" *ngIf="loading && !eng"><i class="pi pi-spin pi-spinner"></i> در حال خواندن داده‌ی مهندسی و اجرا…</div>
+    <div class="ob__state ob__state--err" *ngIf="loadFailed"><i class="pi pi-ban"></i> خواندن داده ناموفق بود؛ endpoint ‎/api/pe10/bundle در دسترس نیست.</div>
+
+    <ng-container *ngIf="eng">
+      <!-- ───────── دامنه ───────── -->
+      <div class="ob__scope">
+        <div class="row">
+          <div class="seg">
+            <span class="dim">گروه کالا:</span>
+            <button type="button" class="chip" *ngFor="let g of groupChips" [class.chip--on]="scope.groups.includes(g)" (click)="toggleGroup(g)">{{ g }}</button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="seg">
+            <span class="dim">نوع ساختار:</span>
+            <button type="button" class="chip" *ngFor="let t of typeChips" [class.chip--on]="scope.types.includes(t.code)" (click)="toggleType(t.code)">{{ t.label }}</button>
+          </div>
+          <div class="seg">
+            <span class="dim">وضعیت:</span>
+            <button type="button" class="chip" *ngFor="let t of statusChips" [class.chip--on]="scope.statuses.includes(t.code)" (click)="toggleStatus(t.code)">{{ t.label }}</button>
+          </div>
+          <div class="seg seg--grow">
+            <p-dropdown [options]="productOptions" [ngModel]="scope.productId" (onChange)="setProduct($event.value)" [filter]="true" filterBy="label" [showClear]="true"
+              placeholder="یک کالا…" styleClass="ob__dd" appendTo="body" [style]="{ width: '100%' }"></p-dropdown>
+          </div>
+          <button type="button" class="chip chip--ghost" (click)="clearScope()" title="پاک کردن دامنه"><i class="pi pi-filter-slash"></i></button>
+        </div>
+        <div class="crumb"><i class="pi pi-compass"></i> {{ breadcrumb }}</div>
+      </div>
+
+      <div class="kpis">
+        <gng-data-source-badge [source]="dsChecks"></gng-data-source-badge>
+        <div class="kpi" *ngFor="let k of kpis" [ngClass]="'kpi--' + k.tone" [pTooltip]="k.hint" tooltipPosition="bottom">
+          <div class="kpi__l">{{ k.label }}</div>
+          <div class="kpi__v">{{ k.value }}</div>
+          <div class="kpi__s">{{ k.sub }}</div>
+        </div>
+      </div>
+
+      <nav class="rail">
+        <button type="button" [class.on]="space === 'sky'" (click)="space = 'sky'"><i class="pi pi-star"></i> صورت‌فلکی محصولات</button>
+        <button type="button" [class.on]="space === 'xray'" (click)="space = 'xray'"><i class="pi pi-sitemap"></i> پرتونگاری ساختار</button>
+        <button type="button" [class.on]="space === 'ripple'" (click)="space = 'ripple'"><i class="pi pi-wifi"></i> اگر این ماده نرسد… <b [class.hot]="shortMaterials > 0">{{ faInt(shortMaterials) }}</b></button>
+        <button type="button" [class.on]="space === 'truth'" (click)="space = 'truth'"><i class="pi pi-sliders-h"></i> دقت ساختار در اجرا <b [class.hot]="biasCount > 0">{{ faInt(biasCount) }}</b></button>
+        <button type="button" [class.on]="space === 'eco'" (click)="space = 'eco'"><i class="pi pi-sync"></i> رادار تغییر <b>{{ faInt(openEcos) }}</b></button>
+        <button type="button" [class.on]="space === 'debt'" (click)="space = 'debt'"><i class="pi pi-exclamation-triangle"></i> بدهی فنی داده <b class="hot">{{ faInt(defects.length) }}</b></button>
+      </nav>
+
+      <!-- ═════════ ۱) صورت‌فلکی ═════════ -->
+      <section class="sp two" *ngIf="space === 'sky'">
+        <div class="panel">
+          <gng-data-source-badge [source]="dsChecks"></gng-data-source-badge>
+          <div class="ph">
+            <h3>صورت‌فلکی محصولات <small>— هر ستاره یک کالا، هر خوشه یک گروه؛ کلیک = کارت سلامت</small></h3>
+            <div class="legend"><span>سلامت: <span class="grad"></span> ۱۰۰ ← ۴۰</span><span><i style="background:#7d8ea3"></i>ارزیابی‌نشده</span><span><i style="background:none;border:1px solid #ff6b6b"></i>نقص بحرانی</span></div>
+          </div>
+          <gng-pe10-sky [nodes]="stars" [edges]="edges" [clusters]="clusters" [selected]="selProduct" (pick)="pickStar($event)"></gng-pe10-sky>
+          <div class="hint">اندازه = دامنه‌ی اثر (ساختارهای مصرف‌کننده‌ی چندسطحی + دستور باز + درخواست). خط‌ها پیوند محصول ← جزء در ساختارهای جاری‌اند؛ پیوندهای ستاره‌ی انتخاب‌شده نارنجی می‌شوند. ستاره‌های بیرون از دامنه کم‌رنگ‌اند.<br />{{ healthFormula }}</div>
+        </div>
+
+        <div class="sp">
+          <div class="panel" *ngIf="card as c">
+            <div class="gauge">
+              <div class="ring" [style.background]="ringBg(c.health.score)"><span>{{ c.health.score === null ? '—' : faInt(c.health.score) }}</span></div>
+              <div>
+                <div class="card__t">{{ c.product.code }} {{ c.product.title }}</div>
+                <div class="card__s">{{ c.facts.join(' · ') }}</div>
+                <div class="card__s">{{ faInt(c.health.pass) }} کنترل قبول · {{ faInt(c.health.fail) }} رد · {{ faInt(c.health.critical) }} بحرانی</div>
+              </div>
+            </div>
+            <div class="xc" style="margin: 0.45rem 0">
+              <button type="button" class="link" *ngFor="let x of c.structures" (click)="goXray(x.s.id)" [title]="'پرتونگاری ' + x.s.code">
+                <i class="pi pi-sitemap"></i> {{ x.s.code }} <span [style.color]="x.color">{{ x.health.score === null ? '—' : faInt(x.health.score) }}</span>
+              </button>
+              <button type="button" class="link" (click)="goRipple(c.product.id)"><i class="pi pi-wifi"></i> اگر نرسد…</button>
+            </div>
+            <div class="chk" *ngFor="let k of c.health.checks">
+              <i class="pi" [ngClass]="k.passed ? 'pi-check-circle chk__i--ok' : k.severity >= 3 ? 'pi-times-circle chk__i--bad' : 'pi-exclamation-circle chk__i--warn'"></i>
+              <div>{{ k.title }}<small *ngIf="!k.passed">{{ k.detail || k.why }}</small><small>{{ k.entity }} · مسئول: {{ k.owner }}</small></div>
+              <span class="form" [title]="'اصلاح در ' + k.form">← {{ k.form }}</span>
+            </div>
+            <div class="empty" *ngIf="!c.health.checks.length">برای این کالا کنترلی اجرا نشده است (نه ساختار دارد نه نقش تولیدی).</div>
+          </div>
+          <div class="panel">
+            <h3>کم‌سلامت‌ترین‌های دامنه</h3>
+            <div class="lt click" *ngFor="let w of worst" (click)="pickStar(w.id)" style="cursor:pointer">
+              <span>{{ w.label }}</span>
+              <span class="bar"><i [style.width.%]="w.score" [style.background]="w.color"></i></span>
+              <span>{{ w.score === null ? '—' : faInt(w.score) }} · {{ faInt(w.fail) }} نقص</span>
+            </div>
+            <div class="empty" *ngIf="!worst.length">همه‌ی کالاهای دامنه سالم‌اند.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════════ ۲) پرتونگاری ═════════ -->
+      <section class="sp" *ngIf="space === 'xray'">
+        <div class="panel">
+          <gng-data-source-badge [source]="dsItems"></gng-data-source-badge>
+          <div class="ph">
+            <h3>پرتونگاری ساختار <small>— بسط چندسطحی با ساختار پیش‌فرض هر نیمه‌ساخته</small></h3>
+            <div class="xc">
+              <p-dropdown [options]="structureOptions" [(ngModel)]="xStruct" (onChange)="recomputeXray()" styleClass="ob__dd" appendTo="body" [style]="{ minWidth: '18rem' }"></p-dropdown>
+              <span class="dim">تعداد بچ مرجع</span>
+              <input type="number" class="sel num" min="0.1" step="0.5" [(ngModel)]="xBatches" (ngModelChange)="recomputeXray()" />
+              <label class="chkbox"><input type="checkbox" [(ngModel)]="xWaste" (ngModelChange)="recomputeXray()" /> با ضایعات ردیف</label>
+              <button type="button" class="link" (click)="crossCheck()"><i class="pi pi-verified"></i> کنترل متقابل با سرور</button>
+            </div>
+          </div>
+          <div class="seg" style="margin-bottom: 0.5rem">
+            <span class="dim">لایه‌ی خطر:</span>
+            <button type="button" class="chip" *ngFor="let o of overlays" [class.chip--on]="overlay === o.value" (click)="setOverlay(o.value)">{{ o.label }}</button>
+          </div>
+          <gng-pe10-icicle *ngIf="xNodes.length; else noX" [nodes]="xNodes" [overlay]="overlay" [rootLabel]="xRootLabel" [rootQty]="xRootQty" (pick)="goRipple($event)"></gng-pe10-icicle>
+          <ng-template #noX><div class="empty">ساختاری با اندازه‌ی مرجع در دامنه نیست (الگوها بسط نمی‌شوند).</div></ng-template>
+          <div class="legend" style="margin-top: 0.4rem">
+            <span><i style="background:#7fd1ae"></i>سالم</span><span><i style="background:#d8e88a"></i>یک نشانه</span><span><i style="background:#ffcf5a"></i>هشدار</span><span><i style="background:#ff8a7a"></i>خطر</span>
+            <span><i style="background:#9fb6cf"></i>نامربوط</span>
+          </div>
+          <div class="hint">راست = ریشه؛ هر ستون یک سطح. ارتفاع هر خانه = شمار برگ‌های زیرش (نه مقدار، چون واحدها ناهمگن‌اند). کلیک روی یک جزء = «اگر این ماده نرسد». مقدار نیاز = مقدار ردیف در اندازه‌ی مرجع × نسبت × (۱ + ضایعات٪) + ضایعات ثابت؛ واحد شمارشی رو به بالا گرد می‌شود — همان قاعده‌ی mes.ExplodeStructure.</div>
+          <div class="story" *ngIf="serverCheck.state !== 'idle'">
+            <i class="pi" [ngClass]="serverCheck.state === 'ok' ? 'pi-verified st--ok' : serverCheck.state === 'loading' ? 'pi-spin pi-spinner' : 'pi-exclamation-triangle st--partial'"></i> {{ serverCheck.text }}
+            <div *ngFor="let d of serverCheck.diffs" class="dim">{{ d }}</div>
+          </div>
+        </div>
+        <div class="panel" *ngIf="leaves.length">
+          <gng-data-source-badge [source]="dsStock"></gng-data-source-badge>
+          <h3>نیاز خالص مواد در برابر موجودی آزاد <small>— نیمه‌ساخته‌ی دارای موجودی کافی بسط نمی‌شود؛ نوار = موجودی ÷ نیاز (پر = دو برابر)</small></h3>
+          <p class="story" *ngIf="makeable">{{ makeable }}</p>
+          <div class="lt" *ngFor="let l of leaves">
+            <span><b class="mono">{{ l.code }}</b> {{ l.title }}</span>
+            <span class="bar" [ngClass]="'bar--' + l.tone"><i [style.width.%]="leafPct(l)"></i></span>
+            <span>{{ faNum(l.req, 2) }} {{ l.unit }} · {{ l.batches === null ? '—' : faNum(l.batches, 1) + '×' }}</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════════ ۳) اگر این ماده نرسد ═════════ -->
+      <section class="sp" *ngIf="space === 'ripple'">
+        <div class="panel">
+          <gng-data-source-badge [source]="dsDemand"></gng-data-source-badge>
+          <div class="ph">
+            <h3>اگر این ماده نرسد… <small>— مرتب بر پایه‌ی کمترین روز پوشش</small></h3>
+          </div>
+          <div class="seg">
+            <button type="button" class="chip" *ngFor="let m of materials" [class.chip--on]="matId === m.id" (click)="setMaterial(m.id)"
+              [title]="m.days === null ? 'مصرف جاری ندارد' : faNum(m.days, 1) + ' روز پوشش'">
+              <span class="pill" [ngClass]="'pill--' + m.tone">{{ m.days === null ? '∞' : faNum(m.days, 1) }}</span>{{ m.label }}
+            </button>
+          </div>
+        </div>
+        <ng-container *ngIf="ripple as r">
+          <div class="two two--even">
+            <div class="panel">
+              <h3>موج اثر {{ r.material.code }} {{ r.material.title }}</h3>
+              <gng-pe10-ripple [result]="r"></gng-pe10-ripple>
+              <div class="legend"><span><i style="background:#7fd1ae"></i>پوشش</span><span><i style="background:#7cc4ff"></i>با جایگزین</span><span><i style="background:#ffcf5a"></i>ناقص</span><span><i style="background:#ff6b6b"></i>مسدود</span><span><i style="background:#ff9f6b"></i>در خطر</span></div>
+              <p class="story">{{ r.narrative }}</p>
+            </div>
+            <div class="panel">
+              <h3>سناریو</h3>
+              <div class="kv">
+                <span>موجودی آزاد <b>{{ faNum(r.pool, 2) }} {{ r.material.unit }}</b></span>
+                <span>نیاز باز <b>{{ faNum(r.openNeed, 2) }}</b></span>
+                <span>مصرف روزانه <b>{{ faNum(r.daily, 2) }}</b></span>
+                <span>پوشش <b>{{ r.coverDays === null ? '∞' : faNum(r.coverDays, 1) + ' روز' }}</b></span>
+                <span *ngIf="r.poolNote">{{ r.poolNote }}</span>
+              </div>
+              <label class="chkbox" style="margin-top: 0.4rem" *ngIf="r.material.inTransit > 0"><input type="checkbox" [ngModel]="ropts.includeTransit" (ngModelChange)="setTransit($event)" />
+                محموله‌ی در راه ({{ faNum(r.material.inTransit, 2) }} تا {{ faDM(r.material.nextArrival) }}) به‌موقع برسد</label>
+              <div class="sub dim" style="margin-top: 0.5rem">جایگزین‌ها (گروه‌هایی که این ماده جزء اقلام اصلی‌شان است):</div>
+              <div class="opts">
+                <div class="opt" *ngFor="let o of r.options" [class.opt--on]="isOptionOn(o)" (click)="toggleOption(o)">
+                  <div class="opt__h"><span>{{ o.groupCode }} · {{ o.title }}</span><span class="pill">اولویت {{ o.priority === null ? '—' : faInt(o.priority) }}</span></div>
+                  <span *ngFor="let m of o.members" class="dim">{{ m.code }} {{ m.title }} × {{ faNum(m.ratio, 2) }} — موجودی {{ faNum(m.onHand, 2) }} {{ m.unit }}</span>
+                  <span>جایگزین‌پذیر تا <b>{{ faNum(o.feasible, 2) }}</b> {{ r.material.unit }} {{ r.material.code }}</span>
+                  <span class="dim">{{ o.linked.length ? 'متصل در ' + o.linked.join('، ') : 'در هیچ ردیف ساختاری به این گروه وصل نیست — اثری ندارد' }}</span>
+                </div>
+              </div>
+              <div class="empty" *ngIf="!r.options.length">این ماده در هیچ گروه جایگزینی نیست — تک‌منبع مهندسی.</div>
+              <div class="sub dim" style="margin-top: 0.5rem">ECOهای مرتبط:</div>
+              <label class="chkbox" *ngFor="let x of r.ecos">
+                <input type="checkbox" [ngModel]="x.accepted" (ngModelChange)="toggleEco(x.eco.id)" [disabled]="x.eco.status >= 5" />
+                <span><b class="mono">{{ x.eco.number }}</b> {{ x.eco.title }} <span class="pill">{{ ecoStatus[x.eco.status] }}</span><br /><span class="dim">{{ x.why }} — {{ x.effect }}</span></span>
+              </label>
+              <div class="empty" *ngIf="!r.ecos.length">ECOی این ماده را لمس نمی‌کند.</div>
+            </div>
+          </div>
+          <div class="panel">
+            <h3>دستورهای باز مصرف‌کننده <small>— تخصیص موجودی به ترتیب سررسید</small></h3>
+            <table class="mini">
+              <tr><th>دستور</th><th>سررسید</th><th>محصول</th><th>ساختار</th><th>عملیات</th><th>نیاز</th><th>از موجودی</th><th>از در راه</th><th>با جایگزین</th><th>کسری</th><th>وضعیت</th></tr>
+              <tr *ngFor="let x of r.rows">
+                <td class="mono">{{ x.wo }}</td><td>{{ faD(x.due) }}</td><td>{{ x.mainCode }} {{ x.mainTitle }}</td><td class="mono">{{ x.structure }}</td><td>{{ faInt(x.opSeq) }}</td>
+                <td>{{ faNum(x.need, 3) }}</td><td>{{ faNum(x.fromStock, 3) }}</td><td>{{ x.fromTransit ? faNum(x.fromTransit, 3) : '' }}</td>
+                <td [title]="x.subLabel">{{ x.fromSub ? faNum(x.fromSub, 3) : '' }}</td><td>{{ x.short ? faNum(x.short, 3) : '' }}</td>
+                <td [ngClass]="'st--' + x.state">{{ stateLabel(x.state) }}</td>
+              </tr>
+            </table>
+            <div class="empty" *ngIf="!r.rows.length">دستور بازی این ماده را مصرف نمی‌کند.</div>
+          </div>
+          <div class="two two--even">
+            <div class="panel">
+              <h3>ساختارهای وابسته (کاربرد معکوس)</h3>
+              <div *ngFor="let l of r.levels">
+                <div class="dim">سطح {{ faInt(l.level) }}</div>
+                <div class="xc"><button type="button" class="link" *ngFor="let s of l.structures" (click)="goXray(s.id)">{{ s.code }} <span class="dim">{{ s.product }} · {{ faInt(s.openOrders) }} دستور باز</span></button></div>
+              </div>
+            </div>
+            <div class="panel">
+              <h3>پایین‌دست و درخواست‌ها</h3>
+              <div *ngFor="let d of r.downstream" class="dim"><b class="mono" [ngClass]="'st--' + d.state">{{ d.wo }}</b> {{ d.product }} — {{ faNum(d.need, 2) }} {{ d.unit }} · {{ d.reason }}</div>
+              <div *ngFor="let q of r.requests" class="dim"><b class="mono" [ngClass]="'st--' + q.state">{{ q.number }}</b> {{ q.product }} — {{ faNum(q.qty, 0) }} {{ q.unit }} تا {{ faD(q.need) }} · {{ q.reason }}</div>
+              <div class="empty" *ngIf="!r.downstream.length && !r.requests.length">اثر پایین‌دستی ندارد.</div>
+            </div>
+          </div>
+        </ng-container>
+      </section>
+
+      <!-- ═════════ ۴) دقت ساختار در اجرا ═════════ -->
+      <section class="sp" *ngIf="space === 'truth'">
+        <div class="panel">
+          <gng-data-source-badge [source]="dsExec"></gng-data-source-badge>
+          <div class="ph">
+            <h3>مصرف واقعی در برابر استاندارد ردیف ساختار <small>— هر نقطه یک دستور</small></h3>
+            <div class="xc">
+              <span class="dim">وزن شواهد k = {{ faInt(k) }}</span>
+              <input type="range" min="1" max="10" step="1" [ngModel]="k" (ngModelChange)="setK($event)" />
+            </div>
+          </div>
+          <table class="mini">
+            <tr><th>ساختار</th><th>ردیف</th><th>استاندارد</th><th>n</th><th style="min-width: 14rem">انحراف (−{{ faInt(range) }}٪ … +{{ faInt(range) }}٪)</th><th>سوگیری</th><th>پراکندگی</th><th>داوری</th><th>پیشنهاد</th><th>اعتماد</th></tr>
+            <tr *ngFor="let t of truthRows; trackBy: trackKey" class="click" [class.on]="selTruth === t.key" (click)="selTruth = selTruth === t.key ? null : t.key">
+              <td class="mono">{{ t.structureCode }}</td>
+              <td>{{ t.code }} {{ t.title }} <span class="pill" *ngIf="t.ai">مؤثره</span><span class="dim" *ngIf="t.gaps.length"><br />بی‌ثبت: {{ t.gaps.join('، ') }}</span><span class="dim" *ngIf="t.substituted.length"><br />جایگزین‌شده: {{ t.substituted.join('، ') }}</span></td>
+              <td>{{ t.stdLabel }}</td>
+              <td>{{ faInt(t.n) }}</td>
+              <td>
+                <div class="strip" dir="ltr">
+                  <div class="strip__band" *ngIf="t.lo !== null && t.hi !== null" [style.left.%]="devPos(t.lo)" [style.width.%]="devPos(t.hi) - devPos(t.lo)"></div>
+                  <div class="strip__zero" style="left: 50%"></div>
+                  <div class="strip__dot" *ngFor="let x of t.samples" [class.strip__dot--c]="x.corrected" [style.left.%]="pos(x.ratio)" [title]="x.wo + ': ' + faPct((x.ratio - 1) * 100, 2) + (x.corrected ? ' (پس از تصحیح عیار)' : '')"></div>
+                  <div class="strip__mean" *ngIf="t.n" [style.left.%]="pos(t.mean)"></div>
+                  <div class="strip__sug" *ngIf="t.suggested !== null" [style.left.%]="devPos(t.bias * t.w)" title="پیشنهاد"></div>
+                </div>
+              </td>
+              <td [class.st--blocked]="t.verdict === 'over' || t.verdict === 'under'">{{ t.n ? faPct(t.bias, 2) : '—' }}</td>
+              <td>{{ t.n > 1 ? faPct(t.sd * 100, 2) : '—' }}</td>
+              <td><span class="pill" [ngClass]="'pill--' + verdictTone(t.verdict)">{{ verdictLabel(t.verdict) }}</span></td>
+              <td>{{ t.suggested === null ? '—' : faNum(t.suggested, 3) + ' ' + t.unit }}</td>
+              <td>{{ t.n ? t.confidence : '—' }}</td>
+            </tr>
+          </table>
+          <div class="empty" *ngIf="!truthRows.length">برای ساختارهای دامنه مصرف واقعی ثبت نشده است.</div>
+          <div class="hint">نوار سبز = محدوده‌ی مجاز مصرف ردیف (حداقل/حداکثر٪ در PE-02)، خط سفید = استاندارد، میله‌ی زرد = میانگین، نقطه‌ی بنفش = ماده‌ی مؤثره پس از تصحیح عیار، مثلث قرمز = مقدار پیشنهادی. نمونه‌ی جایگزین‌شده و بی‌ثبت از محاسبه بیرون‌اند. اعتماد: زیاد = n≥۵ و پراکندگی &lt;۱٪؛ متوسط = n≥۳.<br />{{ suggestFormula }}</div>
+        </div>
+        <div class="two two--even">
+          <div class="panel">
+            <h3>بازده خروجی‌ها: PE-04 در برابر رسید PC-07 <small>— دستورهای تکمیل‌شده</small></h3>
+            <table class="mini">
+              <tr><th>ساختار</th><th>خروجی</th><th>استاندارد</th><th>واقعی</th><th>Δ</th><th>داوری</th></tr>
+              <tr *ngFor="let y of yieldRows; trackBy: trackKey">
+                <td class="mono">{{ y.structureCode }}</td><td>{{ y.product }} <span class="pill">{{ outputType[y.type] }}</span></td>
+                <td>{{ faPct(y.std, 1) }} <span class="dim" *ngIf="y.min !== null || y.max !== null">({{ y.min === null ? '—' : faNum(y.min, 1) }}–{{ y.max === null ? '—' : faNum(y.max, 1) }})</span></td>
+                <td>{{ y.samples.length ? faPct(y.mean, 1) : '—' }} <span class="dim">{{ faInt(y.samples.length) }} نمونه</span><span class="dim" *ngIf="y.missing.length"><br />بی‌رسید: {{ y.missing.join('، ') }}</span></td>
+                <td>{{ y.samples.length ? faNum(y.delta, 1) : '' }}</td>
+                <td><span class="pill" [ngClass]="'pill--' + verdictTone(y.verdict)">{{ verdictLabel(y.verdict) }}</span></td>
+              </tr>
+            </table>
+            <div class="hint">بازده واقعی = بازده استاندارد × تولید واقعی خروجی ÷ (برنامه‌ی همان خروجی در دستور × نسبت مصرف واقعی ماده‌ی اصلی به استاندارد) — مستقل از واحد. «رسید نشده» = خروجی در برنامه‌ی دستور بوده ولی تولید/رسیدی ثبت نشده.</div>
+          </div>
+          <div class="panel">
+            <h3>نرخ بازیابی: PE-05/ME-05 در برابر PC-08</h3>
+            <table class="mini">
+              <tr><th>رسید</th><th>دستور</th><th>ورودی</th><th>بازیابی</th><th>واقعی</th><th>استاندارد</th></tr>
+              <tr *ngFor="let x of recovery">
+                <td class="mono">{{ x.receipt }}</td><td class="mono">{{ x.wo }}</td><td>{{ faNum(x.input, 2) }}</td><td>{{ faNum(x.recovered, 2) }}</td>
+                <td [ngClass]="'st--' + (recoveryTone(x) === 'danger' ? 'blocked' : recoveryTone(x) === 'warning' ? 'partial' : 'ok')">{{ faPct(x.actualPct, 1) }}</td>
+                <td>{{ faPct(x.stdPct, 1) }} <span class="dim">{{ x.stdSource }}</span></td>
+              </tr>
+            </table>
+            <div class="empty" *ngIf="!recovery.length">رسید بازیابی ثبت نشده است.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════════ ۵) رادار تغییر ═════════ -->
+      <section class="sp" *ngIf="space === 'eco'">
+        <div class="two">
+          <div class="panel">
+            <gng-data-source-badge [source]="dsEco"></gng-data-source-badge>
+            <h3>خط زمانی تغییر <small>— دایره = درخواست، لوزی = تاریخ اثر، خط‌چین قرمز = تاریخ اثر نامعین</small></h3>
+            <gng-pe10-timeline [views]="ecoViews" (pick)="pickEco($event)"></gng-pe10-timeline>
+          </div>
+          <div class="panel">
+            <h3>قیف ECO</h3>
+            <div class="funnel">
+              <div class="funnel__s" *ngFor="let f of funnel" [style.width.%]="f.width" [class.funnel__s--hot]="f.hot"><span>{{ f.label }}</span><b>{{ faInt(f.count) }}</b></div>
+            </div>
+          </div>
+        </div>
+        <div class="two">
+          <div class="sp">
+            <div class="eco" *ngFor="let v of ecoViews" [class.eco--on]="v.eco.id === selEco" (click)="pickEco(v.eco.id)">
+              <div class="eco__h"><b class="mono">{{ v.eco.number }}</b> {{ v.eco.title }} <span class="pill" [class.pill--warning]="v.open">{{ ecoStatus[v.eco.status] }}</span>
+                <span class="pill pill--danger" *ngIf="v.eco.priority === 2">فوری</span></div>
+              <div class="eco__steps"><i *ngFor="let st of ecoSteps" [ngClass]="stepClass(v, st)"></i></div>
+              <div class="kv">
+                <span>منشأ <b>{{ ecoOrigin[v.eco.origin] }}</b></span><span>سن <b>{{ faInt(v.ageDays) }} روز</b></span><span>اثر <b>{{ v.effLabel }}</b></span>
+                <span *ngIf="v.daysToEffect !== null && v.open">{{ v.daysToEffect >= 0 ? faInt(v.daysToEffect) + ' روز مانده' : 'گذشته' }}</span>
+                <span>{{ v.waiting }}</span><span>{{ faInt(v.structures.length) }} ساختار · {{ faInt(v.orders.length) }} دستور زیر اثر</span>
+              </div>
+              <div *ngFor="let i of v.issues" class="st--blocked" style="font-size: 0.72rem"><i class="pi pi-exclamation-triangle"></i> {{ i }} <span class="form">← FRM-PE-09</span></div>
+            </div>
+            <div class="empty" *ngIf="!ecoViews.length">در این دامنه ECO نیست.</div>
+          </div>
+          <div class="panel" *ngIf="eco as v">
+            <h3>موج اثر {{ v.eco.number }}</h3>
+            <div class="kv"><span>سیاست موجودی <b>{{ v.policy }}</b></span><span>درخواست‌دهنده <b>{{ v.eco.requestedBy }}</b></span><span>امضا <b>{{ faInt(v.eco.signedCount) }}/{{ faInt(v.eco.approverCount) }}</b></span></div>
+            <div class="dim" style="margin-top: 0.4rem">کالاهای مستقیم</div>
+            <div class="xc"><button type="button" class="link" *ngFor="let d of v.direct" (click)="goRipple(d.id)">{{ d.code }} {{ d.title }}</button></div>
+            <div class="dim" style="margin-top: 0.4rem">ساختارهای متأثر (فاصله از تغییر)</div>
+            <div class="xc"><button type="button" class="link" *ngFor="let s of v.structures" (click)="goXray(s.id)">{{ s.code }} <span class="dim">سطح {{ faInt(s.level) }}</span></button></div>
+            <div class="dim" style="margin-top: 0.4rem">دستورهای باز زیر اثر</div>
+            <div class="xc"><span class="pill" *ngFor="let o of v.orders">{{ o.wo }} · {{ o.product }}</span><span class="empty" *ngIf="!v.orders.length">ندارد</span></div>
+            <div class="dim" style="margin-top: 0.4rem">موجودی درگیر</div>
+            <div *ngFor="let s of v.stock" [class.st--blocked]="s.atRisk" style="font-size: 0.74rem">{{ s.code }} {{ s.title }} — {{ faNum(s.qty, 2) }} {{ s.unit }}{{ s.atRisk ? ' · در خطر کنارگذاری' : '' }}</div>
+            <div class="hint">اثر = کالای دامنه + محصول اصلی ساختارهای دامنه + اقلام اصلی گروه جایگزین دامنه، سپس کاربرد معکوس چندسطحی روی نسخه‌ی جاری (هم‌ارز mes.GetEcoImpact) و دستورهای بازی که آن ساختارها یا کالاها را مصرف می‌کنند.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════════ ۶) بدهی فنی داده ═════════ -->
+      <section class="sp two" *ngIf="space === 'debt'">
+        <div class="panel">
+          <gng-data-source-badge [source]="dsChecks"></gng-data-source-badge>
+          <div class="ph">
+            <h3>{{ faInt(defects.length) }} نقص داده‌ی مهندسی <small>— رتبه بر پایه‌ی اثر</small></h3>
+            <div class="seg">
+              <span class="dim">گروه:</span>
+              <button type="button" class="chip" [class.chip--on]="defectBy === 'type'" (click)="setDefectBy('type')">نوع کنترل</button>
+              <button type="button" class="chip" [class.chip--on]="defectBy === 'form'" (click)="setDefectBy('form')">فرم اصلاح</button>
+              <button type="button" class="chip" [class.chip--on]="defectBy === 'owner'" (click)="setDefectBy('owner')">مسئول داده</button>
+              <button type="button" class="chip" [class.chip--on]="defectBy === 'entity'" (click)="setDefectBy('entity')">موجودیت</button>
+            </div>
+          </div>
+          <div *ngFor="let g of defectGroups; trackBy: trackKey">
+            <div class="grp__h">{{ g.title }} <span>{{ faInt(g.items.length) }} نقص · اثر {{ faInt(g.impact) }}</span></div>
+            <ng-container *ngFor="let d of g.items; trackBy: trackKey">
+              <div class="def" [ngClass]="'def--' + d.severity" (click)="pickDefect(d.key)">
+                <span class="def__score" [title]="'شدت² × دامنه = ' + faInt(d.severity * d.severity) + ' × ' + faInt(d.reach)">{{ faInt(d.impact) }}</span>
+                <span><b>{{ d.title }}</b> — {{ d.entity }}</span>
+                <span class="form">← {{ d.form }}</span>
+              </div>
+              <div class="def__x" *ngIf="selDefect === d.key">
+                {{ d.detail }}<br /><span class="dim">دامنه: {{ d.reachNote }} · مسئول: {{ d.owner }}</span>
+                <button type="button" class="link" *ngIf="d.productId !== null" (click)="openDefect(d)"><i class="pi pi-star"></i> کارت سلامت</button>
+                <button type="button" class="link" *ngIf="d.structureId !== null" (click)="goXray(d.structureId)"><i class="pi pi-sitemap"></i> پرتونگاری</button>
+              </div>
+            </ng-container>
+          </div>
+          <div class="empty" *ngIf="!defects.length">در این دامنه نقص داده‌ی مهندسی نیست.</div>
+          <div class="hint">{{ impactFormula }}</div>
+        </div>
+        <div class="sp">
+          <div class="panel">
+            <h3>بدهی به تفکیک مسئول داده</h3>
+            <div class="lt" *ngFor="let b of ownerBars"><span>{{ b.label }}</span><span class="bar bar--warning"><i [style.width.%]="b.pct"></i></span><span>{{ faInt(b.v) }}</span></div>
+          </div>
+          <div class="panel">
+            <gng-data-source-badge [source]="dsProducts"></gng-data-source-badge>
+            <h3>بدهی به تفکیک کالا</h3>
+            <div class="lt" *ngFor="let b of productBars"><span>{{ b.label }}</span><span class="bar" [ngClass]="'bar--' + b.tone"><i [style.width.%]="b.pct"></i></span><span>{{ faInt(b.v) }}</span></div>
+          </div>
+        </div>
+      </section>
+    </ng-container>
+
+    <div class="gng-note gng-note--info todo">
+      <strong>هنوز پیاده نشده.</strong> اعمال مقدار پیشنهادی در ردیف ساختار (از راه ECO)، ثبت ECO یا گروه جایگزین از روی سناریوی «اگر نرسد»، ارجاع نقص به مسئول داده با پیگیری،
+      ذخیره و مقایسه‌ی سناریوها، و اعمال اولویت تأمین واقعی (خرید/MRP) در موج اثر با فاز ایجاد/ویرایش می‌آید.
+    </div>
+  </div>
+</gng-opform-layout>

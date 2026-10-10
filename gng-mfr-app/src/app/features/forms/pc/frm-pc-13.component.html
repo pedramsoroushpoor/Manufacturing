@@ -1,0 +1,413 @@
+<gng-opform-layout
+  domainTitle="کنترل تولید"
+  title="اتاق جلسه‌ی کنترل تولید"
+  code="FRM-PC-13"
+  formTypeLabel="BI سناریومحور / جلسه‌ی هفتگی"
+  owner="مدیر تولید"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-chart-scatter"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  auditFeatureRange="BI سناریومحور جلسه‌ی هفتگی (فقط‌خواندنی)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-desktop" label="حالت ارائه" class="p-button-sm p-button-help" [disabled]="!eng" (click)="present()"></button>
+    <button pButton type="button" icon="pi pi-print" label="چاپ صورت‌جلسه" class="p-button-sm p-button-outlined" [disabled]="!eng" (click)="printMinutes()"></button>
+    <button pButton type="button" icon="pi pi-send" label="ارسال به مشارکان" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-check-square" label="ثبت تصمیم در سیستم" class="p-button-outlined p-button-sm"></button>
+  </ng-container>
+
+  <div class="wr" [class.gng-loading]="loading">
+    <div class="wr__state" *ngIf="loading && !eng"><i class="pi pi-spin pi-spinner"></i> در حال خواندن جریان رویداد و واقعیت‌های دستور…</div>
+    <div class="wr__state wr__state--err" *ngIf="loadFailed"><i class="pi pi-ban"></i> خواندن داده ناموفق بود؛ endpoint ‎/api/pc13/bundle در دسترس نیست.</div>
+
+    <ng-container *ngIf="eng">
+      <!-- ───────── دامنه ───────── -->
+      <div class="wr__scope">
+        <div class="wr__row">
+          <div class="seg" role="group" aria-label="بازه">
+            <button type="button" class="chip" [class.chip--on]="weekMode === 'cur'" (click)="setWeek('cur')">هفته‌ی جاری</button>
+            <button type="button" class="chip" [class.chip--on]="weekMode === 'prev'" (click)="setWeek('prev')">هفته‌ی قبل</button>
+            <span class="chip chip--static" [class.chip--on]="weekMode === 'custom'">سفارشی</span>
+            <input type="date" class="wr__date" [(ngModel)]="customFrom" (change)="applyCustom()" title="از" />
+            <span class="wr__dim">تا</span>
+            <input type="date" class="wr__date" [(ngModel)]="customTo" (change)="applyCustom()" title="تا" />
+          </div>
+          <div class="seg" role="group" aria-label="حالت">
+            <button type="button" class="chip" [class.chip--on]="scope.mode === 'range'" (click)="setMode('range')"><i class="pi pi-align-justify"></i> بازه</button>
+            <button type="button" class="chip" [class.chip--on]="scope.mode === 'order'" (click)="setMode('order')"><i class="pi pi-bookmark"></i> یک سفارش</button>
+          </div>
+          <div class="seg seg--grow">
+            <p-dropdown [options]="orderOptions" [ngModel]="scope.mode === 'order' ? scope.woId : null" (onChange)="focusOrder($event.value, false)" [filter]="true"
+              filterBy="label" placeholder="جستجو و انتخاب دستور تولید…" styleClass="wr__dd" appendTo="body" [style]="{ width: '100%' }"></p-dropdown>
+          </div>
+        </div>
+        <div class="wr__row">
+          <div class="seg">
+            <span class="wr__dim">خط:</span>
+            <button type="button" class="chip" *ngFor="let l of lineChips" [class.chip--on]="scope.lines.includes(l.id)" (click)="toggleLine(l.id)">{{ l.label }}</button>
+          </div>
+          <div class="seg">
+            <span class="wr__dim">نوع:</span>
+            <button type="button" class="chip" *ngFor="let ty of typeChips" [class.chip--on]="scope.types.includes(ty.code)" (click)="toggleType(ty.code)">{{ ty.label }}</button>
+          </div>
+          <div class="seg">
+            <span class="wr__dim">مشتری:</span>
+            <button type="button" class="chip" *ngFor="let c of customers" [class.chip--on]="scope.customer === c" (click)="setCustomer(c)">{{ c }}</button>
+          </div>
+          <div class="seg">
+            <button type="button" class="chip chip--ghost" (click)="clearFilters()" title="همه‌ی فیلترها پاک شود"><i class="pi pi-filter-slash"></i></button>
+            <button type="button" class="chip chip--ghost" *ngIf="canBack" (click)="back()"><i class="pi pi-undo"></i> دامنه‌ی قبلی</button>
+          </div>
+        </div>
+        <div class="wr__crumb"><i class="pi pi-compass"></i> {{ breadcrumb }}</div>
+      </div>
+
+      <!-- ───────── ماشین زمان ───────── -->
+      <div class="wr__tm">
+        <gng-data-source-badge [source]="dsEvents"></gng-data-source-badge>
+        <gng-pc13-timeline [from]="scope.from" [to]="scope.to" [max]="tMax" [t]="t" [now]="now" [density]="density" [days]="dayMarks" [tLabel]="tLabel"
+          [isPast]="isPast" [playing]="playing" (seek)="seek($event)" (play)="play()" (pause)="pause()" (stop)="stopReplay()" (goNow)="goNow()"></gng-pc13-timeline>
+      </div>
+
+      <!-- ───────── ریل فضاها ───────── -->
+      <nav class="wr__rail">
+        <button type="button" [class.on]="space === 'week'" (click)="space = 'week'"><i class="pi pi-th-large"></i> تصویر هفته</button>
+        <button type="button" [class.on]="space === 'scen'" (click)="space = 'scen'"><i class="pi pi-question-circle"></i> سناریوها <b [class.hot]="lateCount > 0" title="دستورهای دیر طبق مدل">{{ faInt(lateCount) }}</b></button>
+        <button type="button" [class.on]="space === 'radar'" (click)="space = 'radar'"><i class="pi pi-bullseye"></i> رادار مشکلات <b class="hot">{{ faInt(problems.length) }}</b></button>
+        <button type="button" [class.on]="space === 'journey'" (click)="space = 'journey'"><i class="pi pi-directions"></i> مسیر سفارش <b *ngIf="focus">{{ focus.wo }}</b></button>
+        <button type="button" [class.on]="space === 'agenda'" (click)="space = 'agenda'"><i class="pi pi-list-check"></i> دستور جلسه <b>{{ faInt(agendaMinutes) }}′</b></button>
+        <span class="wr__rail-gap"></span>
+        <button type="button" class="present" (click)="present()"><i class="pi pi-desktop"></i> حالت ارائه</button>
+      </nav>
+
+      <!-- ═════════ ۱) تصویر هفته ═════════ -->
+      <section class="sp" *ngIf="space === 'week'">
+        <div class="tiles">
+          <gng-data-source-badge [source]="dsFacts"></gng-data-source-badge>
+          <div class="tile" *ngFor="let k of tiles" [ngClass]="'tile--' + k.tone" [pTooltip]="k.hint" tooltipPosition="bottom">
+            <div class="tile__l">{{ k.label }}</div>
+            <div class="tile__v">{{ k.value }} <small>{{ k.unit }}</small></div>
+            <div class="tile__s">{{ k.sub }}</div>
+            <div class="tile__d" [ngClass]="'tile__d--' + k.deltaTone">{{ k.delta }}<span *ngIf="k.deltaTone !== 'none'"> نسبت به دوره‌ی قبل</span></div>
+          </div>
+        </div>
+
+        <div class="ltiles">
+          <div class="ltile" *ngFor="let l of lineTiles" (click)="toggleLine(l.lineId)" title="کلیک: فیلتر روی این خط">
+            <div class="ring" [style.background]="'conic-gradient(' + ((l.avail || 0) < 85 ? '#ffb547' : '#3ddc84') + ' ' + (l.avail || 0) * 3.6 + 'deg, rgba(255,255,255,0.08) 0)'">
+              <span>{{ l.availLabel }}</span>
+            </div>
+            <div>
+              <div class="ltile__n">{{ l.line }}</div>
+              <div class="ltile__v">{{ l.earned }} <small>ساعت استاندارد</small></div>
+              <div class="ltile__s">{{ l.good }}</div>
+              <div class="ltile__s">کار {{ l.run }} · توقف {{ l.stop }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <gng-data-source-badge [source]="heatMetric === 'prod' ? dsEvents : dsDaily"></gng-data-source-badge>
+          <div class="panel__h">
+            <h3>خط × روز</h3>
+            <div class="seg">
+              <button type="button" class="chip" *ngFor="let m of heatMetrics" [class.chip--on]="heatMetric === m.value" (click)="setHeat(m.value)">{{ m.label }}</button>
+            </div>
+          </div>
+          <gng-pc13-heatmap [days]="heatDays" [rows]="heatRows" [color]="heatColor" (pick)="pickCell($event)"></gng-pc13-heatmap>
+          <div class="hint">
+            کلیک روی خانه دامنه را به همان روز و خط می‌برد (بازگشت با «دامنه‌ی قبلی»). «تولید» = ساعت استاندارد کسب‌شده از جریان رویداد تا لحظه‌ی نوار زمان؛ سایر سنجه‌ها از جمع
+            روزانه‌ی خط (فیلتر نوع و مشتری روی آن‌ها اثر ندارد). ضایعات = ضایعات ÷ (تکمیل + ضایعات) در گزارش‌های عملیات. هاشور = روز آینده.
+          </div>
+        </div>
+
+        <div class="panel">
+          <gng-data-source-badge [source]="dsEvents"></gng-data-source-badge>
+          <div class="panel__h">
+            <h3>DNA سفارش‌ها <small>— مرتب بر پایه‌ی ناهمواری هفته؛ کلیک = تمرکز روی دستور</small></h3>
+          </div>
+          <gng-pc13-dna [rows]="dnaRows" [days]="dayMarks" [t]="t" [playX]="playX" (pick)="focusOrder($event)"></gng-pc13-dna>
+          <div class="empty" *ngIf="!dnaRows.length">در این دامنه دستوری نیست.</div>
+        </div>
+      </section>
+
+      <!-- ═════════ ۲) سناریوها ═════════ -->
+      <section class="sp cards" *ngIf="space === 'scen'">
+        <!-- الف) آبشار -->
+        <article class="card">
+          <header class="card__q"><span class="card__tag">الف</span> چرا برنامه محقق نشد؟</header>
+          <gng-pc13-waterfall [steps]="steps"></gng-pc13-waterfall>
+          <p class="card__story">{{ wfNarrative }}</p>
+          <button type="button" class="card__drill" (click)="toggleDrill('wf')">{{ drill === 'wf' ? 'بستن جزئیات' : 'جزئیات' }}</button>
+          <table class="mini" *ngIf="drill === 'wf'">
+            <tr><th>دستور</th><th>ساعت استاندارد</th><th>پیشرفت تا t</th><th>وضعیت</th></tr>
+            <tr *ngFor="let o of wfOrders; trackBy: trackId" (click)="focusOrder(o.id)" class="click">
+              <td class="mono">{{ o.wo }}</td><td>{{ o.std }}</td><td><span class="bar"><i [style.width.%]="o.progress"></i></span> {{ faPct(o.progress, 0) }}</td><td>{{ o.status }}</td>
+            </tr>
+          </table>
+        </article>
+
+        <!-- ب) ماتریس خطر -->
+        <article class="card">
+          <gng-data-source-badge [source]="dsFacts"></gng-data-source-badge>
+          <header class="card__q"><span class="card__tag">ب</span> تحویل کدام سفارش در خطر است؟</header>
+          <gng-pc13-risk [points]="risk" (pick)="focusOrder($event)"></gng-pc13-risk>
+          <p class="card__story">{{ riskNarrative }}</p>
+          <div class="hint">افقی: حاشیه تا سررسید (راست = دیر، مقیاس ریشه‌ی دوم) · عمودی: درصد کار مانده · اندازه: حجم کار به ساعت استاندارد. پیش‌بینی با مدل ساده‌ی «اگر…» (پایه).</div>
+          <button type="button" class="card__drill" (click)="toggleDrill('risk')">{{ drill === 'risk' ? 'بستن جزئیات' : 'جزئیات' }}</button>
+          <table class="mini" *ngIf="drill === 'risk'">
+            <tr><th>دستور</th><th>سررسید</th><th>پیش‌بینی مدل</th><th>پیش‌بینی سامانه</th><th>حاشیه</th></tr>
+            <tr *ngFor="let r of base; trackBy: trackId" [class.late]="r.late" (click)="focusOrder(r.id)" class="click" [title]="r.reasons.join(' · ')">
+              <td class="mono">{{ r.wo }}</td><td>{{ faDMT(r.due) }}</td><td>{{ faDMT(r.end) }}</td><td>{{ faDMT(r.api) }}</td><td>{{ faHours(r.slackH) }}</td>
+            </tr>
+          </table>
+        </article>
+
+        <!-- ج) هزینه‌ی کیفیت -->
+        <article class="card" *ngIf="copq as q">
+          <gng-data-source-badge [source]="dsCopq"></gng-data-source-badge>
+          <header class="card__q"><span class="card__tag">ج</span> کیفیت چقدر هزینه داشت؟</header>
+          <div class="seg seg--sm">
+            <button type="button" class="chip" [class.chip--on]="copqBy === 'reason'" (click)="setCopqBy('reason')">علت</button>
+            <button type="button" class="chip" [class.chip--on]="copqBy === 'line'" (click)="setCopqBy('line')">خط</button>
+            <button type="button" class="chip" [class.chip--on]="copqBy === 'type'" (click)="setCopqBy('type')">نوع</button>
+          </div>
+          <div class="hbars">
+            <div class="hbar" *ngFor="let b of q.bars.slice(0, 7)" [title]="'خالص ' + faMoney(b.net) + ' · ' + faInt(b.cases) + ' مورد'">
+              <span class="hbar__k">{{ b.key }}</span>
+              <span class="hbar__t"><i [style.width.%]="b.pct"></i><em [style.width.%]="b.netPct"></em></span>
+              <span class="hbar__v">{{ b.costLabel }}</span>
+            </div>
+          </div>
+          <div class="trend">
+            <div class="trend__c" *ngFor="let d of q.days" [title]="d.label + ': ' + faMoney(d.v)"><i [style.height.%]="d.pct"></i><span>{{ d.label }}</span></div>
+            <div class="trend__c trend__c--nd" *ngIf="q.undated" [title]="'بدون تاریخ تصمیم: ' + faMoney(q.undated)"><i [style.height.%]="q.undatedPct"></i><span>بی‌تاریخ</span></div>
+          </div>
+          <div class="kv">
+            <span>کل <b>{{ faMoney(q.total) }}</b></span><span>بازیافت <b>{{ faMoney(q.recovered) }}</b></span><span>جریمه <b>{{ faMoney(q.penalty) }}</b></span>
+            <span class="kv--hot">تصمیم معوق <b>{{ faInt(q.pending.length) }} · {{ faMoney(q.pendingCost) }}</b></span>
+          </div>
+          <p class="card__story">{{ q.narrative }}</p>
+          <button type="button" class="card__drill" (click)="toggleDrill('copq')">{{ drill === 'copq' ? 'بستن جزئیات' : 'تصمیم‌های معوق' }}</button>
+          <table class="mini" *ngIf="drill === 'copq'">
+            <tr><th>شماره</th><th>دستور</th><th>نوع</th><th>مقدار</th><th>ارزش</th></tr>
+            <tr *ngFor="let d of q.pending" (click)="focusOrder(d.woId)" class="click hot" [title]="d.reason + (d.description ? ' — ' + d.description : '')">
+              <td class="mono">{{ d.number }}</td><td class="mono">{{ d.wo }}</td><td>{{ ncType[d.ncType] }}</td><td>{{ faNum(d.qty) }} {{ d.unit }}</td><td>{{ faMoney(d.cost + d.penalty) }}</td>
+            </tr>
+          </table>
+        </article>
+
+        <!-- د) مواد -->
+        <article class="card" *ngIf="mat as m">
+          <gng-data-source-badge [source]="dsVariance"></gng-data-source-badge>
+          <header class="card__q"><span class="card__tag">د</span> مواد کجا گیر کرد؟</header>
+          <div class="sub">کسری مواد</div>
+          <div class="item" *ngFor="let g of m.gates" (click)="focusOrder(g.woId)" [class.item--hot]="g.short > 0">
+            <b class="mono">{{ g.wo }}</b> {{ g.product }} — کم {{ faNum(g.short, 1) }} از {{ faNum(g.need, 1) }} {{ g.unit }}
+            <span class="pill" [class.pill--warn]="g.projected">{{ g.projected ? 'پیش‌بینی‌شده' : 'ثبت‌شده' }}</span>
+            <span class="pill">رسیدن {{ faDM(g.arrival) }}</span>
+          </div>
+          <div class="sub">مصرف خارج از محدوده</div>
+          <div class="item" *ngFor="let v of m.variance" (click)="focusOrder(v.woId)">
+            <b class="mono">{{ v.wo }}</b> {{ v.product }} — <span [class.up]="v.over" [class.down]="!v.over">{{ v.label }}</span>
+          </div>
+          <div class="sub">مازاد و برگشت</div>
+          <div class="item" *ngFor="let e of m.excess" (click)="focusOrder(e.woId)"><b class="mono">{{ e.wo }}</b> {{ e.title.split(' — ')[1] }} · {{ e.detail }} · {{ faDMT(e.t) }}</div>
+          <div class="item" *ngFor="let r of m.unreturned"><b class="mono">{{ r.wo }}</b> {{ faInt(r.excessNotReturned) }} قلم مازاد برنگشته — مانع بستن</div>
+          <div class="sub">مغایرت رسید</div>
+          <div class="item" *ngFor="let r of m.recon" (click)="focusOrder(r.woId)"><b class="mono">{{ r.wo }}</b> {{ r.what }} <small>{{ r.detail }}</small></div>
+          <p class="card__story">{{ m.narrative }}</p>
+        </article>
+
+        <!-- هـ) بیرون از کارخانه -->
+        <article class="card" *ngIf="out as o">
+          <header class="card__q"><span class="card__tag">هـ</span> بیرون از کارخانه</header>
+          <div class="ext" *ngFor="let s of o.subs">
+            <div class="ext__h"><b>{{ s.contractor }}</b> · <span class="mono">{{ s.wo }}</span> {{ s.opTitle }}
+              <span class="pill" [class.pill--hot]="s.delayDays > 0">{{ s.delayDays > 0 ? faInt(s.delayDays) + ' روز تأخیر' : 'به‌موقع' }}</span></div>
+            <div class="ext__bar"><span>پیشرفت اعلامی</span><span class="bar bar--wide"><i [style.width.%]="s.pct"></i></span><span>{{ faPct(s.pct, 0) }}</span></div>
+            <div class="ext__bar"><span>برگشته‌ی سالم</span><span class="bar bar--wide bar--ok"><i [style.width.%]="s.recvPct"></i></span><span>{{ faPct(s.recvPct, 0) }}</span></div>
+            <div class="kv">
+              <span>ارسال <b>{{ faDM(s.sentAt) }}</b></span><span>بازگشت قراردادی <b>{{ faDM(s.expectedReturn) }}</b></span><span>آمادگی <b>{{ faDM(s.expectedReady) }}</b></span>
+              <span>کارمزد <b>{{ faMoney(s.feePayable) }}</b></span>
+            </div>
+            <div class="item item--hot" *ngIf="s.gapLabel">{{ s.gapLabel }}</div>
+            <div class="item item--hot" *ngFor="let d of s.drops">{{ d }}</div>
+            <div class="ctr"><span *ngFor="let c of s.ctr">{{ c.t }} · {{ c.qty }}{{ c.detail ? ' — ' + c.detail : '' }}</span></div>
+          </div>
+          <div class="sub" *ngIf="o.toll.length">کارمزدی دریافتی</div>
+          <div class="item" *ngFor="let x of o.toll" (click)="focusOrder(x.id)" [class.item--hot]="x.pending > 0">
+            <b class="mono">{{ x.wo }}</b> {{ x.customer }} — {{ faInt(x.pending) }} تصمیم معوق ({{ faNum(x.pendingQty) }} {{ x.unit }}) · تأخیر سامانه {{ faHours(x.delay / 60) }}
+          </div>
+          <p class="card__story">{{ o.narrative }}</p>
+        </article>
+
+        <!-- و) اگر… -->
+        <article class="card card--wide">
+          <header class="card__q"><span class="card__tag">و</span> اگر…؟ <small [pTooltip]="whatIfFormula" tooltipPosition="bottom"><i class="pi pi-info-circle"></i> مدل</small></header>
+          <div class="wi">
+            <div class="wi__ctl">
+              <label class="wi__row">
+                <span>پانچ/توقف باز در <b>{{ faInt(wi.repairH) }}</b> ساعت رفع شود</span>
+                <input type="range" min="0" max="24" step="1" [ngModel]="wi.repairH" (ngModelChange)="setWi({ repairH: $event * 1 })" />
+              </label>
+              <div class="wi__row" *ngFor="let l of lineChips">
+                <span>نرخ {{ l.label }} <b>{{ faInt(wi.rates[l.id] || 0) }}٪</b></span>
+                <input type="range" min="-30" max="30" step="5" [ngModel]="wi.rates[l.id] || 0" (ngModelChange)="setRate(l.id, $event)" />
+                <label class="wi__chk"><input type="checkbox" [ngModel]="!!wi.extraShift[l.id]" (ngModelChange)="setShift(l.id, $event)" /> شیفت اضافه</label>
+              </div>
+              <label class="wi__row">
+                <span>انتظار هر تصمیم معوق <b>{{ faInt(wi.decisionWaitH) }}</b> ساعت</span>
+                <input type="range" min="0" max="8" step="1" [ngModel]="wi.decisionWaitH" (ngModelChange)="setWi({ decisionWaitH: $event * 1 })" />
+              </label>
+              <label class="wi__chk"><input type="checkbox" [ngModel]="wi.approveAll" (ngModelChange)="setWi({ approveAll: $event })" /> همه‌ی تصمیم‌های معوق امروز گرفته شود</label>
+              <label class="wi__chk"><input type="checkbox" [ngModel]="wi.materialGate" (ngModelChange)="setWi({ materialGate: $event })" /> قید رسیدن مواد کسری</label>
+              <button type="button" class="chip chip--ghost" (click)="resetWi()"><i class="pi pi-refresh"></i> بازگشت به پایه</button>
+              <div class="hint">پایه: رفع توقف ۲ ساعت، نرخ اسمی، بدون شیفت اضافه، انتظار تصمیم ۱ ساعت، قید مواد فعال. شیفت اضافه = ۵۰٪ ظرفیت بیشتر.</div>
+            </div>
+            <div class="wi__out">
+              <div class="wi__chips">
+                <span class="dchip dchip--good">نجات‌یافته {{ faInt(wiSaved) }}</span>
+                <span class="dchip dchip--bad">تازه دیرشده {{ faInt(wiBroken) }}</span>
+              </div>
+              <table class="mini">
+                <tr><th>دستور</th><th>سررسید</th><th>پیش از</th><th>پس از</th><th>تغییر</th><th></th></tr>
+                <tr *ngFor="let r of wiRows; trackBy: trackId" [class.late]="r.lateAfter" [class.flip-good]="r.flip === 'saved'" [class.flip-bad]="r.flip === 'broken'"
+                  [title]="r.reasons" (click)="focusOrder(r.id)" class="click">
+                  <td class="mono">{{ r.wo }}</td><td>{{ r.due }}</td><td>{{ r.before }}</td><td>{{ r.after }}</td>
+                  <td><span class="dchip" [class.dchip--good]="r.deltaH < -0.05" [class.dchip--bad]="r.deltaH > 0.05">{{ r.deltaLabel }}</span></td>
+                  <td>{{ r.flip === 'saved' ? '✓ به‌موقع' : r.flip === 'broken' ? '✗ دیر' : r.lateAfter ? 'دیر' : '' }}</td>
+                </tr>
+              </table>
+              <p class="card__story">{{ wiNarrative }}</p>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- ═════════ ۳) رادار مشکلات ═════════ -->
+      <section class="sp radar" *ngIf="space === 'radar'">
+        <div class="panel radar__plot">
+          <gng-data-source-badge [source]="dsAlerts"></gng-data-source-badge>
+          <gng-pc13-radar [problems]="problems" [selected]="selKey" (pick)="pickProblem($event)"></gng-pc13-radar>
+          <div class="legend">
+            <span *ngFor="let a of groupsLegend"><i [style.background]="a.color"></i>{{ a.label }}</span>
+          </div>
+          <div class="hint">مرکز = اثر بیشتر · زاویه درون قطاع = سن مشکل · اندازه = پول درگیر · حلقه‌ی خط‌چین = بحرانی. کسری مواد و خطر تحویل عکس لحظه‌ی اکنون‌اند و در گذشته‌ی نوار زمان نمایش داده نمی‌شوند.<br />{{ impactFormula }}</div>
+        </div>
+        <div class="panel radar__list">
+          <div class="panel__h">
+            <h3>{{ faInt(problems.length) }} مشکل تا {{ faDMT(t) }}</h3>
+            <div class="seg seg--sm">
+              <span class="wr__dim">گروه:</span>
+              <button type="button" class="chip" [class.chip--on]="groupBy === 'area'" (click)="setGroup('area')">حوزه</button>
+              <button type="button" class="chip" [class.chip--on]="groupBy === 'line'" (click)="setGroup('line')">خط</button>
+              <button type="button" class="chip" [class.chip--on]="groupBy === 'order'" (click)="setGroup('order')">سفارش</button>
+              <button type="button" class="chip" [class.chip--on]="groupBy === 'owner'" (click)="setGroup('owner')">مسئول</button>
+            </div>
+          </div>
+          <div class="grp" *ngFor="let g of groups">
+            <div class="grp__h">{{ g.title }} <span>{{ faInt(g.items.length) }} مورد · اثر {{ faInt(g.score) }}</span></div>
+            <ng-container *ngFor="let p of g.items; trackBy: trackKey">
+              <div class="prob" [class.prob--on]="p.key === selKey" [ngClass]="'prob--' + severityTone(p.sev)" (click)="pickProblem(p.key)">
+                <span class="prob__score" [pTooltip]="p.scoreTip" tooltipPosition="left">{{ faInt(p.score) }}</span>
+                <span class="prob__t">{{ p.title }}</span>
+                <span class="prob__tag" [style.border-color]="areaColor[p.area]">{{ areaLabel[p.area] }} · {{ m6Label[p.m6] }}</span>
+                <span class="prob__o">{{ p.owner }}</span>
+              </div>
+              <div class="prob__x" *ngIf="p.key === selKey">
+                <p>{{ p.story }}</p>
+                <div class="prob__dec"><b>پیشنهاد تصمیم:</b> {{ p.decision }}</div>
+                <div class="prob__meta">منبع: {{ p.source }} · از {{ faDMT(p.raisedAt) }} ({{ faHours(p.ageH) }}) · {{ p.scoreTip }}{{ p.escalated ? ' · تشدیدشده' : '' }}</div>
+                <div class="ev" *ngFor="let e of p.evidence"><span class="ev__k">{{ kindLabel[e.kind] }}</span> {{ faDMT(e.t) }} — {{ e.title }}<small *ngIf="e.detail"> · {{ e.detail }}</small></div>
+                <button type="button" class="chip" *ngIf="p.woId !== null" (click)="focusOrder(p.woId)"><i class="pi pi-directions"></i> مسیر {{ p.wo }}</button>
+              </div>
+            </ng-container>
+          </div>
+          <div class="empty" *ngIf="!problems.length">در این دامنه و تا این لحظه مشکلی ثبت نشده است.</div>
+        </div>
+      </section>
+
+      <!-- ═════════ ۴) مسیر سفارش ═════════ -->
+      <section class="sp" *ngIf="space === 'journey'">
+        <ng-container *ngIf="focus as f; else pickHint">
+          <div class="panel jhead">
+            <div class="jhead__id"><b class="mono">{{ f.wo }}</b><span>{{ f.title }}</span></div>
+            <div class="kv">
+              <span>{{ woType[f.type] }} · {{ woStatus[f.status] }} · اولویت {{ priority[f.priority] }}</span>
+              <span>{{ shortLine(f.line) }}</span><span><b>{{ faNum(f.qty) }}</b> {{ f.unit }}</span><span *ngIf="f.customer">{{ f.customer }}</span>
+              <span>سررسید <b>{{ faDMT(f.due) }}</b></span>
+              <span *ngIf="focusForecast as fr" [class.kv--hot]="fr.late">پیش‌بینی <b>{{ faDMT(fr.end) }}</b> ({{ fr.late ? 'دیر ' + faHours(-fr.slackH) : 'حاشیه ' + faHours(fr.slackH) }})</span>
+            </div>
+            <button type="button" class="chip chip--ghost" (click)="setMode('range')"><i class="pi pi-arrow-right"></i> بازگشت به بازه</button>
+          </div>
+          <div class="panel">
+            <gng-data-source-badge [source]="dsEvents"></gng-data-source-badge>
+            <gng-pc13-journey [view]="journey"></gng-pc13-journey>
+          </div>
+          <div class="cols2">
+            <div class="panel story">
+              <h3>روایت هفته‌ی سفارش <small>(خودکار، تا {{ faDMT(t) }})</small></h3>
+              <p *ngFor="let s of story">{{ s }}</p>
+            </div>
+            <div class="panel" *ngIf="related as r">
+              <h3>سفارش‌ها و درخواست‌های مرتبط</h3>
+              <div class="item" *ngIf="r.parent" (click)="focusOrder(r.parent.id)">← والد: <b class="mono">{{ r.parent.wo }}</b> {{ r.parent.title }}</div>
+              <div class="item" *ngFor="let c of r.children" (click)="focusOrder(c.id)">→ {{ woType[c.type] }}: <b class="mono">{{ c.wo }}</b> {{ c.title }} · {{ woStatus[c.status] }}</div>
+              <div class="item" *ngFor="let q of r.requests">درخواست <b class="mono">{{ q.number }}</b> {{ q.text }}</div>
+              <div class="empty" *ngIf="!r.parent && !r.children.length && !r.requests.length">ارتباطی ثبت نشده است.</div>
+            </div>
+          </div>
+        </ng-container>
+        <ng-template #pickHint>
+          <div class="panel">
+            <h3>یک سفارش را برای دیدن مسیرش انتخاب کنید</h3>
+            <p class="hint">از فهرست بالا، DNA، ماتریس خطر یا رادار — یا یکی از دستورهای پرمشکل این دامنه:</p>
+            <div class="hotgrid">
+              <button type="button" class="hotcard" *ngFor="let h of hotOrders; trackBy: trackId" (click)="focusOrder(h.id)">
+                <b class="mono">{{ h.wo }}</b><span>{{ h.title }}</span><em>{{ faInt(h.count) }} مشکل · اثر {{ faInt(h.score) }}</em><small>{{ h.top }}</small>
+              </button>
+            </div>
+          </div>
+        </ng-template>
+      </section>
+
+      <!-- ═════════ ۵) دستور جلسه ═════════ -->
+      <section class="sp" *ngIf="space === 'agenda'">
+        <div class="panel agh">
+          <div>
+            <h3>دستور جلسه‌ی کنترل تولید — {{ rangeLabel }}</h3>
+            <div class="hint">خودکار از داده‌ی دامنه؛ {{ faInt(agenda.length) }} بند در {{ faInt(agendaMinutes) }} دقیقه. <span class="draft">پیش‌نویس محلی؛ ثبت رسمی در فاز ویرایش</span></div>
+          </div>
+          <div class="seg">
+            <button type="button" class="chip chip--on" (click)="present()"><i class="pi pi-desktop"></i> ارائه</button>
+            <button type="button" class="chip" (click)="printMinutes()"><i class="pi pi-print"></i> چاپ صورت‌جلسه</button>
+          </div>
+        </div>
+        <div class="ag" *ngFor="let it of agenda">
+          <div class="ag__no">{{ faInt(it.no) }}</div>
+          <div class="ag__main">
+            <div class="ag__h"><b>{{ it.title }}</b><span class="pill">{{ faInt(it.minutes) }} دقیقه</span></div>
+            <ul>
+              <li *ngFor="let l of it.lines" [ngClass]="'ln--' + l.tone" [class.click]="l.woId !== null" (click)="focusOrder(l.woId)">
+                {{ l.text }}<small *ngIf="l.meta">{{ l.meta }}</small>
+              </li>
+              <li *ngIf="!it.lines.length" class="ln--muted">{{ it.empty }}</li>
+            </ul>
+            <textarea class="ag__note" rows="2" [ngModel]="notes[it.id] || ''" (ngModelChange)="setNote(it.id, $event)" placeholder="یادداشت / تصمیم این بند (فقط در همین مرورگر ذخیره می‌شود)"></textarea>
+          </div>
+        </div>
+      </section>
+    </ng-container>
+
+    <div class="gng-note gng-note--info wr__todo">
+      <strong>هنوز پیاده نشده.</strong> ارسال صورت‌جلسه به مشارکان، ثبت تصمیم‌ها و اقدام‌ها در سامانه (یادداشت‌ها فعلاً فقط در localStorage مرورگر)، زمان‌بندی جلسه، و مقایسه‌ی
+      هفته‌های دلخواه بیرون از بازه‌ی داده با فاز ایجاد/ویرایش می‌آید.
+    </div>
+  </div>
+
+  <gng-pc13-minutes [doc]="minutesDoc"></gng-pc13-minutes>
+  <gng-pc13-deck *ngIf="deckOpen" [items]="agenda" [tiles]="tiles" [steps]="steps" [risk]="risk" [problems]="topProblems" [notes]="notes" [scopeLabel]="breadcrumb"
+    (close)="deckOpen = false"></gng-pc13-deck>
+</gng-opform-layout>

@@ -1,0 +1,297 @@
+<gng-opform-layout
+  domainTitle="مهندسی محصول"
+  title="ساختار محصول"
+  code="FRM-PE-02"
+  formTypeLabel="فرم اطلاعات پایه"
+  owner="مهندسی محصول / R&D"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-sitemap"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="ساختارها"
+  contextPanelHint="ساختارها به تفکیک محصول؛ ★ ساختار پیش‌فرض است. الگوها جدا آمده‌اند."
+  auditFeatureRange="F-PE-009 تا F-PE-024، F-PE-068 (فاز اول)"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-copy" label="کپی ساختار" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-clone" label="ایجاد از الگو" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-arrow-right-arrow-left" label="تبدیل نوع ساختار" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-file-excel" label="خروجی اکسل" class="p-button-outlined p-button-sm" [disabled]="!detail" (click)="exportExcel()"></button>
+    <button pButton type="button" icon="pi pi-upload" label="ورود از اکسل" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-send" label="ارسال به گردش تأیید" class="p-button-sm p-button-success"></button>
+    <button pButton type="button" icon="pi pi-check" label="ذخیره" class="p-button-sm"></button>
+  </ng-container>
+
+  <p-tabView styleClass="gng-tabs" [class.gng-loading]="loading" *ngIf="selected">
+    <!-- ───────── اطلاعات کلی ───────── -->
+    <p-tabPanel header="اطلاعات کلی">
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pe02-structures', 'سربرگ ساختار')"></gng-data-source-badge>
+        <div class="gng-field-grid">
+          <div class="gng-field"><span class="gng-field__label">کد و عنوان</span><span class="gng-field__value">{{ selected.code }} — {{ selected.title }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">محصول</span><span class="gng-field__value">{{ selected.product }}</span></div>
+          <div class="gng-field">
+            <span class="gng-field__label">نوع ساختار</span>
+            <span class="gng-field__value">{{ typeLabel(selected.typeCode) }} <p-tag *ngIf="selected.isDefault" value="پیش‌فرض" severity="success" styleClass="gng-mr-sm"></p-tag></span>
+          </div>
+          <div class="gng-field">
+            <span class="gng-field__label">وضعیت</span>
+            <span class="gng-field__value"><p-tag [value]="status(selected.statusCode).label" [severity]="status(selected.statusCode).tone"></p-tag></span>
+          </div>
+          <div class="gng-field"><span class="gng-field__label">قالب (پروفایل)</span><span class="gng-field__value">{{ selected.profile }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">گروه ساختار</span><span class="gng-field__value">{{ selected.group }}</span></div>
+          <div class="gng-field">
+            <span class="gng-field__label">اندازه‌ی مرجع</span>
+            <span class="gng-field__value">{{ selected.baseQuantity !== null ? fa(selected.baseQuantity) + ' ' + selected.productUnit : '—' }}</span>
+          </div>
+          <div class="gng-field"><span class="gng-field__label">محدوده‌ی مجاز بچ</span><span class="gng-field__value">{{ selected.batchRange }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">نسخه‌ی جاری</span><span class="gng-field__value">{{ selected.revisionCode }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">اعتبار ساختار</span><span class="gng-field__value">{{ selected.validity }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">شماره‌ی پروانه</span><span class="gng-field__value">{{ selected.license }}</span></div>
+          <div class="gng-field">
+            <span class="gng-field__label">ایجادشده از الگو</span>
+            <span class="gng-field__value">{{ selected.template || (selected.isTemplate ? fa(selected.childCount) + ' ساختار از این الگو ارث می‌برند' : '—') }}</span>
+          </div>
+          <div class="gng-field"><span class="gng-field__label">جمع درصد بیش از ۱۰۰٪</span><span class="gng-field__value">{{ selected.allowOver100 ? 'مجاز' : 'مجاز نیست' }}</span></div>
+          <div class="gng-field"><span class="gng-field__label">سفارش‌محور</span><span class="gng-field__value">{{ selected.byOrder ? 'بله' : 'خیر' }}</span></div>
+        </div>
+      </div>
+      <p *ngIf="selected.description" class="gng-hint gng-mt-sm">{{ selected.description }}</p>
+
+      <h3 class="gng-section-title">دامنه‌ی اعتبار سازمانی</h3>
+      <p class="gng-hint">ساختار فقط در این واحدها قابل استفاده است — دامنه‌ی اعتبار، نه سطح دسترسی (PF-20).</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pe02-scopes', 'دامنه‌ی اعتبار')"></gng-data-source-badge>
+        <p-table [value]="detail?.scopes ?? []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th style="width: 8rem">سطح</th><th>واحد</th><th style="width: 12rem">اعتبار</th><th>شرح</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-sc>
+            <tr><td>{{ sc.level }}</td><td>{{ sc.title }}</td><td>{{ sc.validity }}</td><td>{{ sc.description }}</td></tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="4" class="gng-empty">دامنه‌ای ثبت نشده؛ در همه‌ی واحدها معتبر است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+
+      <h3 class="gng-section-title">نوع ساختار و تبدیل</h3>
+      <p class="gng-hint">تبدیل مستقیم نوع ممنوع است؛ هر تبدیل یک درخواست با تأیید است. ساختار تولیدی تبدیل نمی‌شود و تغییرش نسخه‌ی تازه است.</p>
+      <div class="gng-columns">
+        <div>
+          <p-table [value]="detail?.transitions ?? []" styleClass="p-datatable-sm gng-table">
+            <ng-template pTemplate="header"><tr><th>تبدیل مجاز</th><th>تأیید لازم</th></tr></ng-template>
+            <ng-template pTemplate="body" let-t>
+              <tr [class.gng-text-muted]="!t.fromCurrent">
+                <td>{{ t.from }} ← {{ t.to }} <p-tag *ngIf="t.fromCurrent" value="برای این ساختار" severity="info" styleClass="gng-mr-sm"></p-tag></td>
+                <td>{{ t.approval }}</td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+        <div style="position: relative">
+          <gng-data-source-badge [source]="ds('pe02-type-changes', 'سابقه‌ی تبدیل نوع')"></gng-data-source-badge>
+          <p-table [value]="detail?.typeChanges ?? []" styleClass="p-datatable-sm gng-table">
+            <ng-template pTemplate="header"><tr><th>تبدیل</th><th>درخواست</th><th>وضعیت</th><th>تأییدکنندگان</th></tr></ng-template>
+            <ng-template pTemplate="body" let-t>
+              <tr>
+                <td>{{ t.from }} ← {{ t.to }}<div class="gng-text-muted gng-small">{{ t.description }}</div></td>
+                <td>{{ t.requested }}</td>
+                <td><p-tag [value]="t.status" [severity]="t.statusTone"></p-tag></td>
+                <td>{{ t.approvers }}</td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr><td colspan="4" class="gng-empty">درخواست تبدیلی ثبت نشده است.</td></tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── ردیف‌های مصرفی ───────── -->
+    <p-tabPanel header="ردیف‌های مصرفی" [selected]="true">
+      <div class="gng-window">
+        <span>نسخه‌ی <strong>{{ viewedRevisionCode }}</strong></span>
+        <span *ngIf="revisionId !== null" class="gng-sym--warn gng-small">— نسخه‌ی غیرجاری</span>
+        <button *ngIf="revisionId !== null" pButton type="button" label="بازگشت به نسخه‌ی جاری" class="p-button-text p-button-sm" (click)="viewRevision(0, true)"></button>
+        <span class="gng-text-muted gng-small" *ngIf="selected.baseQuantity !== null">
+          مقادیر برای اندازه‌ی مرجع {{ fa(selected.baseQuantity) }} {{ selected.productUnit }}
+        </span>
+      </div>
+
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pe02-items', 'ردیف‌های مصرفی')"></gng-data-source-badge>
+        <p-table [value]="detail?.items ?? []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 3.5rem">ردیف</th>
+              <th>قلم مصرفی</th>
+              <th style="width: 7rem">نقش</th>
+              <th style="width: 10rem">مقدار تعریف‌شده</th>
+              <th style="width: 9rem">در اندازه‌ی مرجع</th>
+              <th style="width: 7rem">ضایعات</th>
+              <th style="width: 8rem">محدوده‌ی مصرف</th>
+              <th>عیار / واحد مصرف</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-i>
+            <tr>
+              <td>{{ fa(i.seq) }}</td>
+              <td>
+                {{ i.product }}
+                <p-tag *ngIf="i.source !== 'own'" [value]="source(i.source).label" [severity]="source(i.source).tone" styleClass="gng-mr-sm" [title]="i.sourceCode"></p-tag>
+                <p-tag *ngIf="i.isPhantom" value="فانتوم" severity="secondary" styleClass="gng-mr-sm"></p-tag>
+                <p-tag *ngIf="i.isActive" value="ماده‌ی مؤثره" severity="success" styleClass="gng-mr-sm"></p-tag>
+                <div *ngIf="i.description" class="gng-text-muted gng-small">{{ i.description }}</div>
+              </td>
+              <td>{{ i.role }}</td>
+              <td>{{ i.defined }}<div class="gng-text-muted gng-small">{{ i.quantityType }}</div></td>
+              <td>{{ i.atBase }}</td>
+              <td>{{ i.waste }}</td>
+              <td>{{ i.range }}</td>
+              <td>
+                <div *ngIf="i.assay" class="gng-small">{{ i.assay }}</div>
+                <div *ngIf="i.unitConversion !== '—'" class="gng-small">{{ i.unitConversion }}</div>
+                <span *ngIf="!i.assay && i.unitConversion === '—'" class="gng-text-muted">—</span>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="8" class="gng-empty">ردیف مصرفی ثبت نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+
+      <ng-container *ngIf="detail?.percent?.applies">
+        <h3 class="gng-section-title">ترکیب درصدی</h3>
+        <div class="gng-note gng-mb-sm" [ngClass]="'gng-note--' + (detail!.percent.tone === 'secondary' ? 'info' : detail!.percent.tone)">{{ detail!.percent.text }}</div>
+        <div class="gng-stack-bar">
+          <ng-container *ngFor="let i of detail!.items; let n = index">
+            <div *ngIf="i.percent !== null && i.percent > 0" [ngClass]="'gng-stack-bar__seg--' + 'abcde'[n % 5]" [style.width.%]="percentWidth(i.percent)" [title]="i.product + ' — ' + fa(i.percent) + '٪'"></div>
+          </ng-container>
+        </div>
+        <div class="gng-stack-legend">
+          <ng-container *ngFor="let i of detail!.items; let n = index">
+            <span *ngIf="i.percent !== null && i.percent > 0"><i class="pi pi-stop gng-legend-dot" [ngClass]="'gng-stack-bar__seg--' + 'abcde'[n % 5]"></i>{{ i.product.split(' — ')[1] }} {{ fa(i.percent) }}٪{{ i.isQs ? ' (q.s.)' : '' }}</span>
+          </ng-container>
+        </div>
+      </ng-container>
+
+      <ng-container *ngIf="detail?.removed?.length">
+        <h3 class="gng-section-title">ردیف‌های الگو که در این ساختار حذف شده‌اند</h3>
+        <p-table [value]="detail!.removed" styleClass="p-datatable-sm gng-table">
+          <ng-template pTemplate="body" let-i>
+            <tr class="gng-text-muted"><td>{{ i.product }}</td><td>{{ i.description }}</td></tr>
+          </ng-template>
+        </p-table>
+      </ng-container>
+
+      <div class="gng-note gng-note--info gng-mt">
+        <strong>q.s.</strong> («به مقدار کافی») باقی‌مانده‌ی جمع درصد را پر می‌کند. ردیف عیارمحور مقدار نظری دارد؛ مقدار واقعی هنگام تخصیص بچ از روی
+        عیار همان بچ حساب می‌شود و تفاوتش از قلم جبران‌کننده کم می‌شود.
+        <strong>هنوز پیاده نشده:</strong> قلم اختیاری/مشروط (F-PE-025) و مصرف منفی (F-PE-026) — هر دو «مهم»، فاز ۳.
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── نسخه و اعتبار ───────── -->
+    <p-tabPanel header="نسخه و اعتبار">
+      <p class="gng-hint">هر نسخه ردیف‌های خودش را دارد و اعتبارش تاریخ‌محور، بچ‌محور یا سفارش‌محور است. با «مشاهده» ردیف‌های همان نسخه در برگه‌ی ردیف‌ها می‌آید.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pe02-revisions', 'نسخه‌ها')"></gng-data-source-badge>
+        <p-table [value]="detail?.revisions ?? []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 5rem">نسخه</th>
+              <th style="width: 7rem">وضعیت</th>
+              <th style="width: 7rem">نوع اعتبار</th>
+              <th style="width: 13rem">دامنه‌ی اعتبار</th>
+              <th>تأییدکننده / ECO</th>
+              <th>شرح</th>
+              <th style="width: 7rem"></th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr>
+              <td><strong>{{ r.code }}</strong> <p-tag *ngIf="r.isCurrent" value="جاری" severity="success" styleClass="gng-mr-sm"></p-tag></td>
+              <td><p-tag [value]="r.status" [severity]="r.statusTone"></p-tag></td>
+              <td>{{ r.effectivity }}</td>
+              <td>{{ r.range }}</td>
+              <td>{{ r.approver }}<div class="gng-text-muted gng-small">{{ r.eco }}</div></td>
+              <td>{{ r.description }}</td>
+              <td>
+                <button pButton type="button" icon="pi pi-eye" label="مشاهده" class="p-button-text p-button-sm"
+                  [disabled]="(r.isCurrent && revisionId === null) || revisionId === r.revisionId" (click)="viewRevision(r.revisionId, r.isCurrent)"></button>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+
+      <h3 class="gng-section-title">مقایسه‌ی دو نسخه یا دو ساختار</h3>
+      <div class="gng-window">
+        <p-dropdown [options]="diffOptions" [(ngModel)]="diffLeft" placeholder="سمت قدیم" styleClass="gng-diff-pick"></p-dropdown>
+        <i class="pi pi-arrow-left"></i>
+        <p-dropdown [options]="diffOptions" [(ngModel)]="diffRight" placeholder="سمت جدید" styleClass="gng-diff-pick"></p-dropdown>
+        <button pButton type="button" icon="pi pi-sync" label="مقایسه" class="p-button-sm" [disabled]="!diffLeft || !diffRight || diffLeft === diffRight" [loading]="diffLoading" (click)="runDiff()"></button>
+        <span *ngIf="diffRows" class="gng-text-muted gng-small">{{ diffSummary }}</span>
+      </div>
+      <div style="position: relative" *ngIf="diffRows">
+        <gng-data-source-badge [source]="ds('pe02-diff', 'مقایسه')"></gng-data-source-badge>
+        <p-table [value]="diffRows" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th>قلم</th><th style="width: 8rem">نتیجه</th><th>قدیم</th><th>جدید</th><th>فیلدهای تغییریافته</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-d>
+            <tr [class.gng-text-muted]="d.status === 'same'">
+              <td>{{ d.product }}</td>
+              <td><p-tag [value]="diffStatus(d.status).label" [severity]="diffStatus(d.status).tone"></p-tag></td>
+              <td>{{ d.left }}</td>
+              <td>{{ d.right }}</td>
+              <td>{{ d.fields || '—' }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── مدارک و پیوست ───────── -->
+    <p-tabPanel header="مدارک و پیوست">
+      <p class="gng-hint">پروانه‌ی ساخت، مشخصات، تصویر و نقشه — طبق مدیریت مستندات پلتفرم (PF-64). بارگذاری فایل با اتصال به سیستم مستندات می‌آید.</p>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pe02-attachments', 'مدارک')"></gng-data-source-badge>
+        <p-table [value]="detail?.attachments ?? []" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header">
+            <tr><th style="width: 7rem">نوع</th><th>عنوان</th><th style="width: 9rem">شماره</th><th>فایل</th><th style="width: 13rem">اعتبار</th><th style="width: 8rem">وضعیت</th></tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-a>
+            <tr>
+              <td>{{ a.type }}</td>
+              <td>{{ a.title }}</td>
+              <td>{{ a.number }}</td>
+              <td dir="ltr" style="text-align: right">{{ a.fileName }} <p-tag *ngIf="!a.linked" value="هنوز وصل نیست" severity="secondary" styleClass="gng-mr-sm"></p-tag></td>
+              <td>{{ a.validity }}</td>
+              <td><p-tag [value]="a.state" [severity]="a.stateTone"></p-tag></td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="6" class="gng-empty">مدرکی پیوست نشده است.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="ds('pe02-structures', 'فهرست ساختارها')"></gng-data-source-badge>
+    <p-tree
+      [value]="pickTree"
+      styleClass="gng-tree"
+      selectionMode="single"
+      [(selection)]="selectedPick"
+      (onNodeSelect)="onPick($event)"
+      (onNodeUnselect)="onUnpick($event)"
+    ></p-tree>
+  </div>
+</gng-opform-layout>

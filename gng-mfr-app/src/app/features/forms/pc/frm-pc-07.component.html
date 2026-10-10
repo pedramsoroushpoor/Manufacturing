@@ -1,0 +1,435 @@
+<gng-opform-layout
+  domainTitle="کنترل تولید"
+  title="رسید محصول و هویت‌بخشی"
+  code="FRM-PC-07"
+  formTypeLabel="فرم عملیاتی"
+  owner="انباردار پای کار / تضمین کیفیت"
+  [contextLabel]="contextLabel"
+  contextIcon="pi pi-verified"
+  [bannerText]="bannerText"
+  [bannerTone]="bannerTone"
+  [hasContextPanel]="true"
+  contextPanelTitle="دستورهای کار"
+  contextPanelHint="دستورهای دارای استثنا بالاترند؛ انتخاب، همه‌ی زبانه‌ها را فیلتر می‌کند."
+  auditFeatureRange="F-PC-056 تا F-PC-064"
+>
+  <ng-container toolbar>
+    <button pButton type="button" icon="pi pi-inbox" label="ثبت رسید" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-verified" label="رسید به مقدار تأییدشده‌ی QC" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-tags" label="تخصیص بچ" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-qrcode" label="تولید سریال" class="p-button-outlined p-button-sm"></button>
+    <button pButton type="button" icon="pi pi-print" label="چاپ برچسب" class="p-button-sm p-button-success"></button>
+  </ng-container>
+
+  <div *ngIf="loading" class="gng-loading gng-hint">در حال خواندن رسیدها، بچ‌ها و شجره‌نامه…</div>
+
+  <p-tabView styleClass="gng-tabs" *ngIf="!loading && !loadFailed">
+    <!-- ───────── رسید محصول (056، 058) ───────── -->
+    <p-tabPanel [header]="'رسید محصول (' + faInt(receiptView.length) + ')'" [selected]="true">
+      <div class="policy-grid">
+        <div class="policy" *ngFor="let c of policyCards">
+          <p-tag [value]="c.label" [severity]="policyTone(c.code)"></p-tag>
+          <b>{{ c.qty }}</b>
+          <span class="gng-text-muted">{{ c.hint }}</span>
+        </div>
+      </div>
+
+      <div class="gng-window gng-mt">
+        <div class="chips">
+          <span class="chip" *ngFor="let c of receiptChips" [class.chip--on]="receiptFilter === c.key" (click)="setReceiptFilter(c.key)">{{ c.label }}</span>
+        </div>
+        <span class="p-input-icon-right" style="margin-inline-start: auto">
+          <i class="pi pi-search"></i>
+          <input pInputText type="text" class="p-inputtext-sm" [(ngModel)]="receiptSearch" (ngModelChange)="buildReceipts()" placeholder="رسید، دستور، بچ، سند…" />
+        </span>
+      </div>
+
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc07-receipts', 'رسیدها')"></gng-data-source-badge>
+        <p-table [value]="receiptView" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll" sortField="date" [sortOrder]="-1">
+          <ng-template pTemplate="header">
+            <tr>
+              <th pSortableColumn="number" style="width: 8.5rem">رسید</th><th pSortableColumn="date" style="width: 7.5rem">زمان</th><th style="width: 9rem">دستور / گزارش</th>
+              <th style="width: 6rem">نوع</th><th>کالا</th><th style="width: 9rem">مقدار رسید</th><th style="width: 8rem">سیاست</th><th>انبار</th><th style="width: 9rem">بچ</th>
+              <th style="width: 8rem">QC</th><th style="width: 10rem">مقدار رد ← مسیر</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr [class.row-warn]="r.qc === 1" [class.row-bad]="r.qcRejected > 0">
+              <td><span class="mono">{{ r.number }}</span><div class="gng-small gng-text-muted">{{ r.doc }}</div></td>
+              <td>{{ faDateTime(r.date) }}</td>
+              <td><span class="mono">{{ r.wo }}</span><div class="gng-small gng-text-muted">{{ r.report }} · عملیات {{ faInt(r.opSeq) }}</div></td>
+              <td><p-tag [value]="OUTPUT_TYPE[r.outputType]" [severity]="outTone(r.outputType)"></p-tag></td>
+              <td>{{ r.productCode }} — {{ r.product }}<div class="gng-small gng-text-muted" *ngIf="r.note">{{ r.note }}</div></td>
+              <td><b>{{ faNum(r.received) }}</b> {{ r.unit }}<div class="gng-small gng-text-muted" *ngIf="r.completed !== r.received">از {{ faNum(r.completed) }}</div></td>
+              <td><p-tag [value]="RECEIPT_POLICY[r.policy]" [severity]="policyTone(r.policy)"></p-tag></td>
+              <td class="gng-small">{{ r.inventory }}</td>
+              <td><span class="mono">{{ r.batch || '—' }}</span></td>
+              <td><p-tag *ngIf="r.qc" [value]="RECEIPT_QC[r.qc]" [severity]="qcTone(r.qc)"></p-tag><span *ngIf="!r.qc" class="gng-text-muted">—</span></td>
+              <td>
+                <span *ngIf="r.qcRejected > 0" style="color: var(--gng-danger)"><b>{{ faInt(r.qcRejected) }}</b> ← {{ REJECTED_ROUTE[r.rejectedRoute] || 'بدون مسیر!' }}</span>
+                <span *ngIf="!(r.qcRejected > 0)" class="gng-text-muted">—</span>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="11" class="gng-empty">رسیدی با این فیلتر نیست.</td></tr></ng-template>
+        </p-table>
+      </div>
+
+      <div class="gng-panel gng-mt" *ngIf="qcSplits.length">
+        <h3>رسید فقط به مقدار تأییدشده‌ی QC — مسیر مقدار رد</h3>
+        <div *ngFor="let s of qcSplits" class="gng-mt-sm">
+          <div class="gng-kpi__head"><b>{{ s.r.number }} · {{ s.r.batch }}</b><span>{{ faInt(s.r.qcApproved) }} آزاد · {{ faInt(s.r.qcRejected) }} رد</span></div>
+          <div class="split">
+            <div [style.width.%]="s.approvedPct" style="background: var(--gng-success)"></div>
+            <div [style.width.%]="100 - s.approvedPct" style="background: var(--gng-danger)"></div>
+          </div>
+          <div class="gng-kpi__note">مقدار رد ({{ faPct(100 - s.approvedPct) }}) به مسیر «{{ s.route }}» رفت{{ s.target ? ' ← ' + s.target : '' }}؛ فقط {{ faInt(s.r.qcApproved) }} {{ s.r.unit }} وارد موجودی قابل مصرف شد.</div>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── هم‌زاد و جانبی (057) ───────── -->
+    <p-tabPanel [header]="'هم‌زاد و جانبی (' + faInt(coGroups.length) + ')'">
+      <p class="gng-hint">ارزش خروجی‌های جانبی/ضایعات با نرخ مستقل از هزینه‌ی دستور کسر می‌شود؛ باقی‌مانده بین اصلی و هم‌زاد به نسبت سهم‌بری تقسیم می‌شود. هزینه‌ی کل دستور را تغییر دهید تا تخصیص زنده دیده شود.</p>
+      <div *ngIf="!coGroups.length" class="gng-empty">برای این دستور خروجی هم‌زاد یا جانبی رسید نشده است.</div>
+      <div class="gng-panel gng-mt-sm" *ngFor="let g of coGroups" style="position: relative">
+        <gng-data-source-badge [source]="ds('pc07-receipts', 'رسیدها')"></gng-data-source-badge>
+        <div class="gng-window">
+          <h3 style="margin: 0"><span class="mono">{{ g.wo }}</span></h3>
+          <span style="margin-inline-start: auto" class="gng-small">هزینه‌ی کل فرضی دستور (ریال)</span>
+          <p-inputNumber [(ngModel)]="costPool[g.wo]" (ngModelChange)="recalcCo(g.wo)" [min]="0" [step]="10000000" inputStyleClass="p-inputtext-sm" [style]="{ width: '11rem' }"></p-inputNumber>
+        </div>
+        <table class="matrix">
+          <tr><th>خروجی</th><th style="width: 6rem">نوع</th><th style="width: 9rem">رسیدشده</th><th style="width: 7rem">سهم‌بری</th><th style="width: 9rem">نرخ مستقل</th><th style="width: 11rem">تخصیص / ارزش</th><th style="width: 10rem">بهای واحد</th></tr>
+          <tr *ngFor="let l of g.lines">
+            <td style="text-align: start">{{ l.label }}</td>
+            <td><p-tag [value]="OUTPUT_TYPE[l.type]" [severity]="outTone(l.type)"></p-tag></td>
+            <td>{{ faNum(l.qty) }} {{ l.unit }}</td>
+            <td>{{ l.joint ? faPct(l.share) : '—' }}</td>
+            <td>{{ l.rate ? faInt(l.rate) : (l.joint ? '—' : 'بدون نرخ') }}</td>
+            <td><b>{{ faInt(l.alloc) }}</b></td>
+            <td>{{ l.unitCost !== null ? faInt(l.unitCost) + ' / ' + l.unit : '—' }}</td>
+          </tr>
+        </table>
+        <div class="gng-kpi__note gng-mt-sm">ارزش کسرشده‌ی جانبی: {{ faInt(g.byValue) }} ریال · جمع سهم‌بری اصلی+هم‌زاد: {{ faPct(g.shareSum) }}</div>
+        <div class="gng-note gng-note--warning gng-mt-sm" *ngIf="g.shareSum !== 100">جمع سهم‌بری {{ faPct(g.shareSum) }} است، نه ۱۰۰٪.</div>
+        <div class="gng-note gng-note--warning gng-mt-sm" *ngIf="g.missing.length">
+          <strong>رسید نشده:</strong>
+          <span *ngFor="let m of g.missing; let last = last">{{ m.product }} ({{ OUTPUT_TYPE[m.outputType] }}، انتظار {{ faNum(m.expected) }} {{ m.unit }}){{ last ? '' : '، ' }}</span>
+          — ارزش آن‌ها در تخصیص بالا لحاظ نشده است.
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── رسید جزئی (059) ───────── -->
+    <p-tabPanel [header]="'رسید جزئی (' + faInt(partials.length) + ')'">
+      <p class="gng-hint">هر گزارش نقطه‌ی رسید یک گام است: گزارش ← رسید انبار ← آزادسازی QC. یک دستور می‌تواند چند رسید جزئی داشته باشد.</p>
+      <div class="gng-panel gng-mt-sm" *ngFor="let p of partials">
+        <div class="gng-window">
+          <h3 style="margin: 0"><span class="mono">{{ p.wo }}</span> <span class="gng-hint" style="display: inline">{{ p.product }}</span></h3>
+          <span style="margin-inline-start: auto" class="gng-small">برنامه {{ faNum(p.planned) }} · گزارش {{ faNum(p.reported) }} · رسید {{ faNum(p.received) }} · آزاد {{ faNum(p.approved) }} {{ p.unit }}</span>
+        </div>
+        <div class="bigbar" pTooltip="خاکستری: گزارش‌شده · آبی: رسیدشده · سبز: آزاد QC" tooltipPosition="top">
+          <div [style.width.%]="pctOf(p.reported, p.planned || p.reported)" style="background: rgba(130,130,130,.35)"></div>
+          <div [style.width.%]="pctOf(p.received, p.planned || p.reported)" style="background: var(--gng-info)"></div>
+          <div [style.width.%]="pctOf(p.approved, p.planned || p.reported)" style="background: var(--gng-success)"></div>
+        </div>
+        <div class="gng-stepper gng-mt-sm">
+          <div class="gng-step" *ngFor="let s of p.steps; let i = index" [ngClass]="s.state === 'done' ? 'gng-step--done' : s.state === 'active' ? 'gng-step--active' : ''">
+            <div class="gng-step__circle"><span>{{ faInt(i + 1) }}</span></div>
+            <span><span class="mono">{{ s.report }}</span><br /><b>{{ faNum(s.reported) }}</b> · {{ faDateTime(s.at) }}<br /><small>{{ s.receipts || 'بدون رسید' }} — {{ s.hint }}</small></span>
+          </div>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── بچ محصول (060) ───────── -->
+    <p-tabPanel [header]="'بچ محصول (' + faInt(batches.length) + ')'">
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc07-batches', 'بچ‌ها')"></gng-data-source-badge>
+        <div class="board">
+          <div class="lane" *ngFor="let l of boardLanes">
+            <h4><p-tag [value]="l.label + ' · ' + faInt(l.items.length)" [severity]="batchTone(l.code)"></p-tag></h4>
+            <div class="bcard" *ngFor="let b of l.items" [class.bcard--on]="b.number === selectedBatch" [class.bcard--dim]="batchDim(b)" (click)="pickBatch(b.number)">
+              <b>{{ b.number }}</b>
+              <div>{{ b.product }}</div>
+              <div class="gng-text-muted"><span class="mono">{{ b.wo }}</span> · {{ faDay(b.mfg) }}</div>
+              <div>رسید {{ faNum(b.received) }} از {{ faNum(b.planned) }} {{ b.unit }}<span *ngIf="b.serialCount"> · {{ faInt(b.serialCount) }} سریال</span></div>
+              <div *ngIf="b.customerOwned" style="color: var(--gng-purple)">امانی: {{ b.owner }}</div>
+              <div *ngIf="b.note" class="gng-text-muted">{{ b.note }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="gng-columns gng-mt">
+        <div class="gng-panel" style="position: relative">
+          <gng-data-source-badge [source]="ds('pc07-patterns', 'الگوی شماره‌ی بچ')"></gng-data-source-badge>
+          <h3>پیش‌نمایش شماره‌ی بچ بعدی</h3>
+          <div class="gng-window">
+            <p-dropdown [options]="patternOptions" [(ngModel)]="patternId" (ngModelChange)="buildPattern()" styleClass="p-inputtext-sm"></p-dropdown>
+            <p-selectButton [options]="shiftOptions" [(ngModel)]="shift" (ngModelChange)="buildPattern()" optionLabel="label" optionValue="value" styleClass="p-button-sm"></p-selectButton>
+          </div>
+          <div class="gng-kpi__head"><span>تاریخ ساخت فرضی</span><b>{{ previewDate }} ({{ dayOffset ? '+' + faInt(dayOffset) + ' روز' : 'امروز' }})</b></div>
+          <p-slider [(ngModel)]="dayOffset" (onChange)="buildPattern()" [min]="0" [max]="240"></p-slider>
+          <div class="seg-row gng-mt">
+            <div *ngFor="let s of segs" class="seg" [ngClass]="'seg--' + s.type" [class.seg--renew]="s.renewal">{{ s.text }}<small>{{ s.label }}</small></div>
+          </div>
+          <div class="gng-mt-sm">بعدی: <b class="mono" style="font-size: 1.1rem">{{ nextNumber }}</b> <span class="gng-text-muted gng-small">· آخرین مصرف‌شده <span class="mono">{{ patternRow?.lastUsed }}</span> · {{ patternCapacity }}</span></div>
+          <div *ngFor="let m of patternMsgs" class="gng-note gng-mt-sm" [ngClass]="'gng-note--' + m.tone">{{ m.text }}</div>
+          <p class="gng-hint gng-mt-sm">خط‌چین = عامل تجدید شمارنده. {{ patternRow?.note }}</p>
+        </div>
+
+        <div class="gng-panel" style="position: relative">
+          <gng-data-source-badge [source]="ds('pc07-attributes', 'ویژگی‌های بچ')"></gng-data-source-badge>
+          <h3>ویژگی‌های بچ — تکمیل تدریجی در عملیات</h3>
+          <div class="gng-window">
+            <span class="chip" [class.chip--on]="!attrOnlySelected" (click)="attrOnlySelected = false; buildAttributes()">همه‌ی بچ‌ها</span>
+            <span class="chip" [class.chip--on]="attrOnlySelected" (click)="attrOnlySelected = true; buildAttributes()">فقط {{ selectedBatch }}</span>
+          </div>
+          <div style="overflow-x: auto">
+            <table class="matrix">
+              <tr><th>بچ</th><th>عملیات</th><th *ngFor="let c of attrCols">{{ c.title }}</th></tr>
+              <tr *ngFor="let l of attrLines" [class.gng-row-active]="l.batch === selectedBatch">
+                <td><span class="mono">{{ l.batch }}</span></td>
+                <td style="text-align: start">{{ faInt(l.opSeq) }} {{ l.opTitle }}</td>
+                <td *ngFor="let c of l.cells" [ngClass]="'cell--' + c.state" [pTooltip]="c.tip" tooltipPosition="top">{{ c.text }}</td>
+              </tr>
+            </table>
+          </div>
+          <div class="gng-legend gng-mt-sm">
+            <span><span class="gng-legend-dot gng-legend-dot--success"></span> ثبت‌شده</span>
+            <span><span class="gng-legend-dot gng-legend-dot--warning"></span> عملیات تمام، مقدار ثبت نشده</span>
+            <span><span class="gng-legend-dot gng-legend-dot--danger"></span> دروازه‌ی QC خالی</span>
+          </div>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── سریال (061) ───────── -->
+    <p-tabPanel [header]="'سریال (' + faInt(serials.length) + ' گروه)'">
+      <div class="gng-columns">
+        <div class="gng-panel">
+          <h3>جست‌وجوی سریال</h3>
+          <div class="gng-window">
+            <input pInputText type="text" class="p-inputtext-sm mono" style="width: 15rem" [(ngModel)]="serialQuery" (keyup.enter)="searchSerial()" />
+            <button pButton type="button" icon="pi pi-search" label="جست‌وجو" class="p-button-sm" [loading]="serialLoading" (click)="searchSerial()"></button>
+          </div>
+          <div class="chips"><span class="gng-small gng-text-muted">نمونه:</span><span class="chip mono" *ngFor="let s of sampleSerials" (click)="searchSerial(s)">{{ s }}</span></div>
+          <div *ngIf="serialSearched && !serialResult" class="gng-note gng-note--warning gng-mt-sm">سریال «{{ serialQuery }}» پیدا نشد.</div>
+          <div *ngIf="serialResult as s" class="gng-mt-sm" style="position: relative">
+            <gng-data-source-badge [source]="ds('pc07-serials', 'سریال')"></gng-data-source-badge>
+            <div class="gng-field-grid">
+              <div class="gng-field"><span class="gng-field__label">سریال</span><span class="gng-field__value mono">{{ s.serial }}</span></div>
+              <div class="gng-field"><span class="gng-field__label">سطح / وضعیت</span><span class="gng-field__value">{{ SERIAL_LEVEL[s.level] }} <p-tag [value]="SERIAL_STATUS[s.status]" [severity]="serialTone(s.status)"></p-tag></span></div>
+              <div class="gng-field"><span class="gng-field__label">بچ / دستور</span><span class="gng-field__value"><span class="mono">{{ s.batch }}</span> · <span class="mono">{{ s.wo }}</span></span></div>
+              <div class="gng-field"><span class="gng-field__label">تخصیص در عملیات</span><span class="gng-field__value">{{ faInt(s.opSeq) }} · {{ faDateTime(s.assignedAt) }}</span></div>
+              <div class="gng-field"><span class="gng-field__label">کالا</span><span class="gng-field__value">{{ s.product }}</span></div>
+              <div class="gng-field"><span class="gng-field__label">والد (تجمیع)</span>
+                <span class="gng-field__value" *ngIf="s.parent"><a class="mono" style="cursor: pointer; color: var(--gng-primary)" (click)="searchSerial(s.parent)">{{ s.parent }}</a> <p-tag [value]="SERIAL_STATUS[s.parentStatus!]" [severity]="serialTone(s.parentStatus)"></p-tag></span>
+                <span class="gng-field__value gng-text-muted" *ngIf="!s.parent">— (تجمیع نشده)</span>
+              </div>
+            </div>
+            <div *ngIf="s.childCount" class="gng-mt-sm">
+              <div class="gng-small"><b>{{ faInt(s.childCount) }}</b> زیرمجموعه{{ s.childCount > serialChildrenShown.length ? ' (۲۴ مورد اول)' : '' }}:</div>
+              <div class="chips gng-mt-sm"><span class="chip mono" *ngFor="let c of serialChildrenShown" (click)="searchSerial(c.serial)" [style.border-color]="c.status === 5 ? 'var(--gng-danger)' : ''">{{ c.serial }}</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="gng-panel">
+          <h3>الگوهای سریال</h3>
+          <div *ngFor="let p of serialPatterns" class="gng-mt-sm">
+            <b>{{ p.number }}</b> — {{ p.name }} <span class="mono gng-small">{{ p.text }}</span>
+            <div class="gng-kpi__note">{{ SERIAL_LEVEL[p.level] }} · شمارنده‌ی {{ faInt(p.counterLength) }} رقمی{{ p.childrenPerParent ? ' · هر واحد ' + faInt(p.childrenPerParent) + ' زیرمجموعه' : '' }} · {{ p.note }}</div>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="gng-mt">خلاصه‌ی تجمیع به تفکیک بچ</h3>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc07-serials', 'سریال‌ها')"></gng-data-source-badge>
+        <table class="matrix">
+          <tr><th>بچ</th><th>کارتن</th><th>ارسال‌شده</th><th>تجمیع‌شده</th><th>چاپ، تجمیع‌نشده</th><th>تولید، چاپ‌نشده</th><th>باطل</th><th>شیپر (موجود / لازم)</th><th>کارتن بعدی</th><th>شیپر بعدی</th></tr>
+          <tr *ngFor="let a of aggRows">
+            <td><span class="mono">{{ a.batch }}</span><div class="gng-small gng-text-muted">{{ a.wo }}</div></td>
+            <td><b>{{ faInt(a.cartons) }}</b></td>
+            <td>{{ faInt(a.shipped) }}</td>
+            <td>{{ faInt(a.aggregated) }}</td>
+            <td [class.cell--missing]="a.printed > 0">{{ faInt(a.printed) }}</td>
+            <td>{{ faInt(a.generated) }}</td>
+            <td [class.cell--gate]="a.voided > 0">{{ faInt(a.voided) }}</td>
+            <td [class.cell--missing]="a.shippers < a.needShippers">{{ faInt(a.shippers) }} / {{ faInt(a.needShippers) }}</td>
+            <td class="mono gng-small">{{ a.nextCarton }}</td>
+            <td class="mono gng-small">{{ a.nextShipper }}</td>
+          </tr>
+        </table>
+      </div>
+      <p-table [value]="serials" styleClass="p-datatable-sm gng-table gng-mt" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th>بچ</th><th style="width: 6rem">سطح</th><th style="width: 8rem">وضعیت</th><th style="width: 6rem">تعداد</th><th>بازه</th><th style="width: 8rem">عملیات</th><th style="width: 9rem">آخرین تخصیص</th></tr></ng-template>
+        <ng-template pTemplate="body" let-s>
+          <tr [class.row-bad]="s.status === 5">
+            <td class="mono">{{ s.batch }}</td><td>{{ SERIAL_LEVEL[s.level] }}</td><td><p-tag [value]="SERIAL_STATUS[s.status]" [severity]="serialTone(s.status)"></p-tag></td>
+            <td>{{ faInt(s.count) }}</td><td class="mono gng-small">{{ s.first }} … {{ s.last }}</td><td>{{ s.opSeq ? faInt(s.opSeq) : '—' }}</td><td>{{ faDateTime(s.lastAssigned) }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-tabPanel>
+
+    <!-- ───────── شجره‌نامه (062) ───────── -->
+    <p-tabPanel header="شجره‌نامه">
+      <div class="gng-window">
+        <p-dropdown [options]="batchOptions" [(ngModel)]="genBatch" [editable]="true" [filter]="true" styleClass="p-inputtext-sm" [style]="{ width: '14rem' }"></p-dropdown>
+        <p-selectButton [options]="dirOptions" [(ngModel)]="genDir" optionLabel="label" optionValue="value" styleClass="p-button-sm"></p-selectButton>
+        <button pButton type="button" icon="pi pi-sitemap" label="ردیابی" class="p-button-sm" [loading]="genLoading" (click)="runTrace()"></button>
+        <span class="chips" style="margin-inline-start: auto">
+          <span class="chip" (click)="runTrace('PCM-2406', 2)">PCM-2406 →</span>
+          <span class="chip" (click)="runTrace('B-1405-0952', 1)">← B-1405-0952</span>
+          <span class="chip" (click)="runTrace('B-1405-0941', 2)">B-1405-0941 →</span>
+          <span class="chip" (click)="runTrace('B-1405-0941', 1)">← B-1405-0941</span>
+        </span>
+      </div>
+
+      <div class="gng-stat-grid">
+        <div class="gng-stat-card"><span class="gng-stat-card__label">گره‌ها</span><span class="gng-stat-card__value">{{ faInt(genStats.nodes) }}</span><span class="gng-stat-card__meta">عمق {{ faInt(genStats.depth) }}</span></div>
+        <div class="gng-stat-card" [class.gng-stat-card--warning]="genStats.estimated"><span class="gng-stat-card__label">پیوند با مقدار تخمینی</span><span class="gng-stat-card__value">{{ faInt(genStats.estimated) }}</span><span class="gng-stat-card__meta">مصرف چند بچ در یک ردیف</span></div>
+        <div class="gng-stat-card"><span class="gng-stat-card__label">دوباره‌کاری / بازیافت</span><span class="gng-stat-card__value">{{ faInt(genStats.recycle) }}</span><span class="gng-stat-card__meta">حلقه‌های بازگشتی</span></div>
+        <div class="gng-stat-card" [class.gng-stat-card--danger]="genDir === 2 && genStats.ends.length"><span class="gng-stat-card__label">{{ genDir === 2 ? 'دامنه‌ی فراخوان (انتهای زنجیره)' : 'مواد اولیه‌ی ریشه' }}</span><span class="gng-stat-card__value">{{ faInt(genStats.ends.length) }}</span><span class="gng-stat-card__meta mono">{{ genStats.ends.join(' · ') }}</span></div>
+      </div>
+
+      <div class="tree gng-mt" style="position: relative">
+        <gng-data-source-badge [source]="ds('pc07-trace', 'ردیابی بچ')"></gng-data-source-badge>
+        <ng-container *ngIf="genRoot">
+          <ng-container *ngTemplateOutlet="nodeTpl; context: { $implicit: genRoot }"></ng-container>
+        </ng-container>
+        <div *ngIf="genRoot && !genRoot.children.length" class="gng-note gng-note--warning gng-mt-sm">
+          برای «{{ genRoot.batch }}» در جهت {{ genDir === 1 ? 'رو به عقب' : 'رو به جلو' }} پیوندی ثبت نشده است.
+          <span *ngIf="genGaps.length">{{ faInt(genGaps.length) }} قلم مصرف این دستور بدون شماره‌ی بچ ثبت شده — زنجیره همین‌جا قطع است (پایین را ببینید).</span>
+        </div>
+      </div>
+      <div class="gng-legend gng-mt-sm">
+        <span><span class="gng-legend-dot" style="background: var(--gng-primary)"></span> مصرف</span>
+        <span><span class="gng-legend-dot" style="background: var(--gng-warning)"></span> دوباره‌کاری</span>
+        <span><span class="gng-legend-dot" style="background: var(--gng-teal)"></span> بازیافت</span>
+        <span><span class="gng-legend-dot" style="background: var(--gng-purple)"></span> بازیابی</span>
+        <span>کادر خط‌چین = مقدار تخمینی · کلیک روی هر گره = ردیابی از آن</span>
+      </div>
+
+      <ng-template #nodeTpl let-n>
+        <div class="tnode">
+          <div class="tcard" [class.tcard--est]="n.estimated" [class.tcard--root]="n.depth === 0" [style.border-color]="nodeBorder(n)" (click)="runTrace(n.batch)">
+            <b>{{ n.batch }}</b> <span *ngIf="n.cyclic" style="color: var(--gng-danger)">↻</span>
+            <div>{{ n.product }}</div>
+            <div class="gng-text-muted"><span class="mono">{{ n.wo || 'خرید' }}</span><span *ngIf="n.relation"> · {{ GENEALOGY_RELATION[n.relation] }}</span><span *ngIf="n.ops"> · عملیات {{ n.ops }}</span></div>
+            <div *ngIf="n.quantity !== null"><b>{{ faNum(n.quantity, 2) }}</b> {{ n.unit }}<span *ngIf="n.estimated" style="color: #b8791a"> (تخمینی)</span></div>
+            <div *ngIf="n.inventory" class="gng-text-muted"><i class="pi pi-map-marker"></i> {{ n.inventory }}</div>
+          </div>
+          <div class="tkids" *ngIf="n.children.length">
+            <div class="tkid" *ngFor="let c of n.children">
+              <ng-container *ngTemplateOutlet="nodeTpl; context: { $implicit: c }"></ng-container>
+            </div>
+          </div>
+        </div>
+      </ng-template>
+
+      <h3 class="gng-mt">گسست شجره‌نامه — مصرف بدون شماره‌ی بچ ({{ faInt(gaps.length) }})</h3>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc07-genealogy', 'شجره‌نامه')"></gng-data-source-badge>
+        <p-table [value]="gaps" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th style="width: 9rem">دستور</th><th style="width: 10rem">بچ محصول</th><th style="width: 6rem">عملیات</th><th>ماده</th><th style="width: 6rem">ردیف</th><th style="width: 9rem">مقدار</th></tr></ng-template>
+          <ng-template pTemplate="body" let-g>
+            <tr [class.gng-row-active]="g.batch === genRoot?.batch"><td class="mono">{{ g.wo }}</td><td class="mono">{{ g.batch }}</td><td>{{ faInt(g.opSeq) }}</td><td>{{ g.product }}</td><td>{{ faInt(g.rows) }}</td><td>{{ faNum(g.quantity) }} {{ g.unit }}</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── برچسب (063) ───────── -->
+    <p-tabPanel header="برچسب">
+      <div class="gng-window">
+        <p-dropdown [options]="templateOptions" [(ngModel)]="labelTemplateId" (ngModelChange)="labelSerial = ''; buildLabel()" styleClass="p-inputtext-sm"></p-dropdown>
+        <p-dropdown [options]="labelBatchOptions" [(ngModel)]="labelBatch" (ngModelChange)="labelSerial = ''; buildLabel()" [filter]="true" styleClass="p-inputtext-sm" [style]="{ width: '20rem' }"></p-dropdown>
+        <input pInputText type="text" class="p-inputtext-sm mono" style="width: 13rem" [(ngModel)]="labelSerial" (ngModelChange)="buildLabel()" placeholder="سریال (خالی = اولین سریال بچ)" />
+      </div>
+      <div class="gng-columns">
+        <div class="gng-panel" style="position: relative">
+          <gng-data-source-badge [source]="ds('pc07-labels', 'الگوی برچسب')"></gng-data-source-badge>
+          <h3>{{ labelTemplate?.name }} <span class="gng-hint" style="display: inline">{{ labelTemplate?.width }}×{{ labelTemplate?.height }} میلی‌متر · {{ SERIAL_LEVEL[labelTemplate?.level ?? 0] }}</span></h3>
+          <div class="label-box">
+            <svg [attr.viewBox]="labelViewBox" [attr.width]="labelSvg.w * 5" [attr.height]="labelSvg.h * 5" style="max-width: 100%; height: auto">
+              <rect *ngFor="let r of labelSvg.rects" [attr.x]="r.x" [attr.y]="r.y" [attr.width]="r.w" [attr.height]="r.h" [attr.fill]="r.fill" [attr.stroke]="r.stroke" stroke-width="0.3"></rect>
+              <text *ngFor="let t of labelSvg.texts" [attr.x]="t.x" [attr.y]="t.y" [attr.font-size]="t.size" [attr.font-weight]="t.bold ? 700 : 400" [attr.text-anchor]="t.anchor" [attr.direction]="t.ltr ? 'ltr' : 'rtl'" [attr.fill]="t.fill" font-family="Vazirmatn, Tahoma, sans-serif">{{ t.text }}</text>
+            </svg>
+          </div>
+          <p class="gng-hint gng-mt-sm">بارکد Code 39 از همان مقدار ساخته می‌شود و اسکن‌پذیر است. {{ labelTemplate?.note }}</p>
+        </div>
+        <div class="gng-panel">
+          <h3>نگاشت پارامترها به داده‌ی واقعی</h3>
+          <table class="matrix">
+            <tr><th>پارامتر</th><th>فیلد</th><th>مقدار</th></tr>
+            <tr *ngFor="let d of labelData"><td style="text-align: start">{{ d.code }} — {{ d.title }}</td><td class="mono">{{ d.field }}</td><td [class.cell--missing]="d.value === '—' || !d.value">{{ d.value || '—' }}</td></tr>
+          </table>
+        </div>
+      </div>
+    </p-tabPanel>
+
+    <!-- ───────── مغایرت‌گیری (064) ───────── -->
+    <p-tabPanel [header]="'مغایرت‌گیری (' + faInt(exTotal) + ')'">
+      <div class="gng-stat-grid">
+        <div class="gng-stat-card" *ngFor="let c of exCards" [ngClass]="c.count ? (c.tone === 'danger' ? 'gng-stat-card--danger' : 'gng-stat-card--warning') : 'gng-stat-card--success'">
+          <span class="gng-stat-card__label">کد {{ faInt(c.code) }}</span><span class="gng-stat-card__value">{{ faInt(c.count) }}</span><span class="gng-stat-card__meta">{{ c.label }}</span>
+        </div>
+      </div>
+      <div class="gng-window gng-mt">
+        <span class="chip" [class.chip--on]="!reconOnlyEx" (click)="reconOnlyEx = false; buildRecon()">همه</span>
+        <span class="chip" [class.chip--on]="reconOnlyEx" (click)="reconOnlyEx = true; buildRecon()">فقط استثناها</span>
+      </div>
+      <h3>گزارش نقطه‌ی رسید در برابر رسید انبار</h3>
+      <div style="position: relative">
+        <gng-data-source-badge [source]="ds('pc07-recon', 'مغایرت‌گیری')"></gng-data-source-badge>
+        <p-table [value]="reconReportView" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+          <ng-template pTemplate="header"><tr><th style="width: 9rem">دستور</th><th style="width: 9rem">گزارش</th><th>کالا</th><th style="width: 7rem">گزارش‌شده</th><th style="width: 7rem">رسید</th><th style="width: 6rem">آزاد</th><th style="width: 6rem">رد</th><th style="width: 6rem">منتظر QC</th><th style="width: 6rem">اختلاف</th><th style="width: 6rem">سن (ساعت)</th><th style="width: 13rem">وضعیت</th></tr></ng-template>
+          <ng-template pTemplate="body" let-r>
+            <tr [class.row-bad]="r.exception && r.exception !== 5" [class.row-warn]="r.exception === 5">
+              <td class="mono">{{ r.wo }}</td><td class="mono">{{ r.report }}</td><td class="gng-small">{{ r.product }}</td><td>{{ faNum(r.reported) }}</td><td>{{ faNum(r.received) }}</td>
+              <td>{{ faNum(r.approved) }}</td><td>{{ faNum(r.rejected) }}</td><td>{{ faNum(r.pending) }}</td>
+              <td [style.color]="r.difference ? 'var(--gng-danger)' : ''"><b>{{ faNum(r.difference) }}</b></td><td>{{ faNum(r.ageHours, 1) }}</td>
+              <td><p-tag [value]="RECON_EXCEPTION[r.exception]" [severity]="reconTone(r.exception)"></p-tag></td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage"><tr><td colspan="11" class="gng-empty">استثنایی نیست.</td></tr></ng-template>
+        </p-table>
+      </div>
+      <h3 class="gng-mt">خروجی‌های غیراصلی: انتظار (برنامه × پیشرفت) در برابر رسید</h3>
+      <p-table [value]="reconOutputView" styleClass="p-datatable-sm gng-table" responsiveLayout="scroll">
+        <ng-template pTemplate="header"><tr><th style="width: 9rem">دستور</th><th style="width: 7rem">نوع</th><th>کالا</th><th style="width: 8rem">انتظار</th><th style="width: 8rem">رسید</th><th style="width: 12rem">پوشش</th><th style="width: 9rem">آخرین رسید</th><th style="width: 13rem">وضعیت</th></tr></ng-template>
+        <ng-template pTemplate="body" let-o>
+          <tr [class.row-warn]="o.exception">
+            <td class="mono">{{ o.wo }}</td><td><p-tag [value]="OUTPUT_TYPE[o.outputType]" [severity]="outTone(o.outputType)"></p-tag></td><td class="gng-small">{{ o.product }}</td>
+            <td>{{ faNum(o.expected) }} {{ o.unit }}</td><td>{{ faNum(o.received) }}</td>
+            <td><div class="gng-kpi__bar"><div class="gng-kpi__bar-fill" [ngClass]="pctOf(o.received, o.expected) < 80 ? 'gng-kpi__bar-fill--warning' : ''" [style.width.%]="pctOf(o.received, o.expected)"></div></div></td>
+            <td>{{ faDateTime(o.lastReceipt) }}</td><td><p-tag [value]="RECON_EXCEPTION[o.exception]" [severity]="reconTone(o.exception)"></p-tag></td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage"><tr><td colspan="8" class="gng-empty">استثنایی نیست.</td></tr></ng-template>
+      </p-table>
+      <div class="gng-note gng-note--info gng-mt"><strong>هنوز پیاده نشده.</strong> ثبت رسید (مستقیم، با مجوز، مشروط QC، قرنطینه) و رسید جزئی، تخصیص بچ و سریال، ثبت ویژگی بچ، تجمیع/ابطال سریال، چاپ برچسب روی چاپگر، صدور سند انبار خروجی‌های جانبی و اقدام روی استثناهای مغایرت با مرحله‌ی ایجاد/ویرایش می‌آید.</div>
+    </p-tabPanel>
+  </p-tabView>
+
+  <div *ngIf="loadFailed" class="gng-note gng-note--danger">داده خوانده نشد.</div>
+
+  <div contextPanel style="position: relative">
+    <gng-data-source-badge [source]="ds('pc07-receipts', 'دستورها')"></gng-data-source-badge>
+    <div class="wo-list">
+      <div class="wo-item" [class.wo-item--on]="selectedWoId === null" (click)="pickWo(null)"><b>همه‌ی دستورها</b><small>{{ faInt(woList.length) }} دستور</small></div>
+      <div class="wo-item" *ngFor="let w of woList" [class.wo-item--on]="selectedWoId === w.id" (click)="pickWo(w.id)">
+        <b class="mono">{{ w.wo }}</b>
+        <span *ngIf="w.issues" style="margin-inline-start: .3rem"><p-tag [value]="faInt(w.issues) + ' استثنا'" severity="danger"></p-tag></span>
+        <small>{{ w.product }}</small>
+        <small>{{ w.type }}{{ w.status ? ' · ' + w.status : '' }}</small>
+      </div>
+    </div>
+  </div>
+</gng-opform-layout>
