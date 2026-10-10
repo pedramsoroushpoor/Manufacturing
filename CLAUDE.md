@@ -48,5 +48,8 @@ Full project spec, state and decisions: [Manufacturing-GNG-Plus.md](Manufacturin
 - The app uses `fetch` (HttpClient withFetch): browser tests patch `window.fetch` via an injected `<script>` (the JS tool runs in an isolated world), and live-reload drops the patch.
 - Frontend loops over time axes must guard against a zero start time (PC-05 froze the page looping from 1970).
 
+- BI forms (user request, 2026-10-09/10): FRM-PC-13 (weekly production-control meeting room), FRM-PE-10 and FRM-ME-11 (engineering observatories), menus 45013/43010/44011. Each is a large form split into a pure engine file + child components in a subfolder (`pc/pc13/`, `pe/pe10/`, `me/me11/`) — a deliberate exception to the four-file rule.
+- Repo: https://github.com/pedramsoroushpoor/Manufacturing (branch `main`); git at `C:\Program Files\Git\cmd\git.exe` (not on PATH in Claude's shell). Root `.gitignore` keeps `.env` and `gng-mfr.connections.json` out.
+
 ## Next
 User should restart `run-api.bat` once (4311 doesn't have the ME/PE-07/PC endpoints yet). Next: PF domain or the create/edit phase — user's choice. PE-02 and PC improvement rounds on user feedback. See spec section 13.

@@ -1461,6 +1461,46 @@ app.get(
   })
 );
 
+/**
+ * FRM-PE-10 — «رصدخانه‌ی مهندسی محصول» (BI مهندسی محصول، scripts/mes_frm_pe10_setup.sql).
+ * همه‌ی داده‌ی شش فضا در یک درخواست (داده‌ی پایه‌ی شرکت؛ دامنه و شبیه‌سازی سمت فرانت). فقط‌خواندنی.
+ */
+app.get(
+  '/api/pe10/bundle',
+  companySets({
+    products: 'mes.GetBiPeProducts',
+    structures: 'mes.GetBiPeStructures',
+    items: 'mes.GetBiPeItems',
+    checks: 'mes.GetBiPeChecks',
+    execution: ['mes.GetBiPeExecution', ['consumption', 'yields']],
+    demand: ['mes.GetBiPeDemand', ['orders', 'requests']],
+    ecos: 'mes.GetEcos',
+    eco: ['mes.GetBiPeEcoDetail', ['ecoItems', 'ecoApprovals']],
+    substitutes: 'mes.GetBiPeSubstitutes',
+    outputs: 'mes.GetStructureOutputs',
+    recovery: ['mes.GetRecoveryExecution', ['recoveryReceipts', 'recoveryBalances', 'recoveryStandards']],
+  })
+);
+
+/**
+ * FRM-ME-11 — «رصدخانه‌ی مهندسی تولید» (BI مهندسی تولید، scripts/mes_frm_me11_setup.sql).
+ * همه‌ی داده‌ی شش فضا در یک درخواست؛ شبیه‌سازی‌ها (گلوگاه، کالیبراسیون، پوشش نسخه) سمت فرانت حساب می‌شوند.
+ */
+app.get(
+  '/api/me11/bundle',
+  companySets({
+    health: ['mes.GetBiRoutingHealth', ['routings', 'operations', 'alternatives']],
+    defects: 'mes.GetBiMeDefects',
+    actual: ['mes.GetBiStandardVsActual', ['reports', 'usage']],
+    coverage: ['mes.GetBiVersionCoverage', ['eligibility', 'products', 'lines']],
+    capacity: ['mes.GetBiCapacityModel', ['resources', 'demand']],
+    links: 'mes.GetRoutingLinks',
+    subcontracts: 'mes.GetRoutingSubcontracts',
+    contractors: 'mes.GetContractors',
+    subOrders: ['mes.GetSubcontractOrders', ['subOrders', 'subProgress']],
+  })
+);
+
 /** FRM-ME-02 — «روش ساخت» (scripts/mes_frm_me02_setup.sql). */
 app.get(
   '/api/me02/bundle',
@@ -1898,6 +1938,20 @@ const INSPECT_REGISTRY = {
   'pc13-facts': { procedure: 'mes.GetBiOrderFacts', table: 'mes.WorkOrder', filterCol: 'CompanyId' },
   'pc13-events': { procedure: 'mes.GetBiEvents', table: 'mes.WorkOrderOperationOutput', filterCol: 'CompanyId' },
   'pc13-daily': { procedure: 'mes.GetBiDailyLine', table: 'mes.WorkOrderOperationProblem', filterCol: 'CompanyId' },
+  'pe10-products': { procedure: 'mes.GetBiPeProducts', table: 'mes.ProductionItem', filterCol: 'CompanyId' },
+  'pe10-structures': { procedure: 'mes.GetBiPeStructures', table: 'mes.ProductStructure', filterCol: 'CompanyId' },
+  'pe10-items': { procedure: 'mes.GetBiPeItems', table: 'mes.ProductStructureItem', filterCol: 'CompanyId' },
+  'pe10-checks': { procedure: 'mes.GetBiPeChecks', table: 'mes.ProductStructure', filterCol: 'CompanyId' },
+  'pe10-execution': { procedure: 'mes.GetBiPeExecution', table: 'mes.WorkOrderOperationMaterialConsumed', filterCol: 'CompanyId' },
+  'pe10-demand': { procedure: 'mes.GetBiPeDemand', table: 'mes.WorkOrderOperationMaterial', filterCol: 'CompanyId' },
+  'pe10-stock': { procedure: 'mes.GetBiPeProducts', table: 'mes.MaterialStock', filterCol: 'CompanyId' },
+  'pe10-eco': { procedure: 'mes.GetBiPeEcoDetail', table: 'mes.EngineeringChangeOrderItem', filterCol: 'CompanyId' },
+  'pe10-substitutes': { procedure: 'mes.GetBiPeSubstitutes', table: 'mes.SubstituteGroupMember', filterCol: 'CompanyId' },
+  'me11-health': { procedure: 'mes.GetBiRoutingHealth', table: 'mes.RoutingOperation', filterCol: 'CompanyId' },
+  'me11-defects': { procedure: 'mes.GetBiMeDefects', table: 'mes.RoutingMaster', filterCol: 'CompanyId' },
+  'me11-actual': { procedure: 'mes.GetBiStandardVsActual', table: 'mes.WorkOrderOperationOutput', filterCol: 'CompanyId' },
+  'me11-coverage': { procedure: 'mes.GetBiVersionCoverage', table: 'mes.ManufacturingVersion', filterCol: 'CompanyId' },
+  'me11-capacity': { procedure: 'mes.GetBiCapacityModel', table: 'mes.WorkCenterCapacity', filterCol: 'CompanyId' },
 };
 
 app.get(
